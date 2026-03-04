@@ -1,0 +1,1095 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+// ─── Icons ───────────────────────────────────────────────
+
+function AppsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M6.75 2.5H3.25C2.83579 2.5 2.5 2.83579 2.5 3.25V6.75C2.5 7.16421 2.83579 7.5 3.25 7.5H6.75C7.16421 7.5 7.5 7.16421 7.5 6.75V3.25C7.5 2.83579 7.16421 2.5 6.75 2.5ZM6.75 9.5H3.25C2.83579 9.5 2.5 9.83579 2.5 10.25V13.75C2.5 14.1642 2.83579 14.5 3.25 14.5H6.75C7.16421 14.5 7.5 14.1642 7.5 13.75V10.25C7.5 9.83579 7.16421 9.5 6.75 9.5ZM6.75 16.5H3.25C2.83579 16.5 2.5 16.8358 2.5 17.25V20.75C2.5 21.1642 2.83579 21.5 3.25 21.5H6.75C7.16421 21.5 7.5 21.1642 7.5 20.75V17.25C7.5 16.8358 7.16421 16.5 6.75 16.5ZM13.75 2.5H10.25C9.83579 2.5 9.5 2.83579 9.5 3.25V6.75C9.5 7.16421 9.83579 7.5 10.25 7.5H13.75C14.1642 7.5 14.5 7.16421 14.5 6.75V3.25C14.5 2.83579 14.1642 2.5 13.75 2.5ZM20.75 2.5H17.25C16.8358 2.5 16.5 2.83579 16.5 3.25V6.75C16.5 7.16421 16.8358 7.5 17.25 7.5H20.75C21.1642 7.5 21.5 7.16421 21.5 6.75V3.25C21.5 2.83579 21.1642 2.5 20.75 2.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function CouponIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M2 4C2 3.44772 2.44772 3 3 3H21C21.5523 3 22 3.44772 22 4V9C20.8954 9 20 9.89543 20 11C20 12.1046 20.8954 13 22 13V18C22 18.5523 21.5523 19 21 19H3C2.44772 19 2 18.5523 2 18V13C3.10457 13 4 12.1046 4 11C4 9.89543 3.10457 9 2 9V4ZM9 6V16H11V6H9Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function ShoppingBagIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M7 8V6C7 3.23858 9.23858 1 12 1C14.7614 1 17 3.23858 17 6V8H20C20.5523 8 21 8.44772 21 9V21C21 21.5523 20.5523 22 20 22H4C3.44772 22 3 21.5523 3 21V9C3 8.44772 3.44772 8 4 8H7ZM7 10H5V20H19V10H17V12H15V10H9V12H7V10ZM9 8H15V6C15 4.34315 13.6569 3 12 3C10.3431 3 9 4.34315 9 6V8Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M17 6H22V8H20V21C20 21.5523 19.5523 22 19 22H5C4.44772 22 4 21.5523 4 21V8H2V6H7V3C7 2.44772 7.44772 2 8 2H16C16.5523 2 17 2.44772 17 3V6ZM18 8H6V20H18V8ZM9 11H11V17H9V11ZM13 11H15V17H13V11ZM9 4V6H15V4H9Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M15.7279 9.57629L14.3137 8.16207L5 17.4758V18.89H6.41421L15.7279 9.57629ZM17.1421 8.16207L18.5563 6.74786L17.1421 5.33365L15.7279 6.74786L17.1421 8.16207ZM7.24264 20.89H3V16.6474L16.435 3.21233C16.8256 2.8218 17.4587 2.8218 17.8492 3.21233L20.6777 6.04075C21.0682 6.43128 21.0682 7.06444 20.6777 7.45497L7.24264 20.89Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function SwapIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M16.0503 12.0498L21 16.9996L16.0503 21.9493L14.636 20.5351L17.172 17.9991H4V15.9991H17.172L14.636 13.4641L16.0503 12.0498ZM7.94975 2.0498L9.36396 3.46402L6.828 5.99998H20V7.99998H6.828L9.36396 10.536L7.94975 11.9502L3 6.99998L7.94975 2.0498Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M12 12.5858L16.2426 16.8284L14.8284 18.2426L13 16.4142V22H11V16.4142L9.17157 18.2426L7.75736 16.8284L12 12.5858ZM12 2C15.5934 2 18.5544 4.70761 18.9541 8.19395C21.2858 8.83154 23 10.9656 23 13.5C23 16.3688 20.8036 18.7246 18.0006 18.9776L18 17C19.6569 17 21 15.6569 21 14C21 12.3431 19.6569 11 18 11H17V10C17 7.23858 14.7614 5 12 5C9.23858 5 7 7.23858 7 10V11H6C4.34315 11 3 12.3431 3 14C3 15.6569 4.34315 17 6 17L6.00039 18.9776C3.19696 18.7252 1 16.3692 1 13.5C1 10.9656 2.71424 8.83154 5.04648 8.19411C5.44561 4.70761 8.40662 2 12 2Z"
+        fill="rgba(38,43,67,0.4)"
+      />
+    </svg>
+  );
+}
+
+function PdfIcon() {
+  return (
+    <svg width="16" height="20" viewBox="0 0 16 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M2 1H10L14 5V19H2V1Z"
+        fill="#E12D2D"
+        stroke="#B31414"
+        strokeWidth="0.6"
+        strokeLinejoin="round"
+      />
+      <path d="M10 1V5H14" fill="#F7A9A9" />
+      <text
+        x="8"
+        y="14"
+        textAnchor="middle"
+        fontSize="4.2"
+        fontWeight="700"
+        fill="white"
+        fontFamily="Arial, sans-serif"
+      >
+        PDF
+      </text>
+    </svg>
+  );
+}
+
+// ─── Confirm Save Dialog ────────────────────────────────
+
+function ConfirmSaveDialog({
+  open,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (open) {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.close();
+    }
+  }, [open]);
+
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent<HTMLDialogElement>) => {
+      if (e.target === dialogRef.current) {
+        onClose();
+      }
+    },
+    [onClose]
+  );
+
+  if (!open) return null;
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onCancel={onClose}
+      onClick={handleBackdropClick}
+      className="m-auto max-w-[500px] rounded-[10px] bg-transparent p-0 backdrop:bg-black/50"
+    >
+      <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_8px_26px_0_rgba(38,43,67,0.18)]">
+        {/* Header */}
+        <div className="p-5">
+          <h3 className="text-[18px] font-medium leading-7 text-[rgba(38,43,67,0.9)]">
+            Simpan Perubahan
+          </h3>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 pb-5">
+          <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+            Seluruh perubahan akan diperbarui
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-4 px-5 pb-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
+          >
+            Kembali
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+          >
+            Simpan
+          </button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+// ─── Confirm Cancel Dialog ──────────────────────────────
+
+function ConfirmCancelDialog({
+  open,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (open) {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.close();
+    }
+  }, [open]);
+
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent<HTMLDialogElement>) => {
+      if (e.target === dialogRef.current) {
+        onClose();
+      }
+    },
+    [onClose]
+  );
+
+  if (!open) return null;
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onCancel={onClose}
+      onClick={handleBackdropClick}
+      className="m-auto max-w-[500px] rounded-[10px] bg-transparent p-0 backdrop:bg-black/50"
+    >
+      <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_8px_26px_0_rgba(38,43,67,0.18)]">
+        {/* Header */}
+        <div className="p-5">
+          <h3 className="text-[18px] font-medium leading-7 text-[rgba(38,43,67,0.9)]">
+            Batalkan Perubahan
+          </h3>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 pb-5">
+          <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+            Seluruh perubahan akan batal diperbarui
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-4 px-5 pb-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
+          >
+            Kembali
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+          >
+            Batalkan
+          </button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+// ─── Upload File Dialog ────────────────────────────────
+
+function UploadFileDialog({
+  open,
+  onClose,
+  onFileSelected,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onFileSelected: (file: File) => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (open) {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.close();
+    }
+  }, [open]);
+
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent<HTMLDialogElement>) => {
+      if (e.target === dialogRef.current) {
+        onClose();
+      }
+    },
+    [onClose]
+  );
+
+  const handleFile = useCallback(
+    (file: File) => {
+      onFileSelected(file);
+      onClose();
+    },
+    [onFileSelected, onClose]
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    },
+    [handleFile]
+  );
+
+  const handleBrowse = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  if (!open) return null;
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onCancel={onClose}
+      onClick={handleBackdropClick}
+      className="m-auto w-full max-w-[500px] rounded-[10px] bg-transparent p-0 backdrop:bg-black/50"
+    >
+      <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_8px_26px_0_rgba(38,43,67,0.18)]">
+        {/* Header */}
+        <div className="p-5">
+          <h3 className="text-[18px] font-medium leading-7 text-[rgba(38,43,67,0.9)]">
+            Unggah File
+          </h3>
+        </div>
+
+        {/* Drop zone */}
+        <div className="px-5 pb-5">
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`flex flex-col items-center justify-center gap-4 rounded-[10px] border-2 border-dashed px-6 py-12 transition-colors ${
+              isDragging
+                ? "border-[#c23513] bg-[rgba(194,53,19,0.04)]"
+                : "border-[rgba(38,43,67,0.12)] bg-white"
+            }`}
+          >
+            {/* Upload icon circle */}
+            <div className="flex size-12 items-center justify-center rounded-lg bg-[#f0eff0]">
+              <UploadIcon />
+            </div>
+
+            {/* Text */}
+            <p className="text-center text-[24px] font-medium leading-[38px] text-[rgba(38,43,67,0.9)]">
+              Drag and drop your file here
+            </p>
+
+            <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.4)]">or</p>
+
+            {/* Browse button */}
+            <button
+              type="button"
+              onClick={handleBrowse}
+              className="inline-flex items-center justify-center rounded-lg border border-[#c23513] px-[22px] py-2 text-[13px] font-medium leading-[18px] text-[#c23513] transition-colors hover:bg-[rgba(194,53,19,0.04)]"
+            >
+              Browse file
+            </button>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf"
+              onChange={handleInputChange}
+              className="hidden"
+            />
+          </div>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+// ─── Tab types ───────────────────────────────────────────
+
+type TabId = "general" | "pentas" | "sarana-prasarana";
+
+type TabItem = {
+  id: TabId;
+  label: string;
+  icon: React.ReactNode;
+};
+
+const tabs: TabItem[] = [
+  { id: "general", label: "General", icon: <AppsIcon /> },
+  { id: "pentas", label: "Pentas", icon: <CouponIcon /> },
+  { id: "sarana-prasarana", label: "Sarana Prasarana", icon: <ShoppingBagIcon /> },
+];
+
+// ─── Jenis Lembaga data ─────────────────────────────────
+
+const defaultJenisLembaga = ["Sanggar", "Komunitas Seni", "Paguyuban", "Lainnya"];
+
+// ─── Sub-components ─────────────────────────────────────
+
+function SettingsStepper({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
+}) {
+  return (
+    <div className="flex w-[300px] shrink-0 flex-col gap-3 p-5">
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onTabChange(tab.id)}
+            className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[15px] font-medium leading-[22px] transition-colors ${
+              isActive
+                ? "bg-[rgba(194,53,19,0.08)] text-[#c23513]"
+                : "text-[#c23513] hover:bg-[rgba(194,53,19,0.04)]"
+            }`}
+          >
+            <span className="flex size-5 items-center justify-center">{tab.icon}</span>
+            <span>{tab.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function JenisLembagaTable({
+  items,
+  onDelete,
+  onAdd,
+}: {
+  items: string[];
+  onDelete: (index: number) => void;
+  onAdd: () => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]">
+      {/* Header with title + add button */}
+      <div className="flex items-center justify-between p-5">
+        <h3 className="text-[18px] font-medium leading-7 text-[#c23513]">Jenis Lembaga</h3>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="inline-flex items-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+        >
+          <PlusIcon />
+          <span>Tambah Jenis</span>
+        </button>
+      </div>
+
+      {/* Table header */}
+      <div className="flex items-center">
+        <div className="flex flex-1 items-center bg-[#f5f5f7] p-5">
+          <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis</p>
+          <div className="h-3.5 w-0.5 bg-[rgba(38,43,67,0.12)]" />
+        </div>
+        <div className="flex w-[172px] items-center justify-center bg-[#f5f5f7] p-5">
+          <p className="text-[13px] font-medium uppercase leading-6 tracking-[0.2px] text-[rgba(38,43,67,0.9)]">
+            Action
+          </p>
+        </div>
+      </div>
+
+      {/* Table rows */}
+      {items.map((item, index) => (
+        <div
+          key={`${item}-${index}`}
+          className="flex h-[50px] items-center border-b border-[rgba(38,43,67,0.12)]"
+        >
+          <div className="flex flex-1 items-center px-5">
+            <p className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+              {item}
+            </p>
+          </div>
+          <div className="flex w-[172px] items-center justify-center px-5">
+            <button
+              type="button"
+              onClick={() => onDelete(index)}
+              className="inline-flex items-center gap-[6px] rounded-[6px] border border-[#ff4d49] px-3 py-2 text-[13px] font-medium leading-[18px] text-[#ff4d49] transition-colors hover:bg-[rgba(255,77,73,0.08)]"
+            >
+              <DeleteIcon />
+              <span>Hapus</span>
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── General Tab Content ────────────────────────────────
+
+function GeneralTabContent() {
+  const [jenisLembaga, setJenisLembaga] = useState(defaultJenisLembaga);
+
+  const handleDelete = (index: number) => {
+    setJenisLembaga((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAdd = () => {
+    const newJenis = prompt("Masukkan nama jenis lembaga baru:");
+    if (newJenis?.trim()) {
+      setJenisLembaga((prev) => [...prev, newJenis.trim()]);
+    }
+  };
+
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+
+  const handleSave = () => {
+    // TODO: persist changes
+    setShowSaveDialog(false);
+  };
+
+  const handleCancel = () => {
+    setJenisLembaga(defaultJenisLembaga);
+    setShowCancelDialog(false);
+  };
+
+  return (
+    <>
+      <JenisLembagaTable items={jenisLembaga} onDelete={handleDelete} onAdd={handleAdd} />
+
+      {/* Action buttons */}
+      <div className="flex items-start justify-end gap-4">
+        <button
+          type="button"
+          onClick={() => setShowCancelDialog(true)}
+          className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowSaveDialog(true)}
+          className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+        >
+          Simpan Perubahan
+        </button>
+      </div>
+
+      <ConfirmSaveDialog
+        open={showSaveDialog}
+        onClose={() => setShowSaveDialog(false)}
+        onConfirm={handleSave}
+      />
+      <ConfirmCancelDialog
+        open={showCancelDialog}
+        onClose={() => setShowCancelDialog(false)}
+        onConfirm={handleCancel}
+      />
+    </>
+  );
+}
+
+// ─── Pentas Tab Content ─────────────────────────────────
+
+type JenisFasilitasi = {
+  jenis: string;
+  danaPembinaan: string;
+};
+
+const defaultJenisFasilitasi: JenisFasilitasi[] = [
+  { jenis: "Pembinaan", danaPembinaan: "Rp. 60.000.000" },
+  { jenis: "Paket A", danaPembinaan: "Rp. 30.000.000" },
+  { jenis: "Paket B", danaPembinaan: "Rp. 20.000.000" },
+  { jenis: "Paket C", danaPembinaan: "Rp. 10.000.000" },
+  { jenis: "Paket D", danaPembinaan: "Rp. 5.000.000" },
+];
+
+type KuotaPengajuan = {
+  jenis: string;
+  totalPengajuan: string;
+  kuotaPengajuan: string;
+};
+
+const defaultKuotaPengajuan: KuotaPengajuan[] = [
+  { jenis: "Pembinaan", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
+  { jenis: "Paket A", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
+  { jenis: "Paket B", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
+  { jenis: "Paket C", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
+  { jenis: "Paket D", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
+];
+
+function JenisFasilitasiTable({
+  items,
+  onEdit,
+  onDelete,
+  onAdd,
+}: {
+  items: JenisFasilitasi[];
+  onEdit: (index: number) => void;
+  onDelete: (index: number) => void;
+  onAdd: () => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]">
+      {/* Header with title + add button */}
+      <div className="flex items-center justify-between p-5">
+        <h3 className="text-[18px] font-medium leading-7 text-[#c23513]">Jenis Fasilitasi</h3>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="inline-flex items-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+        >
+          <PlusIcon />
+          <span>Tambah Jenis</span>
+        </button>
+      </div>
+
+      {/* Table header */}
+      <div className="flex items-center">
+        <div className="flex flex-1 items-center bg-[#f5f5f7] p-5">
+          <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis</p>
+          <div className="h-3.5 w-0.5 bg-[rgba(38,43,67,0.12)]" />
+        </div>
+        <div className="flex w-[200px] items-center bg-[#f5f5f7] p-5">
+          <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Dana Pembinaan</p>
+          <div className="h-3.5 w-0.5 bg-[rgba(38,43,67,0.12)]" />
+        </div>
+        <div className="flex w-[200px] items-center justify-center bg-[#f5f5f7] p-5">
+          <p className="text-[13px] font-medium uppercase leading-6 tracking-[0.2px] text-[rgba(38,43,67,0.9)]">
+            Action
+          </p>
+        </div>
+      </div>
+
+      {/* Table rows */}
+      {items.map((item, index) => (
+        <div
+          key={`${item.jenis}-${index}`}
+          className="flex h-[50px] items-center border-b border-[rgba(38,43,67,0.12)]"
+        >
+          <div className="flex flex-1 items-center px-5">
+            <p className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+              {item.jenis}
+            </p>
+          </div>
+          <div className="flex w-[200px] items-center px-5">
+            <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+              {item.danaPembinaan}
+            </p>
+          </div>
+          <div className="flex w-[200px] items-center justify-center gap-2 px-5">
+            <button
+              type="button"
+              onClick={() => onEdit(index)}
+              className="inline-flex items-center gap-[6px] rounded-[6px] border border-[#fdb528] px-3 py-2 text-[13px] font-medium leading-[18px] text-[#fdb528] transition-colors hover:bg-[rgba(253,181,40,0.08)]"
+            >
+              <PencilIcon />
+              <span>Edit</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(index)}
+              className="inline-flex items-center gap-[6px] rounded-[6px] border border-[#ff4d49] px-3 py-2 text-[13px] font-medium leading-[18px] text-[#ff4d49] transition-colors hover:bg-[rgba(255,77,73,0.08)]"
+            >
+              <DeleteIcon />
+              <span>Hapus</span>
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function KuotaPengajuanTable({
+  items,
+  onEditKuota,
+}: {
+  items: KuotaPengajuan[];
+  onEditKuota: () => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]">
+      {/* Header with title + edit button */}
+      <div className="flex items-center justify-between p-5">
+        <h3 className="text-[18px] font-medium leading-7 text-[#c23513]">Kuota Pengajuan 2026</h3>
+        <button
+          type="button"
+          onClick={onEditKuota}
+          className="inline-flex items-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+        >
+          <PlusIcon />
+          <span>Edit Kuota Pengajuan</span>
+        </button>
+      </div>
+
+      {/* Table header */}
+      <div className="flex items-center">
+        <div className="flex flex-1 items-center bg-[#f5f5f7] p-5">
+          <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis</p>
+          <div className="h-3.5 w-0.5 bg-[rgba(38,43,67,0.12)]" />
+        </div>
+        <div className="flex w-[200px] items-center bg-[#f5f5f7] p-5">
+          <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Total Pengajuan</p>
+          <div className="h-3.5 w-0.5 bg-[rgba(38,43,67,0.12)]" />
+        </div>
+        <div className="flex w-[200px] items-center justify-center bg-[#f5f5f7] p-5">
+          <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Kuota Pengajuan</p>
+        </div>
+      </div>
+
+      {/* Table rows */}
+      {items.map((item, index) => (
+        <div
+          key={`${item.jenis}-${index}`}
+          className="flex h-[50px] items-center border-b border-[rgba(38,43,67,0.12)]"
+        >
+          <div className="flex flex-1 items-center px-5">
+            <p className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+              {item.jenis}
+            </p>
+          </div>
+          <div className="flex w-[200px] items-center px-5">
+            <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+              {item.totalPengajuan}
+            </p>
+          </div>
+          <div className="flex w-[200px] items-center justify-center px-5">
+            <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+              {item.kuotaPengajuan}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DocumentCard({
+  title,
+  filename,
+  onUbah,
+}: {
+  title: string;
+  filename: string;
+  onUbah: () => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]">
+      <div className="flex items-center justify-between p-5">
+        <h3 className="text-[18px] font-medium leading-7 text-[#c23513]">{title}</h3>
+        <button
+          type="button"
+          onClick={onUbah}
+          className="inline-flex items-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+        >
+          <SwapIcon />
+          <span>Ubah</span>
+        </button>
+      </div>
+      <div className="px-5 pb-5">
+        <div className="inline-flex items-center gap-[10px] rounded-lg bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px]">
+          <PdfIcon />
+          <p className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.7)]">
+            {filename}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PentasTabContent() {
+  const [jenisFasilitasi, setJenisFasilitasi] = useState(defaultJenisFasilitasi);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [uploadTarget, setUploadTarget] = useState<"proposal" | "laporan">("proposal");
+
+  const handleDeleteJenis = (index: number) => {
+    setJenisFasilitasi((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleEditJenis = (index: number) => {
+    const item = jenisFasilitasi[index];
+    const newJenis = prompt("Edit jenis fasilitasi:", item.jenis);
+    if (newJenis?.trim()) {
+      const newDana = prompt("Edit dana pembinaan:", item.danaPembinaan);
+      if (newDana?.trim()) {
+        setJenisFasilitasi((prev) =>
+          prev.map((el, i) => (i === index ? { jenis: newJenis.trim(), danaPembinaan: newDana.trim() } : el))
+        );
+      }
+    }
+  };
+
+  const handleAddJenis = () => {
+    const newJenis = prompt("Masukkan nama jenis fasilitasi baru:");
+    if (newJenis?.trim()) {
+      const newDana = prompt("Masukkan dana pembinaan:");
+      if (newDana?.trim()) {
+        setJenisFasilitasi((prev) => [...prev, { jenis: newJenis.trim(), danaPembinaan: newDana.trim() }]);
+      }
+    }
+  };
+
+  const handleSave = () => {
+    // TODO: persist changes
+    setShowSaveDialog(false);
+  };
+
+  const handleCancel = () => {
+    setJenisFasilitasi(defaultJenisFasilitasi);
+    setShowCancelDialog(false);
+  };
+
+  return (
+    <>
+      {/* 1. Jenis Fasilitasi table */}
+      <JenisFasilitasiTable
+        items={jenisFasilitasi}
+        onEdit={handleEditJenis}
+        onDelete={handleDeleteJenis}
+        onAdd={handleAddJenis}
+      />
+
+      {/* 2. Kuota Pengajuan table */}
+      <KuotaPengajuanTable
+        items={defaultKuotaPengajuan}
+        onEditKuota={() => {}}
+      />
+
+      {/* 3. Contoh Proposal */}
+      <DocumentCard
+        title="Contoh Proposal"
+        filename="Contoh Proposal Pentas.pdf"
+        onUbah={() => {
+          setUploadTarget("proposal");
+          setShowUploadDialog(true);
+        }}
+      />
+
+      {/* 4. Contoh Laporan */}
+      <DocumentCard
+        title="Contoh Laporan"
+        filename="Contoh Laporan Pentas.pdf"
+        onUbah={() => {
+          setUploadTarget("laporan");
+          setShowUploadDialog(true);
+        }}
+      />
+
+      {/* Action buttons */}
+      <div className="flex items-start justify-end gap-4">
+        <button
+          type="button"
+          onClick={() => setShowCancelDialog(true)}
+          className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowSaveDialog(true)}
+          className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+        >
+          Simpan Perubahan
+        </button>
+      </div>
+
+      <ConfirmSaveDialog
+        open={showSaveDialog}
+        onClose={() => setShowSaveDialog(false)}
+        onConfirm={handleSave}
+      />
+      <ConfirmCancelDialog
+        open={showCancelDialog}
+        onClose={() => setShowCancelDialog(false)}
+        onConfirm={handleCancel}
+      />
+      <UploadFileDialog
+        open={showUploadDialog}
+        onClose={() => setShowUploadDialog(false)}
+        onFileSelected={(file) => {
+          // TODO: handle file upload for pentas {uploadTarget}
+          console.log(`Pentas ${uploadTarget} file selected:`, file.name);
+        }}
+      />
+    </>
+  );
+}
+
+// ─── Sarana Prasarana (Fasilitasi Hibah) default data ───
+
+const defaultSaprasJenisLembaga = ["Gamelan Besi", "Alat", "Pakaian Kesenian"];
+
+const defaultSaprasKuota: KuotaPengajuan[] = [
+  { jenis: "Gamelan Besi", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
+  { jenis: "Alat", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
+  { jenis: "Pakaian Kesenian", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
+];
+
+function SaranaPrasaranaTabContent() {
+  const [jenisLembaga, setJenisLembaga] = useState(defaultSaprasJenisLembaga);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [uploadTarget, setUploadTarget] = useState<"proposal" | "laporan">("proposal");
+
+  const handleDeleteJenis = (index: number) => {
+    setJenisLembaga((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddJenis = () => {
+    const newJenis = prompt("Masukkan nama jenis lembaga baru:");
+    if (newJenis?.trim()) {
+      setJenisLembaga((prev) => [...prev, newJenis.trim()]);
+    }
+  };
+
+  const handleSave = () => {
+    // TODO: persist changes
+    setShowSaveDialog(false);
+  };
+
+  const handleCancel = () => {
+    setJenisLembaga(defaultSaprasJenisLembaga);
+    setShowCancelDialog(false);
+  };
+
+  return (
+    <>
+      {/* 1. Jenis Lembaga table */}
+      <JenisLembagaTable
+        items={jenisLembaga}
+        onDelete={handleDeleteJenis}
+        onAdd={handleAddJenis}
+      />
+
+      {/* 2. Kuota Pengajuan table */}
+      <KuotaPengajuanTable
+        items={defaultSaprasKuota}
+        onEditKuota={() => {}}
+      />
+
+      {/* 3. Contoh Proposal */}
+      <DocumentCard
+        title="Contoh Proposal"
+        filename="Contoh Proposal Sapras.pdf"
+        onUbah={() => {
+          setUploadTarget("proposal");
+          setShowUploadDialog(true);
+        }}
+      />
+
+      {/* 4. Contoh Laporan */}
+      <DocumentCard
+        title="Contoh Laporan"
+        filename="Contoh Laporan Sapras.pdf"
+        onUbah={() => {
+          setUploadTarget("laporan");
+          setShowUploadDialog(true);
+        }}
+      />
+
+      {/* Action buttons */}
+      <div className="flex items-start justify-end gap-4">
+        <button
+          type="button"
+          onClick={() => setShowCancelDialog(true)}
+          className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowSaveDialog(true)}
+          className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+        >
+          Simpan Perubahan
+        </button>
+      </div>
+
+      <ConfirmSaveDialog
+        open={showSaveDialog}
+        onClose={() => setShowSaveDialog(false)}
+        onConfirm={handleSave}
+      />
+      <ConfirmCancelDialog
+        open={showCancelDialog}
+        onClose={() => setShowCancelDialog(false)}
+        onConfirm={handleCancel}
+      />
+      <UploadFileDialog
+        open={showUploadDialog}
+        onClose={() => setShowUploadDialog(false)}
+        onFileSelected={(file) => {
+          // TODO: handle file upload for sapras {uploadTarget}
+          console.log(`Sapras ${uploadTarget} file selected:`, file.name);
+        }}
+      />
+    </>
+  );
+}
+
+// ─── Page Component ─────────────────────────────────────
+
+export default function PengaturanFasilitasiPage() {
+  const [activeTab, setActiveTab] = useState<TabId>("general");
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "general":
+        return <GeneralTabContent />;
+      case "pentas":
+        return <PentasTabContent />;
+      case "sarana-prasarana":
+        return <SaranaPrasaranaTabContent />;
+    }
+  };
+
+  const tabTitle = (() => {
+    switch (activeTab) {
+      case "general":
+        return "General";
+      case "pentas":
+        return "Fasilitasi Pentas";
+      case "sarana-prasarana":
+        return "Fasilitasi Hibah";
+    }
+  })();
+
+  return (
+    <section className="h-full overflow-y-auto px-4 py-6 sm:px-6">
+      <div className="mx-auto w-full max-w-237.5 pb-10 pt-6 lg:pt-7">
+        {/* Page header */}
+        <div className="mb-12">
+          <h1 className="text-[28px] font-bold leading-[42px] text-[rgba(38,43,67,0.9)]">
+            Pengaturan Fasilitasi
+          </h1>
+          <p className="mt-4 max-w-[631px] text-[13px] leading-5 text-[rgba(38,43,67,0.9)]">
+            Pantau perkembangan pengajuan fasilitasi pentas dan sarana prasarana yang telah diajukan.
+          </p>
+        </div>
+
+        {/* Card with tabs + content */}
+        <div className="flex overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
+          {/* Left: stepper/tabs */}
+          <SettingsStepper activeTab={activeTab} onTabChange={setActiveTab} />
+
+          {/* Vertical divider */}
+          <div className="w-px bg-[rgba(38,43,67,0.12)]" />
+
+          {/* Right: content area */}
+          <div className="flex min-w-0 flex-1 flex-col gap-6 p-5">
+            <h2 className="text-[24px] font-medium leading-[38px] text-[#c23513]">{tabTitle}</h2>
+            {renderTabContent()}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
