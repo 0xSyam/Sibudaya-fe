@@ -14,7 +14,7 @@ import {
   AuthPrimaryButton,
   AuthSuccessAlert,
 } from "@/app/components/auth/auth-ui";
-import { authApi } from "@/app/lib/api";
+import { authApi, isApiAuthEnabled } from "@/app/lib/api";
 
 type Step = "request" | "reset";
 
@@ -48,16 +48,36 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
+      if (!isApiAuthEnabled()) {
+        setResetToken("local-reset-token");
+        setSuccess("Mode tanpa API aktif. Gunakan password baru langsung.");
+        setStep("reset");
+        return;
+      }
+
       const data = await authApi.forgotPassword({ email: email.trim() });
       setResetToken(data.reset_token);
       setSuccess("Token reset password berhasil dibuat. Silakan masukkan password baru.");
       setStep("reset");
     } catch (err: unknown) {
       const apiErr = err as { message?: string | string[]; statusCode?: number };
-      if (Array.isArray(apiErr.message)) {
-        setError(apiErr.message.join(". "));
+      const message = Array.isArray(apiErr.message)
+        ? apiErr.message.join(". ")
+        : apiErr.message;
+      const normalizedMessage = message?.toLowerCase() ?? "";
+
+      const isUnregisteredEmail =
+        apiErr.statusCode === 404 ||
+        normalizedMessage.includes("email tidak terdaftar") ||
+        normalizedMessage.includes("user not found") ||
+        normalizedMessage.includes("email not found") ||
+        normalizedMessage.includes("not registered") ||
+        normalizedMessage.includes("not found");
+
+      if (isUnregisteredEmail) {
+        setError("email tidak terdaftar");
       } else {
-        setError(apiErr.message ?? "Gagal mengirim reset password. Coba lagi.");
+        setError(message ?? "Gagal mengirim reset password. Coba lagi.");
       }
     } finally {
       setLoading(false);
@@ -83,6 +103,13 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
+      if (!isApiAuthEnabled()) {
+        setSuccess("Password lokal berhasil diperbarui. Silakan login kembali.");
+        setNewPassword("");
+        setConfirmPassword("");
+        return;
+      }
+
       const data = await authApi.resetPassword({
         token: resetToken,
         newPassword,

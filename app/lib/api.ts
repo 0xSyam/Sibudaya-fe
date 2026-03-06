@@ -9,7 +9,13 @@ import type {
 
 // ─── Base URL ────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
+const AUTH_USE_API = process.env.NEXT_PUBLIC_AUTH_USE_API ?? "true";
+const LOCAL_AUTH_USER_KEY = "local_auth_user";
+
+export function isApiAuthEnabled(): boolean {
+  return AUTH_USE_API.toLowerCase() !== "false";
+}
 
 // ─── Token helpers (localStorage) ────────────────────────────────────────────
 
@@ -31,6 +37,27 @@ export function setTokens(access: string, refresh: string) {
 export function clearTokens() {
   localStorage.removeItem("access_token");
   localStorage.removeItem("refresh_token");
+}
+
+export function getLocalAuthUser(): SafeUser | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(LOCAL_AUTH_USER_KEY);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as SafeUser;
+  } catch {
+    localStorage.removeItem(LOCAL_AUTH_USER_KEY);
+    return null;
+  }
+}
+
+export function setLocalAuthUser(user: SafeUser) {
+  localStorage.setItem(LOCAL_AUTH_USER_KEY, JSON.stringify(user));
+}
+
+export function clearLocalAuthUser() {
+  localStorage.removeItem(LOCAL_AUTH_USER_KEY);
 }
 
 // ─── Fetch wrapper ───────────────────────────────────────────────────────────

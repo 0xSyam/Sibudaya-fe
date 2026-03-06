@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type SubmissionStatus = "selesai" | "perlu_tindakan" | "dalam_proses" | "ditolak";
 
@@ -139,6 +142,37 @@ function FilterIcon() {
   );
 }
 
+function CalendarIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M8 2V5"
+        stroke="#4a5066"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16 2V5"
+        stroke="#4a5066"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3 9H21"
+        stroke="#4a5066"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect x="3" y="4" width="18" height="17" rx="2" stroke="#4a5066" strokeWidth="2" />
+      <rect x="7" y="12" width="3" height="3" rx="0.5" fill="#4a5066" />
+      <rect x="12" y="12" width="3" height="3" rx="0.5" fill="#4a5066" />
+    </svg>
+  );
+}
+
 function ArrowUpRightIcon() {
   return (
     <svg
@@ -269,7 +303,75 @@ function StatCard({ icon, iconBgClass, value, label }: StatCardProps) {
 
 /* ───────── Search & Toolbar ───────── */
 
-function SearchAndToolbar() {
+function parseIndonesianDate(input: string): number {
+  const monthMap: Record<string, number> = {
+    januari: 0,
+    februari: 1,
+    maret: 2,
+    april: 3,
+    mei: 4,
+    juni: 5,
+    juli: 6,
+    agustus: 7,
+    september: 8,
+    oktober: 9,
+    november: 10,
+    desember: 11,
+  };
+
+  const [dayRaw, monthRaw, yearRaw] = input.trim().split(/\s+/);
+  const day = Number(dayRaw);
+  const month = monthMap[monthRaw?.toLowerCase() ?? ""];
+  const year = Number(yearRaw);
+
+  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) {
+    return 0;
+  }
+
+  return new Date(year, month, day).getTime();
+}
+
+function SearchAndToolbar({
+  searchQuery,
+  onSearchQueryChange,
+  sortOrder,
+  onToggleSortOrder,
+  statusFilter,
+  onStatusFilterChange,
+  jenisFilter,
+  onJenisFilterChange,
+  startDate,
+  onStartDateChange,
+  endDate,
+  onEndDateChange,
+}: {
+  searchQuery: string;
+  onSearchQueryChange: (value: string) => void;
+  sortOrder: "desc" | "asc";
+  onToggleSortOrder: () => void;
+  statusFilter: "all" | SubmissionStatus;
+  onStatusFilterChange: (value: "all" | SubmissionStatus) => void;
+  jenisFilter: "sapras" | "pentas";
+  onJenisFilterChange: (value: "sapras" | "pentas") => void;
+  startDate: string;
+  onStartDateChange: (value: string) => void;
+  endDate: string;
+  onEndDateChange: (value: string) => void;
+}) {
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setShowFilterMenu(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <div className="flex items-center justify-between">
       {/* Search Input */}
@@ -277,30 +379,129 @@ function SearchAndToolbar() {
         <SearchIcon />
         <input
           type="text"
+          value={searchQuery}
+          onChange={(e) => onSearchQueryChange(e.target.value)}
           placeholder="Cari bedasarkan nama"
           className="flex-1 bg-transparent text-[15px] leading-6 text-[rgba(38,43,67,0.9)] outline-none placeholder:text-[rgba(38,43,67,0.4)]"
         />
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-start gap-2.5">
+      <div className="flex items-start gap-2.5" ref={filterRef}>
         {/* Terbaru Button */}
         <button
           type="button"
+          onClick={onToggleSortOrder}
           className="flex items-center justify-center gap-2.5 rounded-[10px] border border-[#c23513] px-[26px] py-2 transition-colors hover:bg-[rgba(194,53,19,0.04)]"
         >
           <span className="text-[17px] font-medium capitalize leading-[26px] text-[#c23513]">Terbaru</span>
-          <ArrowUpDownIcon />
+          <span className={`${sortOrder === "asc" ? "rotate-180" : ""} transition-transform`}>
+            <ArrowUpDownIcon />
+          </span>
         </button>
 
         {/* Filter Button */}
-        <button
-          type="button"
-          className="flex items-center justify-center gap-2.5 rounded-[10px] bg-[#c23513] px-[26px] py-2 shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
-        >
-          <span className="text-[17px] font-medium capitalize leading-[26px] text-white">Filter</span>
-          <FilterIcon />
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowFilterMenu((v) => !v)}
+            className="flex items-center justify-center gap-2.5 rounded-[10px] bg-[#c23513] px-[26px] py-2 shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+          >
+            <span className="text-[17px] font-medium capitalize leading-[26px] text-white">Filter</span>
+            <FilterIcon />
+          </button>
+
+          {showFilterMenu ? (
+            <div className="absolute right-0 top-[calc(100%+8px)] z-10 w-[350px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[12px] border border-[rgba(38,43,67,0.12)] bg-white shadow-[0_14px_30px_-18px_rgba(22,35,71,0.35)]">
+              <div className="space-y-0">
+                <div className="px-4 py-3.5">
+                  <p className="mb-2.5 text-[16px] font-medium leading-6 text-[#3c4358]">Jenis</p>
+                  <div className="flex items-center gap-6">
+                    <button
+                      type="button"
+                      onClick={() => onJenisFilterChange("sapras")}
+                      className="flex items-center gap-2.5 text-[#3c4358]"
+                    >
+                      <span className={`flex size-4.5 items-center justify-center rounded-full border-[3px] ${jenisFilter === "sapras" ? "border-[#cc3e15]" : "border-[#6d7285]"}`}>
+                        <span className={`size-1.5 rounded-full ${jenisFilter === "sapras" ? "bg-[#cc3e15]" : "bg-transparent"}`} />
+                      </span>
+                      <span className="text-[14px] leading-6">Sapras</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onJenisFilterChange("pentas")}
+                      className="flex items-center gap-2.5 text-[#3c4358]"
+                    >
+                      <span className={`flex size-4.5 items-center justify-center rounded-full border-[3px] ${jenisFilter === "pentas" ? "border-[#cc3e15]" : "border-[#6d7285]"}`}>
+                        <span className={`size-1.5 rounded-full ${jenisFilter === "pentas" ? "bg-[#cc3e15]" : "bg-transparent"}`} />
+                      </span>
+                      <span className="text-[14px] leading-6">Pentas</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="h-px bg-[rgba(60,67,88,0.16)]" />
+
+                <div className="px-4 py-3.5">
+                  <p className="mb-2.5 text-[16px] font-medium leading-6 text-[#3c4358]">Status</p>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
+                    {[
+                      { value: "all", label: "Semua", className: "bg-[rgba(109,120,141,0.16)] text-[#6d788d]" },
+                      { value: "selesai", label: "Selesai", className: "bg-[rgba(114,225,40,0.2)] text-[#58be15]" },
+                      { value: "dalam_proses", label: "Dalam Proses", className: "bg-[rgba(253,181,40,0.2)] text-[#eea006]" },
+                      { value: "perlu_tindakan", label: "Perlu Tindakan", className: "bg-[rgba(38,198,249,0.2)] text-[#1ea8d5]" },
+                      { value: "ditolak", label: "Ditolak", className: "bg-[#cc3e15] text-white" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => onStatusFilterChange(option.value as "all" | SubmissionStatus)}
+                        className="flex items-center gap-2 text-left"
+                      >
+                        <span className={`flex size-4.5 items-center justify-center rounded-full border-[3px] ${statusFilter === option.value ? "border-[#cc3e15]" : "border-[#6d7285]"}`}>
+                          <span className={`size-1.5 rounded-full ${statusFilter === option.value ? "bg-[#cc3e15]" : "bg-transparent"}`} />
+                        </span>
+                        <span className={`min-w-[108px] rounded-[999px] px-2.5 py-1 text-center text-[13px] leading-5 ${option.className}`}>
+                          {option.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="h-px bg-[rgba(60,67,88,0.16)]" />
+
+                <div className="px-4 py-3.5">
+                  <p className="mb-2.5 text-[16px] font-medium leading-6 text-[#3c4358]">Tanggal</p>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <label className="relative flex h-10 items-center rounded-[10px] border border-[rgba(60,67,88,0.24)] pl-10 pr-3">
+                      <span className="absolute left-4">
+                        <CalendarIcon />
+                      </span>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => onStartDateChange(e.target.value)}
+                        className="w-full bg-transparent text-[13px] text-[#4a5066] outline-none [color-scheme:light]"
+                      />
+                    </label>
+                    <label className="relative flex h-10 items-center rounded-[10px] border border-[rgba(60,67,88,0.24)] pl-10 pr-3">
+                      <span className="absolute left-4">
+                        <CalendarIcon />
+                      </span>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => onEndDateChange(e.target.value)}
+                        className="w-full bg-transparent text-[13px] text-[#4a5066] outline-none [color-scheme:light]"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -426,7 +627,38 @@ function SubmissionStatusTable({ submissions }: { submissions: Submission[] }) {
 /* ───────── Main Page ───────── */
 
 export default function AdminDashboardPage() {
-  const submissions = defaultSubmissions;
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [statusFilter, setStatusFilter] = useState<"all" | SubmissionStatus>("all");
+  const [jenisFilter, setJenisFilter] = useState<"sapras" | "pentas">("sapras");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const submissions = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const startTimestamp = startDate ? new Date(`${startDate}T00:00:00`).getTime() : null;
+    const endTimestamp = endDate ? new Date(`${endDate}T23:59:59`).getTime() : null;
+
+    const filtered = defaultSubmissions.filter((submission) => {
+      const matchesQuery = normalizedQuery
+        ? submission.activityName.toLowerCase().includes(normalizedQuery)
+        : true;
+      const matchesStatus = statusFilter === "all" ? true : submission.status === statusFilter;
+      const isSapras = submission.category === "Fasilitasi Hibah";
+      const matchesJenis = jenisFilter === "sapras" ? isSapras : !isSapras;
+      const dateTimestamp = parseIndonesianDate(submission.submittedAt);
+      const matchesStartDate = startTimestamp === null ? true : dateTimestamp >= startTimestamp;
+      const matchesEndDate = endTimestamp === null ? true : dateTimestamp <= endTimestamp;
+
+      return matchesQuery && matchesStatus && matchesJenis && matchesStartDate && matchesEndDate;
+    });
+
+    return filtered.sort((a, b) => {
+      const dateA = parseIndonesianDate(a.submittedAt);
+      const dateB = parseIndonesianDate(b.submittedAt);
+      return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+    });
+  }, [searchQuery, sortOrder, statusFilter, jenisFilter, startDate, endDate]);
 
   const totalPengajuan = submissions.length;
   const dalamProses = submissions.filter((s) => s.status === "dalam_proses").length;
@@ -449,7 +681,22 @@ export default function AdminDashboardPage() {
 
         {/* Search & Toolbar */}
         <div className="mt-6">
-          <SearchAndToolbar />
+          <SearchAndToolbar
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            sortOrder={sortOrder}
+            onToggleSortOrder={() =>
+              setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))
+            }
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            jenisFilter={jenisFilter}
+            onJenisFilterChange={setJenisFilter}
+            startDate={startDate}
+            onStartDateChange={setStartDate}
+            endDate={endDate}
+            onEndDateChange={setEndDate}
+          />
         </div>
 
         {/* Stats Cards */}

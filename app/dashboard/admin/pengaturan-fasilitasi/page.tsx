@@ -410,6 +410,470 @@ function UploadFileDialog({
   );
 }
 
+// ─── Add Jenis Dialog ───────────────────────────────────
+
+function AddJenisDialog({
+  open,
+  onClose,
+  title,
+  includeDanaPembinaan = false,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  includeDanaPembinaan?: boolean;
+  onSubmit: (payload: { jenis: string; danaPembinaan?: string }) => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [jenis, setJenis] = useState("");
+  const [danaPembinaan, setDanaPembinaan] = useState("");
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (open) {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.close();
+    }
+  }, [open]);
+
+  const handleClose = useCallback(() => {
+    setJenis("");
+    setDanaPembinaan("");
+    onClose();
+  }, [onClose]);
+
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent<HTMLDialogElement>) => {
+      if (e.target === dialogRef.current) {
+        handleClose();
+      }
+    },
+    [handleClose]
+  );
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const trimmedJenis = jenis.trim();
+    const trimmedDana = danaPembinaan.trim();
+
+    if (!trimmedJenis) return;
+    if (includeDanaPembinaan && !trimmedDana) return;
+
+    onSubmit({
+      jenis: trimmedJenis,
+      ...(includeDanaPembinaan ? { danaPembinaan: trimmedDana } : {}),
+    });
+    handleClose();
+  };
+
+  if (!open) return null;
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onCancel={handleClose}
+      onClick={handleBackdropClick}
+      className="m-auto w-full max-w-[560px] rounded-[10px] bg-transparent p-0 backdrop:bg-black/50"
+    >
+      <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_8px_26px_0_rgba(38,43,67,0.18)]">
+        <form onSubmit={handleSubmit}>
+          <div className="p-5">
+            <h3 className="text-[18px] font-medium leading-7 text-[rgba(38,43,67,0.9)]">{title}</h3>
+          </div>
+
+          <div className="flex flex-col gap-4 px-5 pb-5">
+            <label className="flex flex-col gap-2">
+              <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+                Jenis
+              </span>
+              <input
+                type="text"
+                value={jenis}
+                onChange={(e) => setJenis(e.target.value)}
+                placeholder="Contoh: Paket E"
+                className="h-11 rounded-lg border border-[rgba(38,43,67,0.18)] px-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)] outline-none transition-colors placeholder:text-[rgba(38,43,67,0.35)] focus:border-[#c23513]"
+              />
+            </label>
+
+            {includeDanaPembinaan ? (
+              <label className="flex flex-col gap-2">
+                <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+                  Dana Pembinaan
+                </span>
+                <input
+                  type="text"
+                  value={danaPembinaan}
+                  onChange={(e) => setDanaPembinaan(e.target.value)}
+                  placeholder="Contoh: Rp. 15.000.000"
+                  className="h-11 rounded-lg border border-[rgba(38,43,67,0.18)] px-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)] outline-none transition-colors placeholder:text-[rgba(38,43,67,0.35)] focus:border-[#c23513]"
+                />
+              </label>
+            ) : null}
+          </div>
+
+          <div className="flex items-center justify-end gap-4 px-5 pb-5">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={!jenis.trim() || (includeDanaPembinaan && !danaPembinaan.trim())}
+              className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:cursor-not-allowed disabled:bg-[#d6a297]"
+            >
+              Tambah Jenis
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+  );
+}
+
+// ─── Jenis Lembaga Dialog ──────────────────────────────
+
+function JenisLembagaDialog({
+  open,
+  onClose,
+  title,
+  submitLabel,
+  initialValue = "",
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  submitLabel: string;
+  initialValue?: string;
+  onSubmit: (jenis: string) => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [jenis, setJenis] = useState(initialValue);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (open) {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.close();
+    }
+  }, [open]);
+
+  const handleClose = useCallback(() => {
+    setJenis(initialValue);
+    onClose();
+  }, [initialValue, onClose]);
+
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent<HTMLDialogElement>) => {
+      if (e.target === dialogRef.current) {
+        handleClose();
+      }
+    },
+    [handleClose]
+  );
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const value = jenis.trim();
+    if (!value) return;
+    onSubmit(value);
+    handleClose();
+  };
+
+  if (!open) return null;
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onCancel={handleClose}
+      onClick={handleBackdropClick}
+      className="m-auto w-full max-w-[560px] rounded-[10px] bg-transparent p-0 backdrop:bg-black/50"
+    >
+      <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_8px_26px_0_rgba(38,43,67,0.18)]">
+        <form onSubmit={handleSubmit}>
+          <div className="p-5">
+            <h3 className="text-[18px] font-medium leading-7 text-[rgba(38,43,67,0.9)]">{title}</h3>
+          </div>
+          <div className="px-5 pb-5">
+            <label className="flex flex-col gap-2">
+              <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+                Jenis
+              </span>
+              <input
+                type="text"
+                value={jenis}
+                onChange={(e) => setJenis(e.target.value)}
+                className="h-11 rounded-lg border border-[rgba(38,43,67,0.18)] px-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)] outline-none transition-colors placeholder:text-[rgba(38,43,67,0.35)] focus:border-[#c23513]"
+              />
+            </label>
+          </div>
+          <div className="flex items-center justify-end gap-4 px-5 pb-5">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={!jenis.trim()}
+              className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:cursor-not-allowed disabled:bg-[#d6a297]"
+            >
+              {submitLabel}
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+  );
+}
+
+// ─── Edit Jenis Fasilitasi Dialog ───────────────────────
+
+function EditJenisFasilitasiDialog({
+  title,
+  initialValue,
+  onClose,
+  onSubmit,
+}: {
+  title: string;
+  initialValue: JenisFasilitasi;
+  onClose: () => void;
+  onSubmit: (payload: JenisFasilitasi) => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [jenis, setJenis] = useState(initialValue.jenis);
+  const [danaPembinaan, setDanaPembinaan] = useState(initialValue.danaPembinaan);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+  }, []);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const trimmedJenis = jenis.trim();
+    const trimmedDana = danaPembinaan.trim();
+    if (!trimmedJenis || !trimmedDana) return;
+    onSubmit({ jenis: trimmedJenis, danaPembinaan: trimmedDana });
+    onClose();
+  };
+
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent<HTMLDialogElement>) => {
+      if (e.target === dialogRef.current) {
+        onClose();
+      }
+    },
+    [onClose]
+  );
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onCancel={onClose}
+      onClick={handleBackdropClick}
+      className="m-auto w-full max-w-[560px] rounded-[10px] bg-transparent p-0 backdrop:bg-black/50"
+    >
+      <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_8px_26px_0_rgba(38,43,67,0.18)]">
+        <form onSubmit={handleSubmit}>
+          <div className="p-5">
+            <h3 className="text-[18px] font-medium leading-7 text-[rgba(38,43,67,0.9)]">{title}</h3>
+          </div>
+          <div className="flex flex-col gap-4 px-5 pb-5">
+            <label className="flex flex-col gap-2">
+              <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+                Jenis
+              </span>
+              <input
+                type="text"
+                value={jenis}
+                onChange={(e) => setJenis(e.target.value)}
+                className="h-11 rounded-lg border border-[rgba(38,43,67,0.18)] px-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)] outline-none transition-colors placeholder:text-[rgba(38,43,67,0.35)] focus:border-[#c23513]"
+              />
+            </label>
+            <label className="flex flex-col gap-2">
+              <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+                Dana Pembinaan
+              </span>
+              <input
+                type="text"
+                value={danaPembinaan}
+                onChange={(e) => setDanaPembinaan(e.target.value)}
+                className="h-11 rounded-lg border border-[rgba(38,43,67,0.18)] px-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)] outline-none transition-colors placeholder:text-[rgba(38,43,67,0.35)] focus:border-[#c23513]"
+              />
+            </label>
+          </div>
+          <div className="flex items-center justify-end gap-4 px-5 pb-5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={!jenis.trim() || !danaPembinaan.trim()}
+              className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:cursor-not-allowed disabled:bg-[#d6a297]"
+            >
+              Simpan Jenis
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+  );
+}
+
+// ─── Kuota Pengajuan Dialog ─────────────────────────────
+
+function KuotaPengajuanDialog({
+  open,
+  onClose,
+  title,
+  submitLabel,
+  initialValue,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  submitLabel: string;
+  initialValue?: KuotaPengajuan | null;
+  onSubmit: (payload: KuotaPengajuan) => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [jenis, setJenis] = useState(initialValue?.jenis ?? "");
+  const [totalPengajuan, setTotalPengajuan] = useState(initialValue?.totalPengajuan ?? "");
+  const [kuotaPengajuan, setKuotaPengajuan] = useState(initialValue?.kuotaPengajuan ?? "");
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (open) {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.close();
+    }
+  }, [open]);
+
+  const handleClose = useCallback(() => {
+    setJenis(initialValue?.jenis ?? "");
+    setTotalPengajuan(initialValue?.totalPengajuan ?? "");
+    setKuotaPengajuan(initialValue?.kuotaPengajuan ?? "");
+    onClose();
+  }, [initialValue?.jenis, initialValue?.kuotaPengajuan, initialValue?.totalPengajuan, onClose]);
+
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent<HTMLDialogElement>) => {
+      if (e.target === dialogRef.current) {
+        handleClose();
+      }
+    },
+    [handleClose]
+  );
+
+  const isValid = !!jenis.trim() && !!totalPengajuan.trim() && !!kuotaPengajuan.trim();
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!isValid) return;
+    onSubmit({
+      jenis: jenis.trim(),
+      totalPengajuan: totalPengajuan.trim(),
+      kuotaPengajuan: kuotaPengajuan.trim(),
+    });
+    handleClose();
+  };
+
+  if (!open) return null;
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onCancel={handleClose}
+      onClick={handleBackdropClick}
+      className="m-auto w-full max-w-[560px] rounded-[10px] bg-transparent p-0 backdrop:bg-black/50"
+    >
+      <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_8px_26px_0_rgba(38,43,67,0.18)]">
+        <form onSubmit={handleSubmit}>
+          <div className="p-5">
+            <h3 className="text-[18px] font-medium leading-7 text-[rgba(38,43,67,0.9)]">{title}</h3>
+          </div>
+
+          <div className="flex flex-col gap-4 px-5 pb-5">
+            <label className="flex flex-col gap-2">
+              <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis</span>
+              <input
+                type="text"
+                value={jenis}
+                onChange={(e) => setJenis(e.target.value)}
+                className="h-11 rounded-lg border border-[rgba(38,43,67,0.18)] px-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)] outline-none transition-colors placeholder:text-[rgba(38,43,67,0.35)] focus:border-[#c23513]"
+              />
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+                Total Pengajuan
+              </span>
+              <input
+                type="text"
+                value={totalPengajuan}
+                onChange={(e) => setTotalPengajuan(e.target.value)}
+                className="h-11 rounded-lg border border-[rgba(38,43,67,0.18)] px-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)] outline-none transition-colors placeholder:text-[rgba(38,43,67,0.35)] focus:border-[#c23513]"
+              />
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+                Kuota Pengajuan
+              </span>
+              <input
+                type="text"
+                value={kuotaPengajuan}
+                onChange={(e) => setKuotaPengajuan(e.target.value)}
+                className="h-11 rounded-lg border border-[rgba(38,43,67,0.18)] px-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)] outline-none transition-colors placeholder:text-[rgba(38,43,67,0.35)] focus:border-[#c23513]"
+              />
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-4 px-5 pb-5">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={!isValid}
+              className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:cursor-not-allowed disabled:bg-[#d6a297]"
+            >
+              {submitLabel}
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+  );
+}
+
 // ─── Tab types ───────────────────────────────────────────
 
 type TabId = "general" | "pentas" | "sarana-prasarana";
@@ -465,10 +929,12 @@ function SettingsStepper({
 
 function JenisLembagaTable({
   items,
+  onEdit,
   onDelete,
   onAdd,
 }: {
   items: string[];
+  onEdit: (index: number) => void;
   onDelete: (index: number) => void;
   onAdd: () => void;
 }) {
@@ -493,7 +959,7 @@ function JenisLembagaTable({
           <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis</p>
           <div className="h-3.5 w-0.5 bg-[rgba(38,43,67,0.12)]" />
         </div>
-        <div className="flex w-[172px] items-center justify-center bg-[#f5f5f7] p-5">
+        <div className="flex w-[200px] items-center justify-center bg-[#f5f5f7] p-5">
           <p className="text-[13px] font-medium uppercase leading-6 tracking-[0.2px] text-[rgba(38,43,67,0.9)]">
             Action
           </p>
@@ -511,7 +977,15 @@ function JenisLembagaTable({
               {item}
             </p>
           </div>
-          <div className="flex w-[172px] items-center justify-center px-5">
+          <div className="flex w-[200px] items-center justify-center gap-2 px-5">
+            <button
+              type="button"
+              onClick={() => onEdit(index)}
+              className="inline-flex items-center gap-[6px] rounded-[6px] border border-[#fdb528] px-3 py-2 text-[13px] font-medium leading-[18px] text-[#fdb528] transition-colors hover:bg-[rgba(253,181,40,0.08)]"
+            >
+              <PencilIcon />
+              <span>Edit</span>
+            </button>
             <button
               type="button"
               onClick={() => onDelete(index)}
@@ -531,16 +1005,15 @@ function JenisLembagaTable({
 
 function GeneralTabContent() {
   const [jenisLembaga, setJenisLembaga] = useState(defaultJenisLembaga);
+  const [showAddJenisDialog, setShowAddJenisDialog] = useState(false);
+  const [editingJenisIndex, setEditingJenisIndex] = useState<number | null>(null);
 
   const handleDelete = (index: number) => {
     setJenisLembaga((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleAdd = () => {
-    const newJenis = prompt("Masukkan nama jenis lembaga baru:");
-    if (newJenis?.trim()) {
-      setJenisLembaga((prev) => [...prev, newJenis.trim()]);
-    }
+    setShowAddJenisDialog(true);
   };
 
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -558,7 +1031,12 @@ function GeneralTabContent() {
 
   return (
     <>
-      <JenisLembagaTable items={jenisLembaga} onDelete={handleDelete} onAdd={handleAdd} />
+      <JenisLembagaTable
+        items={jenisLembaga}
+        onEdit={(index) => setEditingJenisIndex(index)}
+        onDelete={handleDelete}
+        onAdd={handleAdd}
+      />
 
       {/* Action buttons */}
       <div className="flex items-start justify-end gap-4">
@@ -588,6 +1066,29 @@ function GeneralTabContent() {
         onClose={() => setShowCancelDialog(false)}
         onConfirm={handleCancel}
       />
+      <JenisLembagaDialog
+        open={showAddJenisDialog}
+        onClose={() => setShowAddJenisDialog(false)}
+        title="Tambah Jenis Lembaga"
+        submitLabel="Tambah Jenis"
+        onSubmit={(jenis) => {
+          setJenisLembaga((prev) => [...prev, jenis]);
+        }}
+      />
+      {editingJenisIndex !== null ? (
+        <JenisLembagaDialog
+          open
+          onClose={() => setEditingJenisIndex(null)}
+          title="Edit Jenis Lembaga"
+          submitLabel="Simpan Jenis"
+          initialValue={jenisLembaga[editingJenisIndex]}
+          onSubmit={(jenis) => {
+            setJenisLembaga((prev) =>
+              prev.map((item, i) => (i === editingJenisIndex ? jenis : item))
+            );
+          }}
+        />
+      ) : null}
     </>
   );
 }
@@ -706,10 +1207,14 @@ function JenisFasilitasiTable({
 
 function KuotaPengajuanTable({
   items,
-  onEditKuota,
+  onEdit,
+  onDelete,
+  onAdd,
 }: {
   items: KuotaPengajuan[];
-  onEditKuota: () => void;
+  onEdit: (index: number) => void;
+  onDelete: (index: number) => void;
+  onAdd: () => void;
 }) {
   return (
     <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]">
@@ -718,11 +1223,11 @@ function KuotaPengajuanTable({
         <h3 className="text-[18px] font-medium leading-7 text-[#c23513]">Kuota Pengajuan 2026</h3>
         <button
           type="button"
-          onClick={onEditKuota}
+          onClick={onAdd}
           className="inline-flex items-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
         >
           <PlusIcon />
-          <span>Edit Kuota Pengajuan</span>
+          <span>Tambah Kuota</span>
         </button>
       </div>
 
@@ -738,6 +1243,11 @@ function KuotaPengajuanTable({
         </div>
         <div className="flex w-[200px] items-center justify-center bg-[#f5f5f7] p-5">
           <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Kuota Pengajuan</p>
+        </div>
+        <div className="flex w-[200px] items-center justify-center bg-[#f5f5f7] p-5">
+          <p className="text-[13px] font-medium uppercase leading-6 tracking-[0.2px] text-[rgba(38,43,67,0.9)]">
+            Action
+          </p>
         </div>
       </div>
 
@@ -761,6 +1271,24 @@ function KuotaPengajuanTable({
             <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
               {item.kuotaPengajuan}
             </p>
+          </div>
+          <div className="flex w-[200px] items-center justify-center gap-2 px-5">
+            <button
+              type="button"
+              onClick={() => onEdit(index)}
+              className="inline-flex items-center gap-[6px] rounded-[6px] border border-[#fdb528] px-3 py-2 text-[13px] font-medium leading-[18px] text-[#fdb528] transition-colors hover:bg-[rgba(253,181,40,0.08)]"
+            >
+              <PencilIcon />
+              <span>Edit</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(index)}
+              className="inline-flex items-center gap-[6px] rounded-[6px] border border-[#ff4d49] px-3 py-2 text-[13px] font-medium leading-[18px] text-[#ff4d49] transition-colors hover:bg-[rgba(255,77,73,0.08)]"
+            >
+              <DeleteIcon />
+              <span>Hapus</span>
+            </button>
           </div>
         </div>
       ))}
@@ -804,6 +1332,11 @@ function DocumentCard({
 
 function PentasTabContent() {
   const [jenisFasilitasi, setJenisFasilitasi] = useState(defaultJenisFasilitasi);
+  const [kuotaPengajuan, setKuotaPengajuan] = useState(defaultKuotaPengajuan);
+  const [showAddJenisDialog, setShowAddJenisDialog] = useState(false);
+  const [showAddKuotaDialog, setShowAddKuotaDialog] = useState(false);
+  const [editingJenisIndex, setEditingJenisIndex] = useState<number | null>(null);
+  const [editingKuotaIndex, setEditingKuotaIndex] = useState<number | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -814,26 +1347,11 @@ function PentasTabContent() {
   };
 
   const handleEditJenis = (index: number) => {
-    const item = jenisFasilitasi[index];
-    const newJenis = prompt("Edit jenis fasilitasi:", item.jenis);
-    if (newJenis?.trim()) {
-      const newDana = prompt("Edit dana pembinaan:", item.danaPembinaan);
-      if (newDana?.trim()) {
-        setJenisFasilitasi((prev) =>
-          prev.map((el, i) => (i === index ? { jenis: newJenis.trim(), danaPembinaan: newDana.trim() } : el))
-        );
-      }
-    }
+    setEditingJenisIndex(index);
   };
 
   const handleAddJenis = () => {
-    const newJenis = prompt("Masukkan nama jenis fasilitasi baru:");
-    if (newJenis?.trim()) {
-      const newDana = prompt("Masukkan dana pembinaan:");
-      if (newDana?.trim()) {
-        setJenisFasilitasi((prev) => [...prev, { jenis: newJenis.trim(), danaPembinaan: newDana.trim() }]);
-      }
-    }
+    setShowAddJenisDialog(true);
   };
 
   const handleSave = () => {
@@ -843,6 +1361,7 @@ function PentasTabContent() {
 
   const handleCancel = () => {
     setJenisFasilitasi(defaultJenisFasilitasi);
+    setKuotaPengajuan(defaultKuotaPengajuan);
     setShowCancelDialog(false);
   };
 
@@ -858,8 +1377,10 @@ function PentasTabContent() {
 
       {/* 2. Kuota Pengajuan table */}
       <KuotaPengajuanTable
-        items={defaultKuotaPengajuan}
-        onEditKuota={() => {}}
+        items={kuotaPengajuan}
+        onAdd={() => setShowAddKuotaDialog(true)}
+        onEdit={(index) => setEditingKuotaIndex(index)}
+        onDelete={(index) => setKuotaPengajuan((prev) => prev.filter((_, i) => i !== index))}
       />
 
       {/* 3. Contoh Proposal */}
@@ -918,6 +1439,51 @@ function PentasTabContent() {
           console.log(`Pentas ${uploadTarget} file selected:`, file.name);
         }}
       />
+      <AddJenisDialog
+        open={showAddJenisDialog}
+        onClose={() => setShowAddJenisDialog(false)}
+        title="Tambah Jenis Fasilitasi"
+        includeDanaPembinaan
+        onSubmit={({ jenis, danaPembinaan }) => {
+          if (!danaPembinaan) return;
+          setJenisFasilitasi((prev) => [...prev, { jenis, danaPembinaan }]);
+        }}
+      />
+      {editingJenisIndex !== null ? (
+        <EditJenisFasilitasiDialog
+          title="Edit Jenis Fasilitasi"
+          initialValue={jenisFasilitasi[editingJenisIndex]}
+          onClose={() => setEditingJenisIndex(null)}
+          onSubmit={(payload) => {
+            setJenisFasilitasi((prev) =>
+              prev.map((item, i) => (i === editingJenisIndex ? payload : item))
+            );
+          }}
+        />
+      ) : null}
+      <KuotaPengajuanDialog
+        open={showAddKuotaDialog}
+        onClose={() => setShowAddKuotaDialog(false)}
+        title="Tambah Kuota Pengajuan 2026"
+        submitLabel="Tambah Kuota"
+        onSubmit={(payload) => {
+          setKuotaPengajuan((prev) => [...prev, payload]);
+        }}
+      />
+      {editingKuotaIndex !== null ? (
+        <KuotaPengajuanDialog
+          open
+          onClose={() => setEditingKuotaIndex(null)}
+          title="Edit Kuota Pengajuan 2026"
+          submitLabel="Simpan Kuota"
+          initialValue={kuotaPengajuan[editingKuotaIndex]}
+          onSubmit={(payload) => {
+            setKuotaPengajuan((prev) =>
+              prev.map((item, i) => (i === editingKuotaIndex ? payload : item))
+            );
+          }}
+        />
+      ) : null}
     </>
   );
 }
@@ -934,6 +1500,11 @@ const defaultSaprasKuota: KuotaPengajuan[] = [
 
 function SaranaPrasaranaTabContent() {
   const [jenisLembaga, setJenisLembaga] = useState(defaultSaprasJenisLembaga);
+  const [kuotaPengajuan, setKuotaPengajuan] = useState(defaultSaprasKuota);
+  const [showAddJenisDialog, setShowAddJenisDialog] = useState(false);
+  const [showAddKuotaDialog, setShowAddKuotaDialog] = useState(false);
+  const [editingJenisIndex, setEditingJenisIndex] = useState<number | null>(null);
+  const [editingKuotaIndex, setEditingKuotaIndex] = useState<number | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -944,10 +1515,7 @@ function SaranaPrasaranaTabContent() {
   };
 
   const handleAddJenis = () => {
-    const newJenis = prompt("Masukkan nama jenis lembaga baru:");
-    if (newJenis?.trim()) {
-      setJenisLembaga((prev) => [...prev, newJenis.trim()]);
-    }
+    setShowAddJenisDialog(true);
   };
 
   const handleSave = () => {
@@ -957,6 +1525,7 @@ function SaranaPrasaranaTabContent() {
 
   const handleCancel = () => {
     setJenisLembaga(defaultSaprasJenisLembaga);
+    setKuotaPengajuan(defaultSaprasKuota);
     setShowCancelDialog(false);
   };
 
@@ -965,14 +1534,17 @@ function SaranaPrasaranaTabContent() {
       {/* 1. Jenis Lembaga table */}
       <JenisLembagaTable
         items={jenisLembaga}
+        onEdit={(index) => setEditingJenisIndex(index)}
         onDelete={handleDeleteJenis}
         onAdd={handleAddJenis}
       />
 
       {/* 2. Kuota Pengajuan table */}
       <KuotaPengajuanTable
-        items={defaultSaprasKuota}
-        onEditKuota={() => {}}
+        items={kuotaPengajuan}
+        onAdd={() => setShowAddKuotaDialog(true)}
+        onEdit={(index) => setEditingKuotaIndex(index)}
+        onDelete={(index) => setKuotaPengajuan((prev) => prev.filter((_, i) => i !== index))}
       />
 
       {/* 3. Contoh Proposal */}
@@ -1031,6 +1603,52 @@ function SaranaPrasaranaTabContent() {
           console.log(`Sapras ${uploadTarget} file selected:`, file.name);
         }}
       />
+      <JenisLembagaDialog
+        open={showAddJenisDialog}
+        onClose={() => setShowAddJenisDialog(false)}
+        title="Tambah Jenis Sarana Prasarana"
+        submitLabel="Tambah Jenis"
+        onSubmit={(jenis) => {
+          setJenisLembaga((prev) => [...prev, jenis]);
+        }}
+      />
+      {editingJenisIndex !== null ? (
+        <JenisLembagaDialog
+          open
+          onClose={() => setEditingJenisIndex(null)}
+          title="Edit Jenis Sarana Prasarana"
+          submitLabel="Simpan Jenis"
+          initialValue={jenisLembaga[editingJenisIndex]}
+          onSubmit={(jenis) => {
+            setJenisLembaga((prev) =>
+              prev.map((item, i) => (i === editingJenisIndex ? jenis : item))
+            );
+          }}
+        />
+      ) : null}
+      <KuotaPengajuanDialog
+        open={showAddKuotaDialog}
+        onClose={() => setShowAddKuotaDialog(false)}
+        title="Tambah Kuota Pengajuan 2026"
+        submitLabel="Tambah Kuota"
+        onSubmit={(payload) => {
+          setKuotaPengajuan((prev) => [...prev, payload]);
+        }}
+      />
+      {editingKuotaIndex !== null ? (
+        <KuotaPengajuanDialog
+          open
+          onClose={() => setEditingKuotaIndex(null)}
+          title="Edit Kuota Pengajuan 2026"
+          submitLabel="Simpan Kuota"
+          initialValue={kuotaPengajuan[editingKuotaIndex]}
+          onSubmit={(payload) => {
+            setKuotaPengajuan((prev) =>
+              prev.map((item, i) => (i === editingKuotaIndex ? payload : item))
+            );
+          }}
+        />
+      ) : null}
     </>
   );
 }
