@@ -8,6 +8,7 @@ import {
   SecondaryLinkButton,
 } from "@/app/dashboard/components/forms/actions";
 import {
+  ErrorText,
   FieldLabel,
   FileInputField,
   HelperText,
@@ -57,7 +58,25 @@ export default function AjukanFasilitasiFormStep3Page() {
   const [alamatLembaga, setAlamatLembaga] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function validate() {
+    const newErrors: Record<string, string> = {};
+    if (!nomorHp.trim()) newErrors.nomorHp = "Nomor HP wajib diisi";
+    else if (!/^[0-9+\-\s]{8,15}$/.test(nomorHp.trim())) newErrors.nomorHp = "Format nomor HP tidak valid";
+    if (!email.trim()) newErrors.email = "Email wajib diisi";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) newErrors.email = "Format email tidak valid";
+    if (jenisId === 1) {
+      if (!nomorRekening.trim()) newErrors.nomorRekening = "Nomor rekening wajib diisi";
+      if (!totalDana || Number(totalDana) <= 0) newErrors.totalDana = "Total dana harus lebih dari 0";
+    }
+    if (!namaPemegangRekening.trim()) newErrors.namaPemegangRekening = "Nama pemegang rekening wajib diisi";
+    if (!proposalFile) newErrors.proposalFile = "File proposal wajib diunggah";
+    if (!alamatLembaga.trim()) newErrors.alamatLembaga = "Alamat lembaga wajib diisi";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem(FORM_STORAGE_KEY);
@@ -73,13 +92,10 @@ export default function AjukanFasilitasiFormStep3Page() {
   }, []);
 
   async function handleSubmit() {
-    if (!proposalFile) {
-      setError("Harap unggah file proposal terlebih dahulu.");
-      return;
-    }
+    if (!validate()) return;
 
     setSubmitting(true);
-    setError(null);
+    setSubmitError(null);
 
     try {
       const saved = localStorage.getItem(FORM_STORAGE_KEY);
@@ -99,7 +115,7 @@ export default function AjukanFasilitasiFormStep3Page() {
           nama_pemegang_rekening: namaPemegangRekening,
           alamat_lembaga: alamatLembaga,
         };
-        await pengajuanApi.submitPentas(dto, proposalFile);
+        await pengajuanApi.submitPentas(dto, proposalFile!);
       } else {
         // Hibah submission
         const dto: CreatePengajuanHibahDto = {
@@ -115,14 +131,14 @@ export default function AjukanFasilitasiFormStep3Page() {
           kode_pos: "",
           catatan: formData.tujuanKegiatan || "",
         };
-        await pengajuanApi.submitHibah(dto, proposalFile);
+        await pengajuanApi.submitHibah(dto, proposalFile!);
       }
 
       // Clear form data on success
       localStorage.removeItem(FORM_STORAGE_KEY);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal mengirim pengajuan. Silakan coba lagi.");
+      setSubmitError(err instanceof Error ? err.message : "Gagal mengirim pengajuan. Silakan coba lagi.");
     } finally {
       setSubmitting(false);
     }
@@ -138,9 +154,9 @@ export default function AjukanFasilitasiFormStep3Page() {
 
         <FormStepper steps={stepThreeProgress} />
 
-        {error && (
+        {submitError && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
+            {submitError}
           </div>
         )}
 
@@ -160,8 +176,10 @@ export default function AjukanFasilitasiFormStep3Page() {
                 type="tel"
                 placeholder="Masukan nomor Hp."
                 value={nomorHp}
-                onChange={(e) => setNomorHp(e.target.value)}
+                isError={!!errors.nomorHp}
+                onChange={(e) => { setNomorHp(e.target.value); setErrors((p) => ({ ...p, nomorHp: "" })); }}
               />
+              {errors.nomorHp && <ErrorText>{errors.nomorHp}</ErrorText>}
             </div>
             <div>
               <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -171,8 +189,10 @@ export default function AjukanFasilitasiFormStep3Page() {
                 type="email"
                 placeholder="Masukan email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                isError={!!errors.email}
+                onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: "" })); }}
               />
+              {errors.email && <ErrorText>{errors.email}</ErrorText>}
             </div>
             <div>
               <FieldLabel htmlFor="nomorRekening">Nomor Rekening</FieldLabel>
@@ -182,8 +202,10 @@ export default function AjukanFasilitasiFormStep3Page() {
                 type="text"
                 placeholder="Masukan nomor rekening"
                 value={nomorRekening}
-                onChange={(e) => setNomorRekening(e.target.value)}
+                isError={!!errors.nomorRekening}
+                onChange={(e) => { setNomorRekening(e.target.value); setErrors((p) => ({ ...p, nomorRekening: "" })); }}
               />
+              {errors.nomorRekening && <ErrorText>{errors.nomorRekening}</ErrorText>}
             </div>
             <div>
               <FieldLabel htmlFor="namaPemegangRekening">Nama Pemegang Rekening</FieldLabel>
@@ -193,8 +215,10 @@ export default function AjukanFasilitasiFormStep3Page() {
                 type="text"
                 placeholder="Masukan nama pemegang rekening"
                 value={namaPemegangRekening}
-                onChange={(e) => setNamaPemegangRekening(e.target.value)}
+                isError={!!errors.namaPemegangRekening}
+                onChange={(e) => { setNamaPemegangRekening(e.target.value); setErrors((p) => ({ ...p, namaPemegangRekening: "" })); }}
               />
+              {errors.namaPemegangRekening && <ErrorText>{errors.namaPemegangRekening}</ErrorText>}
             </div>
           </div>
 
@@ -207,8 +231,10 @@ export default function AjukanFasilitasiFormStep3Page() {
               placeholder="Rp. xx.xxx.xxx"
               italicPlaceholder
               value={totalDana}
-              onChange={(e) => setTotalDana(e.target.value)}
+              isError={!!errors.totalDana}
+              onChange={(e) => { setTotalDana(e.target.value); setErrors((p) => ({ ...p, totalDana: "" })); }}
             />
+            {errors.totalDana && <ErrorText>{errors.totalDana}</ErrorText>}
           </div>
 
           <div className="mt-6 grid gap-x-5 gap-y-6 md:grid-cols-2">
@@ -222,12 +248,14 @@ export default function AjukanFasilitasiFormStep3Page() {
                 id="proposal"
                 name="proposal"
                 accept=".pdf,application/pdf"
+                isError={!!errors.proposalFile}
                 onChange={(e) => {
                   const f = (e.target as HTMLInputElement).files?.[0] ?? null;
                   setProposalFile(f);
+                  setErrors((p) => ({ ...p, proposalFile: "" }));
                 }}
               />
-              <HelperText>Format file PDF dengan ukuran maksimal 10mb</HelperText>
+              {errors.proposalFile ? <ErrorText>{errors.proposalFile}</ErrorText> : <HelperText>Format file PDF dengan ukuran maksimal 10mb</HelperText>}
             </div>
           </div>
 
@@ -239,8 +267,10 @@ export default function AjukanFasilitasiFormStep3Page() {
               placeholder="Masukan alamat lembaga"
               className="h-[68px]"
               value={alamatLembaga}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAlamatLembaga(e.target.value)}
+              isError={!!errors.alamatLembaga}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { setAlamatLembaga(e.target.value); setErrors((p) => ({ ...p, alamatLembaga: "" })); }}
             />
+            {errors.alamatLembaga && <ErrorText>{errors.alamatLembaga}</ErrorText>}
           </div>
         </form>
 

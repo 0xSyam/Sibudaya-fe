@@ -8,6 +8,7 @@ import {
   SecondaryLinkButton,
 } from "@/app/dashboard/components/forms/actions";
 import {
+  ErrorText,
   FieldLabel,
   FileInputField,
   HelperText,
@@ -57,6 +58,7 @@ export default function AjukanFasilitasiFormPage() {
   const [nik, setNik] = useState("");
   const [selectedPaket, setSelectedPaket] = useState("");
   const [sertifikatFile, setSertifikatFile] = useState<File | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function load() {
@@ -92,7 +94,19 @@ export default function AjukanFasilitasiFormPage() {
     load();
   }, [jenisId]);
 
+  function validate() {
+    const newErrors: Record<string, string> = {};
+    if (!namaLembaga.trim()) newErrors.namaLembaga = "Nama lembaga wajib diisi";
+    if (!jenisKesenian) newErrors.jenisKesenian = "Jenis kesenian wajib dipilih";
+    if (!nik.trim()) newErrors.nik = "NIK wajib diisi";
+    if (!sertifikatFile) newErrors.sertifikatFile = "Sertifikat NIK wajib diunggah";
+    if (!selectedPaket) newErrors.selectedPaket = "Jenis paket fasilitasi wajib dipilih";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
   function handleSave() {
+    if (!validate()) return;
     const saved = localStorage.getItem(FORM_STORAGE_KEY);
     const existing = saved ? JSON.parse(saved) : {};
     const formData = {
@@ -148,8 +162,10 @@ export default function AjukanFasilitasiFormPage() {
                 type="text"
                 placeholder="Masukan nama lembaga"
                 value={namaLembaga}
-                onChange={(e) => setNamaLembaga(e.target.value)}
+                isError={!!errors.namaLembaga}
+                onChange={(e) => { setNamaLembaga(e.target.value); setErrors((p) => ({ ...p, namaLembaga: "" })); }}
               />
+              {errors.namaLembaga && <ErrorText>{errors.namaLembaga}</ErrorText>}
             </div>
             <div>
               <FieldLabel htmlFor="jenisKesenian">Jenis Kesenian</FieldLabel>
@@ -159,8 +175,10 @@ export default function AjukanFasilitasiFormPage() {
                 placeholder="Pilih jenis kesenian lembaga"
                 options={["Tari", "Musik", "Teater", "Seni Rupa", "Sastra", "Lainnya"]}
                 value={jenisKesenian}
-                onChange={(e) => setJenisKesenian(e.target.value)}
+                isError={!!errors.jenisKesenian}
+                onChange={(e) => { setJenisKesenian(e.target.value); setErrors((p) => ({ ...p, jenisKesenian: "" })); }}
               />
+              {errors.jenisKesenian && <ErrorText>{errors.jenisKesenian}</ErrorText>}
             </div>
 
             <div>
@@ -171,9 +189,10 @@ export default function AjukanFasilitasiFormPage() {
                 type="text"
                 placeholder="Masukan NIK"
                 value={nik}
-                onChange={(e) => setNik(e.target.value)}
+                isError={!!errors.nik}
+                onChange={(e) => { setNik(e.target.value); setErrors((p) => ({ ...p, nik: "" })); }}
               />
-              <HelperText>NIK yang diinput harus masih berlaku dan telah terdaftar</HelperText>
+              {errors.nik ? <ErrorText>{errors.nik}</ErrorText> : <HelperText>NIK yang diinput harus masih berlaku dan telah terdaftar</HelperText>}
             </div>
             <div>
               <FieldLabel htmlFor="sertifikatNik">Sertifikat NIK</FieldLabel>
@@ -181,12 +200,14 @@ export default function AjukanFasilitasiFormPage() {
                 id="sertifikatNik"
                 name="sertifikatNik"
                 accept=".pdf,application/pdf"
+                isError={!!errors.sertifikatFile}
                 onChange={(e) => {
                   const f = (e.target as HTMLInputElement).files?.[0] ?? null;
                   setSertifikatFile(f);
+                  setErrors((p) => ({ ...p, sertifikatFile: "" }));
                 }}
               />
-              <HelperText>Format file PDF dengan ukuran maksimal 10mb</HelperText>
+              {errors.sertifikatFile ? <ErrorText>{errors.sertifikatFile}</ErrorText> : <HelperText>Format file PDF dengan ukuran maksimal 10mb</HelperText>}
             </div>
           </div>
 
@@ -200,8 +221,10 @@ export default function AjukanFasilitasiFormPage() {
               placeholder="Pilih jenis fasilitasi"
               options={paketList.length > 0 ? paketList.map((p) => p.nama_paket) : ["Pembinaan Sanggar", "Pentas Seni", "Workshop", "Festival Budaya"]}
               value={selectedPaket}
-              onChange={(e) => setSelectedPaket(e.target.value)}
+              isError={!!errors.selectedPaket}
+              onChange={(e) => { setSelectedPaket(e.target.value); setErrors((p) => ({ ...p, selectedPaket: "" })); }}
             />
+            {errors.selectedPaket && <ErrorText>{errors.selectedPaket}</ErrorText>}
             <HelperText>
               Setiap lembaga budaya hanya dapat mengajukan satu paket fasilitasi dalam satu tahun
             </HelperText>

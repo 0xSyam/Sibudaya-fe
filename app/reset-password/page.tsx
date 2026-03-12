@@ -112,7 +112,7 @@ export default function ResetPasswordPage() {
 
       const data = await authApi.resetPassword({
         token: resetToken,
-        newPassword,
+        new_password: newPassword,
       });
       setSuccess(data.message + " Silakan login dengan password baru.");
       // Reset fields

@@ -39,7 +39,7 @@ export interface ForgotPasswordDto {
 
 export interface ResetPasswordDto {
   token: string;
-  newPassword: string;
+  new_password: string;
 }
 
 export interface ApiError {
@@ -263,5 +263,5 @@ export interface SetSurveyDto {
 }
 
 export interface TolakLaporanDto {
-  catatan: string;
+  catatan_admin: string;
 }

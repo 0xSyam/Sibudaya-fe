@@ -55,3 +55,27 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+
+/**
+ * AdminGuard — proteksi halaman admin.
+ * Redirect ke /dashboard jika user bukan ADMIN atau SUPER_ADMIN.
+ * Harus digunakan di dalam AuthGuard (sudah terjamin terautentikasi).
+ */
+export function AdminGuard({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && user && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, user, router]);
+
+  if (isLoading) return null;
+
+  if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+    return null;
+  }
+
+  return <>{children}</>;
+}

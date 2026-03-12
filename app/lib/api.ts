@@ -29,7 +29,7 @@ import type {
 
 // ─── Base URL ────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
 const AUTH_USE_API = process.env.NEXT_PUBLIC_AUTH_USE_API ?? "true";
 const LOCAL_AUTH_USER_KEY = "local_auth_user";
 
@@ -409,7 +409,7 @@ export const adminPengajuanApi = {
   /** Tolak pemeriksaan */
   tolak(pengajuanId: string, dto: TolakPemeriksaanDto, suratFile?: File): Promise<Pengajuan> {
     const formData = new FormData();
-    formData.append("catatan", dto.catatan);
+    formData.append("catatan_pemeriksaan", dto.catatan);
     if (suratFile) formData.append("surat_penolakan", suratFile);
     return apiMultipartFetch<Pengajuan>(`/admin/pengajuan/${pengajuanId}/tolak`, formData, "PATCH");
   },

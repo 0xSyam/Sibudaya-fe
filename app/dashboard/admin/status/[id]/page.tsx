@@ -439,7 +439,7 @@ export default function AdminStatusDetailPage() {
           await adminPengajuanApi.setujuiLaporan(data.pengajuan_id);
           break;
         case "tolak_laporan":
-          await adminPengajuanApi.tolakLaporan(data.pengajuan_id, { catatan: tolakCatatan });
+          await adminPengajuanApi.tolakLaporan(data.pengajuan_id, { catatan_admin: tolakCatatan });
           setShowTolakInput(false);
           setTolakCatatan("");
           break;

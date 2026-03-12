@@ -9,6 +9,7 @@ import {
 } from "@/app/dashboard/components/forms/actions";
 import {
   DateInput,
+  ErrorText,
   FieldLabel,
   HelperText,
   TextAreaField,
@@ -50,6 +51,19 @@ export default function AjukanFasilitasiFormStep2Page() {
   const [tanggalMulai, setTanggalMulai] = useState("");
   const [tanggalSelesai, setTanggalSelesai] = useState("");
   const [alamatLokasi, setAlamatLokasi] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function validate() {
+    const newErrors: Record<string, string> = {};
+    if (!namaKegiatan.trim()) newErrors.namaKegiatan = "Nama kegiatan wajib diisi";
+    if (!tujuanKegiatan.trim()) newErrors.tujuanKegiatan = "Tujuan kegiatan wajib diisi";
+    if (!tanggalMulai) newErrors.tanggalMulai = "Tanggal mulai wajib diisi";
+    if (!tanggalSelesai) newErrors.tanggalSelesai = "Tanggal selesai wajib diisi";
+    else if (tanggalMulai && tanggalSelesai < tanggalMulai) newErrors.tanggalSelesai = "Tanggal selesai harus setelah tanggal mulai";
+    if (!alamatLokasi.trim()) newErrors.alamatLokasi = "Alamat lokasi wajib diisi";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem(FORM_STORAGE_KEY);
@@ -64,6 +78,7 @@ export default function AjukanFasilitasiFormStep2Page() {
   }, []);
 
   function handleSave() {
+    if (!validate()) return;
     const saved = localStorage.getItem(FORM_STORAGE_KEY);
     const existing = saved ? JSON.parse(saved) : {};
     const formData = {
@@ -104,8 +119,10 @@ export default function AjukanFasilitasiFormStep2Page() {
                 type="text"
                 placeholder="Masukan judul kegiatan"
                 value={namaKegiatan}
-                onChange={(e) => setNamaKegiatan(e.target.value)}
+                isError={!!errors.namaKegiatan}
+                onChange={(e) => { setNamaKegiatan(e.target.value); setErrors((p) => ({ ...p, namaKegiatan: "" })); }}
               />
+              {errors.namaKegiatan && <ErrorText>{errors.namaKegiatan}</ErrorText>}
             </div>
             <div>
               <FieldLabel htmlFor="tujuanKegiatan">Tujuan Kegiatan</FieldLabel>
@@ -115,8 +132,10 @@ export default function AjukanFasilitasiFormStep2Page() {
                 type="text"
                 placeholder="Masukan tujuan kegiatan"
                 value={tujuanKegiatan}
-                onChange={(e) => setTujuanKegiatan(e.target.value)}
+                isError={!!errors.tujuanKegiatan}
+                onChange={(e) => { setTujuanKegiatan(e.target.value); setErrors((p) => ({ ...p, tujuanKegiatan: "" })); }}
               />
+              {errors.tujuanKegiatan && <ErrorText>{errors.tujuanKegiatan}</ErrorText>}
             </div>
             <div>
               <FieldLabel htmlFor="tanggalMulai">Tanggal Mulai</FieldLabel>
@@ -124,9 +143,10 @@ export default function AjukanFasilitasiFormStep2Page() {
                 id="tanggalMulai"
                 name="tanggalMulai"
                 value={tanggalMulai}
-                onChange={(e) => setTanggalMulai(e.target.value)}
+                isError={!!errors.tanggalMulai}
+                onChange={(e) => { setTanggalMulai(e.target.value); setErrors((p) => ({ ...p, tanggalMulai: "", tanggalSelesai: "" })); }}
               />
-              <HelperText>Tanggal pelaksanaan harus sesuai dengan proposal</HelperText>
+              {errors.tanggalMulai ? <ErrorText>{errors.tanggalMulai}</ErrorText> : <HelperText>Tanggal pelaksanaan harus sesuai dengan proposal</HelperText>}
             </div>
             <div>
               <FieldLabel htmlFor="tanggalSelesai">Tanggal Selesai</FieldLabel>
@@ -134,8 +154,10 @@ export default function AjukanFasilitasiFormStep2Page() {
                 id="tanggalSelesai"
                 name="tanggalSelesai"
                 value={tanggalSelesai}
-                onChange={(e) => setTanggalSelesai(e.target.value)}
+                isError={!!errors.tanggalSelesai}
+                onChange={(e) => { setTanggalSelesai(e.target.value); setErrors((p) => ({ ...p, tanggalSelesai: "" })); }}
               />
+              {errors.tanggalSelesai && <ErrorText>{errors.tanggalSelesai}</ErrorText>}
             </div>
           </div>
 
@@ -147,8 +169,10 @@ export default function AjukanFasilitasiFormStep2Page() {
               placeholder="Masukan alamat kegiatan"
               className="h-17.5"
               value={alamatLokasi}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAlamatLokasi(e.target.value)}
+              isError={!!errors.alamatLokasi}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { setAlamatLokasi(e.target.value); setErrors((p) => ({ ...p, alamatLokasi: "" })); }}
             />
+            {errors.alamatLokasi && <ErrorText>{errors.alamatLokasi}</ErrorText>}
           </div>
         </form>
 
