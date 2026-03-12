@@ -904,7 +904,7 @@ function SettingsStepper({
   onTabChange: (tab: TabId) => void;
 }) {
   return (
-    <div className="flex w-[300px] shrink-0 flex-col gap-3 p-5">
+    <div className="flex w-full shrink-0 flex-col gap-3 p-5 md:w-[300px]">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
@@ -941,7 +941,7 @@ function JenisLembagaTable({
   return (
     <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]">
       {/* Header with title + add button */}
-      <div className="flex items-center justify-between p-5">
+      <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-[18px] font-medium leading-7 text-[#c23513]">Jenis Lembaga</h3>
         <button
           type="button"
@@ -954,6 +954,8 @@ function JenisLembagaTable({
       </div>
 
       {/* Table header */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[480px]">
       <div className="flex items-center">
         <div className="flex flex-1 items-center bg-[#f5f5f7] p-5">
           <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis</p>
@@ -997,6 +999,8 @@ function JenisLembagaTable({
           </div>
         </div>
       ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1136,7 +1140,7 @@ function JenisFasilitasiTable({
   return (
     <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]">
       {/* Header with title + add button */}
-      <div className="flex items-center justify-between p-5">
+      <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-[18px] font-medium leading-7 text-[#c23513]">Jenis Fasilitasi</h3>
         <button
           type="button"
@@ -1149,6 +1153,8 @@ function JenisFasilitasiTable({
       </div>
 
       {/* Table header */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[560px]">
       <div className="flex items-center">
         <div className="flex flex-1 items-center bg-[#f5f5f7] p-5">
           <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis</p>
@@ -1201,6 +1207,8 @@ function JenisFasilitasiTable({
           </div>
         </div>
       ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1219,7 +1227,7 @@ function KuotaPengajuanTable({
   return (
     <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]">
       {/* Header with title + edit button */}
-      <div className="flex items-center justify-between p-5">
+      <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-[18px] font-medium leading-7 text-[#c23513]">Kuota Pengajuan 2026</h3>
         <button
           type="button"
@@ -1232,6 +1240,8 @@ function KuotaPengajuanTable({
       </div>
 
       {/* Table header */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[700px]">
       <div className="flex items-center">
         <div className="flex flex-1 items-center bg-[#f5f5f7] p-5">
           <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis</p>
@@ -1292,6 +1302,8 @@ function KuotaPengajuanTable({
           </div>
         </div>
       ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1694,12 +1706,12 @@ export default function PengaturanFasilitasiPage() {
         </div>
 
         {/* Card with tabs + content */}
-        <div className="flex overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
+        <div className="flex flex-col overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)] md:flex-row">
           {/* Left: stepper/tabs */}
           <SettingsStepper activeTab={activeTab} onTabChange={setActiveTab} />
 
-          {/* Vertical divider */}
-          <div className="w-px bg-[rgba(38,43,67,0.12)]" />
+          {/* Divider */}
+          <div className="h-px bg-[rgba(38,43,67,0.12)] md:h-auto md:w-px" />
 
           {/* Right: content area */}
           <div className="flex min-w-0 flex-1 flex-col gap-6 p-5">

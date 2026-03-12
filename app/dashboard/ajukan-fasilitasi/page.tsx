@@ -1,7 +1,13 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { fasilitasiApi } from "@/app/lib/api";
+import type { JenisFasilitasi } from "@/app/lib/types";
+
 type FacilityCardProps = {
-  icon: "/figma/icon-bag.svg" | "/figma/icon-ticket.svg";
+  icon: string;
   iconWidth: number;
   iconHeight: number;
   title: string;
@@ -58,30 +64,60 @@ function FacilityCard({
   );
 }
 
-const facilityCards: FacilityCardProps[] = [
+function mapJenisToCard(j: JenisFasilitasi): FacilityCardProps {
+  const isPentas = j.jenis_fasilitasi_id === 1;
+  return {
+    icon: isPentas ? "/figma/icon-bag.svg" : "/figma/icon-ticket.svg",
+    iconWidth: isPentas ? 84 : 96,
+    iconHeight: isPentas ? 84 : 86,
+    title: j.nama,
+    description: j.deskripsi ?? (isPentas
+      ? "Bantuan untuk pelaksanaan kegiatan pentas seni dan pembinaan lembaga budaya."
+      : "Bantuan pendukung kegiatan seni seperti gamelan, alat musik, atau pakaian pentas."),
+    items: j.paket_fasilitasi.map((p) => p.nama_paket),
+    href: `/dashboard/ajukan-fasilitasi/form?jenis=${j.jenis_fasilitasi_id}`,
+  };
+}
+
+const fallbackCards: FacilityCardProps[] = [
   {
     icon: "/figma/icon-bag.svg",
     iconWidth: 84,
     iconHeight: 84,
     title: "Fasilitasi Pentas",
-    description:
-      "Bantuan untuk pelaksanaan kegiatan pentas seni dan pembinaan lembaga budaya.",
+    description: "Bantuan untuk pelaksanaan kegiatan pentas seni dan pembinaan lembaga budaya.",
     items: ["Pembinaan Sanggar", "Pentas Seni"],
-    href: "/dashboard/ajukan-fasilitasi/form",
+    href: "/dashboard/ajukan-fasilitasi/form?jenis=1",
   },
   {
     icon: "/figma/icon-ticket.svg",
     iconWidth: 96,
     iconHeight: 86,
     title: "Fasilitasi Hibah",
-    description:
-      "Bantuan pendukung kegiatan seni seperti gamelan, alat musik, atau pakaian pentas.",
+    description: "Bantuan pendukung kegiatan seni seperti gamelan, alat musik, atau pakaian pentas.",
     items: ["Gamelan Besi Slendro Pelog", "Alat Kesenian", "Pakaian Kesenian"],
-    href: "/dashboard/ajukan-fasilitasi/form",
+    href: "/dashboard/ajukan-fasilitasi/form?jenis=2",
   },
 ];
 
 export default function AjukanFasilitasiPage() {
+  const [cards, setCards] = useState<FacilityCardProps[]>(fallbackCards);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fasilitasiApi
+      .getAll()
+      .then((data) => {
+        if (data.length > 0) {
+          setCards(data.map(mapJenisToCard));
+        }
+      })
+      .catch(() => {
+        // keep fallback cards
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <section className="h-full overflow-y-auto px-4 pb-8 pt-8 sm:px-6 lg:pt-[84px]">
       <div className="mx-auto w-full max-w-[756px]">
@@ -94,11 +130,17 @@ export default function AjukanFasilitasiPage() {
           </p>
         </header>
 
-        <div className="mt-10 grid gap-7 md:grid-cols-2 lg:mt-16">
-          {facilityCards.map((card) => (
-            <FacilityCard key={card.title} {...card} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="mt-16 flex justify-center">
+            <div className="size-8 animate-spin rounded-full border-4 border-[#c23513] border-t-transparent" />
+          </div>
+        ) : (
+          <div className="mt-10 grid gap-7 md:grid-cols-2 lg:mt-16">
+            {cards.map((card) => (
+              <FacilityCard key={card.title} {...card} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

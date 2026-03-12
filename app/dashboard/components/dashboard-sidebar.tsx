@@ -3,6 +3,36 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { createContext, useContext, useState, useCallback } from "react";
+
+// ─── Sidebar Context (mobile drawer state) ─────────────────────────
+
+type SidebarContextValue = {
+  isOpen: boolean;
+  open: () => void;
+  close: () => void;
+};
+
+const SidebarContext = createContext<SidebarContextValue>({
+  isOpen: false,
+  open: () => {},
+  close: () => {},
+});
+
+export function SidebarProvider({ children }: { children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const open = useCallback(() => setIsOpen(true), []);
+  const close = useCallback(() => setIsOpen(false), []);
+  return (
+    <SidebarContext.Provider value={{ isOpen, open, close }}>
+      {children}
+    </SidebarContext.Provider>
+  );
+}
+
+export function useSidebar() {
+  return useContext(SidebarContext);
+}
 
 function HomeIcon({ active }: { active: boolean }) {
   return (
@@ -61,11 +91,13 @@ function NavItem({
   label,
   active,
   icon,
+  onClick,
 }: {
   href: string;
   label: string;
   active: boolean;
   icon: "home" | "apply" | "settings";
+  onClick?: () => void;
 }) {
   const renderIcon = () => {
     switch (icon) {
@@ -81,6 +113,7 @@ function NavItem({
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={
         active
           ? "flex w-full items-center gap-[6px] rounded-[6px] bg-[#c23513] px-3 py-2 text-[13px] font-medium leading-[18px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]"
@@ -95,6 +128,7 @@ function NavItem({
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const { isOpen, close } = useSidebar();
   const isAdminDashboard = pathname.startsWith("/dashboard/admin");
   const homeHref = isAdminDashboard ? "/dashboard/admin" : "/dashboard";
   const isBeranda = isAdminDashboard
@@ -103,8 +137,8 @@ export function DashboardSidebar() {
   const isAjukan = pathname.startsWith("/dashboard/ajukan-fasilitasi");
   const isPengaturan = pathname.startsWith("/dashboard/admin/pengaturan-fasilitasi");
 
-  return (
-    <aside className="hidden w-[259px] shrink-0 border-r border-[rgba(38,43,67,0.12)] bg-white lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
+  const sidebarContent = (
+    <>
       <div className="px-5 py-5">
         <Image
           src="/figma/logo-diy-1.png"
@@ -117,13 +151,14 @@ export function DashboardSidebar() {
       </div>
 
       <nav className="flex flex-col gap-3 px-5 pt-5">
-        <NavItem href={homeHref} label="Beranda" active={isBeranda} icon="home" />
+        <NavItem href={homeHref} label="Beranda" active={isBeranda} icon="home" onClick={close} />
         {!isAdminDashboard ? (
           <NavItem
             href="/dashboard/ajukan-fasilitasi"
             label="Ajukan Fasilitasi"
             active={isAjukan}
             icon="apply"
+            onClick={close}
           />
         ) : (
           <NavItem
@@ -131,9 +166,29 @@ export function DashboardSidebar() {
             label="Pengaturan Fasilitasi"
             active={isPengaturan}
             icon="settings"
+            onClick={close}
           />
         )}
       </nav>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="hidden w-[259px] shrink-0 border-r border-[rgba(38,43,67,0.12)] bg-white lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile drawer overlay */}
+      {isOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={close} onKeyDown={(e) => { if (e.key === 'Escape') close(); }} role="button" tabIndex={0} aria-label="Tutup menu" />
+          <aside className="absolute left-0 top-0 h-full w-[259px] bg-white shadow-xl animate-in slide-in-from-left duration-200">
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

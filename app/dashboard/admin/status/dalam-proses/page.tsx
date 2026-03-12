@@ -283,7 +283,7 @@ function TimelineDot({ status, showLine }: { status: TimelineStatus; showLine: b
 
 function DateInput() {
   return (
-    <div className="w-[422px]">
+    <div className="w-full max-w-[422px]">
       <div className="flex items-center gap-[10px] rounded-[10px] border border-[rgba(38,43,67,0.22)] px-4 py-3">
         <input
           type="text"
@@ -383,8 +383,8 @@ export default function AdminStatusDalamProsesPage() {
                       const showUploadButton = status === "in_progress" && step.hasUploadButton;
 
                       return (
-                        <div key={step.title} className="grid grid-cols-[160px_32px_minmax(0,1fr)] gap-5">
-                          <div className="flex items-start justify-end pt-3">
+                        <div key={step.title} className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 md:grid-cols-[160px_32px_minmax(0,1fr)] md:gap-5">
+                          <div className="hidden items-start justify-end pt-3 md:flex">
                             <StatusDropdown
                               currentStatus={status}
                               onSelect={(newStatus) => handleStatusChange(index, newStatus)}
@@ -393,7 +393,13 @@ export default function AdminStatusDalamProsesPage() {
 
                           <TimelineDot status={status} showLine={index < totalSteps - 1} />
 
-                          <article className="rounded-[10px] bg-white p-5 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
+                          <article className="rounded-[10px] bg-white p-4 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)] md:p-5">
+                            <div className="mb-2 md:hidden">
+                              <StatusDropdown
+                                currentStatus={status}
+                                onSelect={(newStatus) => handleStatusChange(index, newStatus)}
+                              />
+                            </div>
                             <h2 className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
                               {step.title}
                             </h2>

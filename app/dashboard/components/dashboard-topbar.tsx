@@ -1,9 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/lib/auth-context";
+import { notifikasiApi } from "@/app/lib/api";
+import type { Notifikasi } from "@/app/lib/types";
+import { useSidebar } from "./dashboard-sidebar";
 
 function BellIcon() {
   return (
@@ -75,10 +78,12 @@ function UserAvatar({ email }: { email?: string }) {
 export function DashboardTopbar() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const { open: openSidebar } = useSidebar();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [notifications, setNotifications] = useState<Notifikasi[]>([]);
 
   const userName = user?.email ? user.email.split("@")[0] : "Rayhan";
   const displayName = userName.charAt(0).toUpperCase() + userName.slice(1);
@@ -88,21 +93,32 @@ export function DashboardTopbar() {
       : user?.role === "ADMIN"
         ? "Admin"
         : "User";
-  const notifications = [
-    {
-      title: "Data Pengajuan Ditolak",
-      message: "Data pengajuan pentas dengan nama kegiatan Pijar Resonasi Ditolak",
-      time: "Today",
-      unread: true,
-    },
-    {
-      title: "Data Berhasil Diajukan",
-      message: "Data pengajuan pentas dengan nama kegiatan pijar resonasi berhasil diajukan dang sedang di review oleh pihak dinas kebudayaan",
-      time: "Yesterday",
-      unread: false,
-    },
-  ];
-  const unreadCount = notifications.filter((item) => item.unread).length;
+
+  const unreadCount = notifications.filter((n) => !n.status_baca).length;
+
+  const fetchNotifications = useCallback(() => {
+    notifikasiApi.getAll().then(setNotifications).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  async function handleMarkAllAsRead() {
+    try {
+      await notifikasiApi.markAllAsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, status_baca: true })));
+    } catch { /* ignore */ }
+  }
+
+  async function handleMarkAsRead(id: string) {
+    try {
+      await notifikasiApi.markAsRead(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.notifikasi_id === id ? { ...n, status_baca: true } : n)),
+      );
+    } catch { /* ignore */ }
+  }
 
   // Click-outside untuk tutup dropdown
   useEffect(() => {
@@ -120,7 +136,20 @@ export function DashboardTopbar() {
 
   return (
     <header className="sticky top-0 z-20 h-[64px] border-b border-[rgba(38,43,67,0.12)] bg-white px-4 sm:px-6">
-      <div className="flex h-full items-center justify-end gap-3">
+      <div className="flex h-full items-center justify-between gap-3">
+        {/* Hamburger menu - mobile only */}
+        <button
+          type="button"
+          onClick={openSidebar}
+          className="flex size-10 items-center justify-center rounded-lg text-[rgba(38,43,67,0.9)] lg:hidden"
+          aria-label="Buka menu"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M3 4H21V6H3V4ZM3 11H21V13H3V11ZM3 18H21V20H3V18Z" fill="currentColor" />
+          </svg>
+        </button>
+
+        <div className="flex flex-1 items-center justify-end gap-3">
         {/* Notifikasi */}
         <div ref={notifRef} className="relative">
           <button
@@ -139,30 +168,41 @@ export function DashboardTopbar() {
           </button>
 
           {showNotifications ? (
-            <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[420px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[14px] border border-[rgba(38,43,67,0.12)] bg-white shadow-[0_18px_48px_-20px_rgba(22,35,71,0.45)]">
+            <div className="fixed inset-x-4 top-16 z-30 overflow-hidden rounded-[14px] border border-[rgba(38,43,67,0.12)] bg-white shadow-[0_18px_48px_-20px_rgba(22,35,71,0.45)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[420px]">
               <div className="flex items-center justify-between px-5 py-4">
                 <h3 className="text-[18px] font-semibold text-[#3c4358]">Notifications</h3>
                 <div className="flex items-center gap-3">
                   <span className="rounded-[999px] bg-[#f1ddd8] px-3 py-1 text-[14px] font-medium text-[#cc3e15]">
                     {unreadCount} New
                   </span>
-                  <span className="text-[#4a5066]">
+                  <button type="button" onClick={handleMarkAllAsRead} className="text-[#4a5066]">
                     <InboxIcon />
-                  </span>
+                  </button>
                 </div>
               </div>
 
-              {notifications.map((item, index) => (
-                <div key={`${item.title}-${index}`} className="border-t border-[rgba(60,67,88,0.14)] px-5 py-4">
+              {notifications.length === 0 ? (
+                <div className="border-t border-[rgba(60,67,88,0.14)] px-5 py-8 text-center">
+                  <p className="text-[14px] text-[#646b7d]">Tidak ada notifikasi</p>
+                </div>
+              ) : notifications.map((item) => (
+                <button
+                  type="button"
+                  key={item.notifikasi_id}
+                  className="w-full border-t border-[rgba(60,67,88,0.14)] px-5 py-4 text-left"
+                  onClick={() => handleMarkAsRead(item.notifikasi_id)}
+                >
                   <div className="flex items-start justify-between gap-4">
-                    <h4 className="text-[16px] font-semibold leading-7 text-[#3c4358]">{item.title}</h4>
-                    {item.unread ? <span className="mt-2 size-3 rounded-full bg-[#cc3e15]" /> : null}
+                    <h4 className="text-[16px] font-semibold leading-7 text-[#3c4358]">{item.judul}</h4>
+                    {!item.status_baca ? <span className="mt-2 size-3 rounded-full bg-[#cc3e15]" /> : null}
                   </div>
                   <p className="mt-1 max-w-[340px] text-[14px] leading-6 text-[#646b7d]">
-                    {item.message}
+                    {item.pesan}
                   </p>
-                  <p className="mt-2 text-[14px] text-[#a0a6b5]">{item.time}</p>
-                </div>
+                  <p className="mt-2 text-[14px] text-[#a0a6b5]">
+                    {new Date(item.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                </button>
               ))}
             </div>
           ) : null}
@@ -247,6 +287,7 @@ export function DashboardTopbar() {
               </div>
             </div>
           )}
+        </div>
         </div>
       </div>
     </header>

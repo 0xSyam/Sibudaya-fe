@@ -19,7 +19,11 @@ import { useAuth } from "@/app/lib/auth-context";
 export default function RegisterPage() {
   const { register, loginWithGoogle, isAuthenticated } = useAuth();
 
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [address, setAddress] = useState("");
   const [email, setEmail] = useState("");
+  const [noTelp, setNoTelp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,8 +33,23 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
 
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("Nama depan dan nama belakang wajib diisi");
+      return;
+    }
+
+    if (!address.trim()) {
+      setError("Alamat wajib diisi");
+      return;
+    }
+
     if (!email.trim()) {
       setError("Email wajib diisi");
+      return;
+    }
+
+    if (!noTelp.trim()) {
+      setError("Nomor telepon wajib diisi");
       return;
     }
 
@@ -46,7 +65,15 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await register({ email: email.trim(), password });
+      await register({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        address: address.trim(),
+        email: email.trim(),
+        no_telp: noTelp.trim(),
+        password,
+        confirm_password: confirmPassword,
+      });
     } catch (err: unknown) {
       const apiErr = err as { message?: string | string[]; statusCode?: number };
       if (Array.isArray(apiErr.message)) {
@@ -89,12 +116,49 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <AuthErrorAlert message={error} />
 
+          <div className="grid grid-cols-2 gap-3">
+            <AuthInput
+              type="text"
+              placeholder="Nama Depan"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              autoComplete="given-name"
+              required
+            />
+            <AuthInput
+              type="text"
+              placeholder="Nama Belakang"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              autoComplete="family-name"
+              required
+            />
+          </div>
+
+          <AuthInput
+            type="text"
+            placeholder="Alamat Lengkap"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            autoComplete="street-address"
+            required
+          />
+
           <AuthInput
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
+            required
+          />
+
+          <AuthInput
+            type="tel"
+            placeholder="Nomor Telepon"
+            value={noTelp}
+            onChange={(e) => setNoTelp(e.target.value)}
+            autoComplete="tel"
             required
           />
 

@@ -2,11 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { adminPengajuanApi } from "@/app/lib/api";
+import type { Pengajuan } from "@/app/lib/types";
 
 type SubmissionStatus = "selesai" | "perlu_tindakan" | "dalam_proses" | "ditolak";
 
 type Submission = {
+  id: string;
   activityName: string;
   category: "Fasilitasi Hibah" | "Fasilitasi Pentas";
   submittedAt: string;
@@ -14,36 +17,25 @@ type Submission = {
   actionHref: string;
 };
 
-const defaultSubmissions: Submission[] = [
-  {
-    activityName: "Sanggar Tribhuwana",
-    category: "Fasilitasi Hibah",
-    submittedAt: "14 Januari 2026",
-    status: "selesai",
-    actionHref: "#",
-  },
-  {
-    activityName: "Sanggar Tribhuwana",
-    category: "Fasilitasi Pentas",
-    submittedAt: "15 Januari 2026",
-    status: "perlu_tindakan",
-    actionHref: "/dashboard/admin/status/dalam-proses",
-  },
-  {
-    activityName: "Sanggar Tribhuwana",
-    category: "Fasilitasi Hibah",
-    submittedAt: "16 Januari 2026",
-    status: "dalam_proses",
-    actionHref: "/dashboard/admin/status/dalam-proses",
-  },
-  {
-    activityName: "Sanggar Tribhuwana",
-    category: "Fasilitasi Pentas",
-    submittedAt: "17 Januari 2026",
-    status: "ditolak",
-    actionHref: "#",
-  },
-];
+function mapPengajuanToSubmission(p: Pengajuan): Submission {
+  const category = p.jenis_fasilitasi_id === 1 ? "Fasilitasi Pentas" as const : "Fasilitasi Hibah" as const;
+  const date = new Date(p.tanggal_pengajuan);
+  const submittedAt = date.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+
+  let status: SubmissionStatus = "dalam_proses";
+  if (p.status === "SELESAI") status = "selesai";
+  else if (p.status === "DITOLAK") status = "ditolak";
+  else if (p.status_pemeriksaan === "MENUNGGU") status = "perlu_tindakan";
+
+  return {
+    id: p.pengajuan_id,
+    activityName: p.lembaga_budaya?.nama_lembaga || p.judul_kegiatan || p.jenis_kegiatan || "Pengajuan",
+    category,
+    submittedAt,
+    status,
+    actionHref: `/dashboard/admin/status/${p.pengajuan_id}`,
+  };
+}
 
 const statusStyles: Record<
   SubmissionStatus,
@@ -289,8 +281,8 @@ type StatCardProps = {
 
 function StatCard({ icon, iconBgClass, value, label }: StatCardProps) {
   return (
-    <div className="flex flex-1 items-center gap-4 rounded-[10px] bg-white p-5 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
-      <div className={`flex items-center justify-center rounded-lg p-2 ${iconBgClass}`}>
+    <div className="flex items-center gap-4 rounded-[10px] bg-white p-4 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)] sm:p-5">
+      <div className={`flex shrink-0 items-center justify-center rounded-lg p-2 ${iconBgClass}`}>
         {icon}
       </div>
       <div className="flex flex-col">
@@ -373,9 +365,9 @@ function SearchAndToolbar({
   }, []);
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       {/* Search Input */}
-      <div className="flex h-12 w-[447px] items-center gap-2.5 rounded-lg border-2 border-[#c23513] px-4">
+      <div className="flex h-12 w-full items-center gap-2.5 rounded-lg border-2 border-[#c23513] px-4 sm:max-w-[447px]">
         <SearchIcon />
         <input
           type="text"
@@ -627,6 +619,8 @@ function SubmissionStatusTable({ submissions }: { submissions: Submission[] }) {
 /* ───────── Main Page ───────── */
 
 export default function AdminDashboardPage() {
+  const [allSubmissions, setAllSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [statusFilter, setStatusFilter] = useState<"all" | SubmissionStatus>("all");
@@ -634,12 +628,25 @@ export default function AdminDashboardPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  const fetchData = useCallback(() => {
+    setLoading(true);
+    adminPengajuanApi
+      .getAll()
+      .then((data) => setAllSubmissions(data.map(mapPengajuanToSubmission)))
+      .catch(() => setAllSubmissions([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   const submissions = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     const startTimestamp = startDate ? new Date(`${startDate}T00:00:00`).getTime() : null;
     const endTimestamp = endDate ? new Date(`${endDate}T23:59:59`).getTime() : null;
 
-    const filtered = defaultSubmissions.filter((submission) => {
+    const filtered = allSubmissions.filter((submission) => {
       const matchesQuery = normalizedQuery
         ? submission.activityName.toLowerCase().includes(normalizedQuery)
         : true;
@@ -658,7 +665,7 @@ export default function AdminDashboardPage() {
       const dateB = parseIndonesianDate(b.submittedAt);
       return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
     });
-  }, [searchQuery, sortOrder, statusFilter, jenisFilter, startDate, endDate]);
+  }, [allSubmissions, searchQuery, sortOrder, statusFilter, jenisFilter, startDate, endDate]);
 
   const totalPengajuan = submissions.length;
   const dalamProses = submissions.filter((s) => s.status === "dalam_proses").length;
@@ -700,7 +707,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="mt-6 flex gap-6">
+        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6">
           <StatCard
             icon={<TotalPengajuanIcon />}
             iconBgClass="bg-[rgba(194,53,19,0.16)]"
@@ -729,7 +736,17 @@ export default function AdminDashboardPage() {
 
         {/* Table */}
         <div className="mt-6">
-          <SubmissionStatusTable submissions={submissions} />
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <svg className="h-6 w-6 animate-spin text-[#c23513]" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <span className="ml-2 text-[15px] text-[rgba(38,43,67,0.7)]">Memuat data...</span>
+            </div>
+          ) : (
+            <SubmissionStatusTable submissions={submissions} />
+          )}
         </div>
       </div>
     </section>

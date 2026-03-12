@@ -197,14 +197,17 @@ export default function StatusDalamProsesPage() {
                 <div className="px-5 py-4">
                   <div className="space-y-6">
                     {timelineSteps.map((step, index) => (
-                      <div key={step.title} className="grid grid-cols-[160px_32px_minmax(0,1fr)] gap-5">
-                        <div className="flex items-start justify-end pt-3">
+                      <div key={step.title} className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 md:grid-cols-[160px_32px_minmax(0,1fr)] md:gap-5">
+                        <div className="hidden items-start justify-end pt-3 md:flex">
                           <StatusChip status={step.status} />
                         </div>
 
                         <TimelineDot status={step.status} showLine={index < timelineSteps.length - 1} />
 
-                        <article className="rounded-[10px] bg-white p-5 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
+                        <article className="rounded-[10px] bg-white p-4 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)] md:p-5">
+                          <div className="mb-2 md:hidden">
+                            <StatusChip status={step.status} />
+                          </div>
                           <h2 className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
                             {step.title}
                           </h2>

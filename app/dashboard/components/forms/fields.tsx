@@ -40,9 +40,9 @@ type SelectFieldProps = Omit<ComponentPropsWithoutRef<"select">, "className" | "
   options: string[];
 };
 
-export function SelectField({ placeholder, options, ...props }: SelectFieldProps) {
+export function SelectField({ placeholder, options, value, defaultValue, ...props }: SelectFieldProps) {
   return (
-    <select {...props} defaultValue={props.defaultValue ?? ""} className={baseInputClass}>
+    <select {...props} {...(value !== undefined ? { value } : { defaultValue: defaultValue ?? "" })} className={baseInputClass}>
       <option value="" disabled>
         {placeholder}
       </option>

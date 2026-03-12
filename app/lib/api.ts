@@ -5,6 +5,26 @@ import type {
   ForgotPasswordDto,
   ResetPasswordDto,
   SafeUser,
+  JenisFasilitasi,
+  PaketFasilitasi,
+  Lembaga,
+  CreateLembagaDto,
+  UpdateLembagaDto,
+  UploadSertifikatDto,
+  Pengajuan,
+  CreatePengajuanPentasDto,
+  CreatePengajuanHibahDto,
+  Notifikasi,
+  FilterPengajuanDto,
+  SetujuiPemeriksaanDto,
+  TolakPemeriksaanDto,
+  SetSurveyDto,
+  TolakLaporanDto,
+  LaporanKegiatan,
+  SurveyLapangan,
+  SuratPersetujuan,
+  PencairanDana,
+  PengirimanSarana,
 } from "./types";
 
 // ─── Base URL ────────────────────────────────────────────────────────────────
@@ -139,6 +159,62 @@ async function tryRefreshToken(): Promise<boolean> {
   }
 }
 
+// ─── Multipart Fetch wrapper (for file uploads) ─────────────────────────────
+
+async function apiMultipartFetch<T>(
+  endpoint: string,
+  formData: FormData,
+  method: "POST" | "PATCH" = "POST",
+): Promise<T> {
+  const headers: Record<string, string> = {};
+
+  const token = getAccessToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    method,
+    headers,
+    body: formData,
+    credentials: "include",
+  });
+
+  if (res.status === 401 && getRefreshToken()) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      headers["Authorization"] = `Bearer ${getAccessToken()}`;
+      const retryRes = await fetch(`${API_BASE}${endpoint}`, {
+        method,
+        headers,
+        body: formData,
+        credentials: "include",
+      });
+      if (!retryRes.ok) {
+        const err = await retryRes.json().catch(() => ({
+          statusCode: retryRes.status,
+          message: retryRes.statusText,
+        }));
+        throw err;
+      }
+      return retryRes.json() as Promise<T>;
+    } else {
+      clearTokens();
+      throw { statusCode: 401, message: "Sesi telah berakhir. Silakan login kembali." };
+    }
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({
+      statusCode: res.status,
+      message: res.statusText,
+    }));
+    throw err;
+  }
+
+  return res.json() as Promise<T>;
+}
+
 // ─── Auth API ────────────────────────────────────────────────────────────────
 
 export const authApi = {
@@ -190,5 +266,234 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify(dto),
     });
+  },
+};
+
+// ─── Fasilitasi API ──────────────────────────────────────────────────────────
+
+export const fasilitasiApi = {
+  /** Daftar semua jenis fasilitasi beserta paket */
+  getAll(): Promise<JenisFasilitasi[]> {
+    return apiFetch<JenisFasilitasi[]>("/fasilitasi");
+  },
+
+  /** Daftar paket by jenis fasilitasi */
+  getPaketByJenis(jenisFasilitasiId: number): Promise<PaketFasilitasi[]> {
+    return apiFetch<PaketFasilitasi[]>(`/fasilitasi/${jenisFasilitasiId}/paket`);
+  },
+};
+
+// ─── Lembaga API ─────────────────────────────────────────────────────────────
+
+export const lembagaApi = {
+  /** Buat lembaga baru */
+  create(dto: CreateLembagaDto): Promise<Lembaga> {
+    return apiFetch<Lembaga>("/lembaga", {
+      method: "POST",
+      body: JSON.stringify(dto),
+    });
+  },
+
+  /** Ambil lembaga milik user yang login */
+  getMe(): Promise<Lembaga> {
+    return apiFetch<Lembaga>("/lembaga/me");
+  },
+
+  /** Update lembaga milik user */
+  updateMe(dto: UpdateLembagaDto): Promise<Lembaga> {
+    return apiFetch<Lembaga>("/lembaga/me", {
+      method: "PATCH",
+      body: JSON.stringify(dto),
+    });
+  },
+
+  /** Upload sertifikat NIK */
+  uploadSertifikatNik(dto: UploadSertifikatDto, file: File): Promise<unknown> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("nomor_nik", dto.nomor_nik);
+    formData.append("tanggal_terbit", dto.tanggal_terbit);
+    formData.append("tanggal_berlaku_sampai", dto.tanggal_berlaku_sampai);
+    return apiMultipartFetch("/lembaga/me/sertifikat-nik", formData);
+  },
+};
+
+// ─── Pengajuan API ───────────────────────────────────────────────────────────
+
+export const pengajuanApi = {
+  /** Submit pengajuan fasilitasi pentas */
+  submitPentas(dto: CreatePengajuanPentasDto, proposalFile: File): Promise<Pengajuan> {
+    const formData = new FormData();
+    formData.append("proposal_file", proposalFile);
+    Object.entries(dto).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
+    return apiMultipartFetch<Pengajuan>("/pengajuan/pentas", formData);
+  },
+
+  /** Submit pengajuan fasilitasi hibah */
+  submitHibah(dto: CreatePengajuanHibahDto, proposalFile: File): Promise<Pengajuan> {
+    const formData = new FormData();
+    formData.append("proposal_file", proposalFile);
+    Object.entries(dto).forEach(([key, value]) => {
+      if (value !== undefined) formData.append(key, String(value));
+    });
+    return apiMultipartFetch<Pengajuan>("/pengajuan/hibah", formData);
+  },
+
+  /** Daftar pengajuan milik user */
+  getMyPengajuan(): Promise<Pengajuan[]> {
+    return apiFetch<Pengajuan[]>("/pengajuan");
+  },
+
+  /** Detail pengajuan (timeline) */
+  getDetail(pengajuanId: string): Promise<Pengajuan> {
+    return apiFetch<Pengajuan>(`/pengajuan/${pengajuanId}`);
+  },
+
+  /** Upload laporan kegiatan */
+  uploadLaporan(pengajuanId: string, file: File): Promise<LaporanKegiatan> {
+    const formData = new FormData();
+    formData.append("file_laporan", file);
+    return apiMultipartFetch<LaporanKegiatan>(`/pengajuan/${pengajuanId}/laporan`, formData);
+  },
+};
+
+// ─── Notifikasi API ──────────────────────────────────────────────────────────
+
+export const notifikasiApi = {
+  /** Daftar notifikasi user */
+  getAll(): Promise<Notifikasi[]> {
+    return apiFetch<Notifikasi[]>("/notifikasi");
+  },
+
+  /** Tandai satu notifikasi sudah dibaca */
+  markAsRead(notifikasiId: string): Promise<unknown> {
+    return apiFetch(`/notifikasi/${notifikasiId}/baca`, { method: "PATCH" });
+  },
+
+  /** Tandai semua notifikasi sudah dibaca */
+  markAllAsRead(): Promise<{ count: number }> {
+    return apiFetch<{ count: number }>("/notifikasi/baca-semua", { method: "PATCH" });
+  },
+};
+
+// ─── Admin Pengajuan API ─────────────────────────────────────────────────────
+
+export const adminPengajuanApi = {
+  /** Daftar semua pengajuan (dengan filter) */
+  getAll(filter?: FilterPengajuanDto): Promise<Pengajuan[]> {
+    const params = new URLSearchParams();
+    if (filter) {
+      Object.entries(filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== "") params.append(key, String(value));
+      });
+    }
+    const qs = params.toString();
+    return apiFetch<Pengajuan[]>(`/admin/pengajuan${qs ? `?${qs}` : ""}`);
+  },
+
+  /** Detail lengkap pengajuan */
+  getDetail(pengajuanId: string): Promise<Pengajuan> {
+    return apiFetch<Pengajuan>(`/admin/pengajuan/${pengajuanId}`);
+  },
+
+  /** Setujui pemeriksaan */
+  setujui(pengajuanId: string, dto: SetujuiPemeriksaanDto): Promise<Pengajuan> {
+    return apiFetch<Pengajuan>(`/admin/pengajuan/${pengajuanId}/setujui`, {
+      method: "PATCH",
+      body: JSON.stringify(dto),
+    });
+  },
+
+  /** Tolak pemeriksaan */
+  tolak(pengajuanId: string, dto: TolakPemeriksaanDto, suratFile?: File): Promise<Pengajuan> {
+    const formData = new FormData();
+    formData.append("catatan", dto.catatan);
+    if (suratFile) formData.append("surat_penolakan", suratFile);
+    return apiMultipartFetch<Pengajuan>(`/admin/pengajuan/${pengajuanId}/tolak`, formData, "PATCH");
+  },
+
+  /** Set tanggal survey lapangan (Hibah) */
+  setSurvey(pengajuanId: string, dto: SetSurveyDto): Promise<SurveyLapangan> {
+    return apiFetch<SurveyLapangan>(`/admin/pengajuan/${pengajuanId}/survey`, {
+      method: "POST",
+      body: JSON.stringify(dto),
+    });
+  },
+
+  /** Tandai survey lapangan selesai */
+  selesaikanSurvey(pengajuanId: string): Promise<SurveyLapangan> {
+    return apiFetch<SurveyLapangan>(`/admin/pengajuan/${pengajuanId}/survey/selesai`, {
+      method: "PATCH",
+    });
+  },
+
+  /** Upload surat persetujuan */
+  uploadSuratPersetujuan(
+    pengajuanId: string,
+    dto: { nomor_surat?: string; tanggal_terbit: string },
+    file: File,
+  ): Promise<SuratPersetujuan> {
+    const formData = new FormData();
+    formData.append("surat_file", file);
+    formData.append("tanggal_terbit", dto.tanggal_terbit);
+    if (dto.nomor_surat) formData.append("nomor_surat", dto.nomor_surat);
+    return apiMultipartFetch<SuratPersetujuan>(`/admin/pengajuan/${pengajuanId}/surat-persetujuan`, formData);
+  },
+
+  /** Konfirmasi surat persetujuan sudah ditandatangani */
+  konfirmasiSuratPersetujuan(pengajuanId: string): Promise<SuratPersetujuan> {
+    return apiFetch<SuratPersetujuan>(`/admin/pengajuan/${pengajuanId}/surat-persetujuan/konfirmasi`, {
+      method: "PATCH",
+    });
+  },
+
+  /** Setujui laporan kegiatan */
+  setujuiLaporan(pengajuanId: string): Promise<LaporanKegiatan> {
+    return apiFetch<LaporanKegiatan>(`/admin/pengajuan/${pengajuanId}/laporan/setujui`, {
+      method: "PATCH",
+    });
+  },
+
+  /** Tolak laporan kegiatan */
+  tolakLaporan(pengajuanId: string, dto: TolakLaporanDto): Promise<LaporanKegiatan> {
+    return apiFetch<LaporanKegiatan>(`/admin/pengajuan/${pengajuanId}/laporan/tolak`, {
+      method: "PATCH",
+      body: JSON.stringify(dto),
+    });
+  },
+
+  /** Upload bukti pencairan dana (Pentas) */
+  uploadBuktiPencairan(
+    pengajuanId: string,
+    dto: { tanggal_pencairan: string; total_dana: number },
+    file: File,
+  ): Promise<PencairanDana> {
+    const formData = new FormData();
+    formData.append("bukti_transfer", file);
+    formData.append("tanggal_pencairan", dto.tanggal_pencairan);
+    formData.append("total_dana", String(dto.total_dana));
+    return apiMultipartFetch<PencairanDana>(`/admin/pengajuan/${pengajuanId}/pencairan`, formData);
+  },
+
+  /** Konfirmasi pencairan dana selesai */
+  selesaikanPencairan(pengajuanId: string): Promise<PencairanDana> {
+    return apiFetch<PencairanDana>(`/admin/pengajuan/${pengajuanId}/pencairan/selesai`, {
+      method: "PATCH",
+    });
+  },
+
+  /** Upload bukti pengiriman sarana (Hibah) */
+  uploadBuktiPengiriman(
+    pengajuanId: string,
+    dto: { tanggal_pengiriman: string; catatan?: string },
+    file: File,
+  ): Promise<PengirimanSarana> {
+    const formData = new FormData();
+    formData.append("bukti_pengiriman", file);
+    formData.append("tanggal_pengiriman", dto.tanggal_pengiriman);
+    if (dto.catatan) formData.append("catatan", dto.catatan);
+    return apiMultipartFetch<PengirimanSarana>(`/admin/pengajuan/${pengajuanId}/pengiriman`, formData);
   },
 };

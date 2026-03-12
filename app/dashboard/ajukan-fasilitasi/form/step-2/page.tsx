@@ -1,6 +1,10 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   FormActionBar,
-  PrimaryLinkButton,
+  PrimaryButton,
   SecondaryLinkButton,
 } from "@/app/dashboard/components/forms/actions";
 import {
@@ -12,6 +16,8 @@ import {
 } from "@/app/dashboard/components/forms/fields";
 import { FormPageHeader } from "@/app/dashboard/components/forms/page-header";
 import { FormStepper, type FormStep } from "@/app/dashboard/components/forms/stepper";
+
+const FORM_STORAGE_KEY = "pengajuan_form_data";
 
 const stepTwoProgress: FormStep[] = [
   {
@@ -35,17 +41,60 @@ const stepTwoProgress: FormStep[] = [
 ];
 
 export default function AjukanFasilitasiFormStep2Page() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const jenisId = Number(searchParams.get("jenis") ?? "1");
+
+  const [namaKegiatan, setNamaKegiatan] = useState("");
+  const [tujuanKegiatan, setTujuanKegiatan] = useState("");
+  const [tanggalMulai, setTanggalMulai] = useState("");
+  const [tanggalSelesai, setTanggalSelesai] = useState("");
+  const [alamatLokasi, setAlamatLokasi] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem(FORM_STORAGE_KEY);
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (data.namaKegiatan) setNamaKegiatan(data.namaKegiatan);
+      if (data.tujuanKegiatan) setTujuanKegiatan(data.tujuanKegiatan);
+      if (data.tanggalMulai) setTanggalMulai(data.tanggalMulai);
+      if (data.tanggalSelesai) setTanggalSelesai(data.tanggalSelesai);
+      if (data.alamatLokasi) setAlamatLokasi(data.alamatLokasi);
+    }
+  }, []);
+
+  function handleSave() {
+    const saved = localStorage.getItem(FORM_STORAGE_KEY);
+    const existing = saved ? JSON.parse(saved) : {};
+    const formData = {
+      ...existing,
+      namaKegiatan,
+      tujuanKegiatan,
+      tanggalMulai,
+      tanggalSelesai,
+      alamatLokasi,
+    };
+    localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
+    router.push(`/dashboard/ajukan-fasilitasi/form/step-3?jenis=${jenisId}`);
+  }
+
   return (
     <section className="h-full overflow-y-auto px-4 pb-10 pt-8 sm:px-6 lg:pt-21">
       <div className="mx-auto w-full max-w-230">
         <FormPageHeader
-          title="Detail Kegiatan Pentas"
-          description="Informasi mengenai kegiatan pentas yang akan dilaksanakan."
+          title={jenisId === 1 ? "Detail Kegiatan Pentas" : "Detail Kegiatan Hibah"}
+          description="Informasi mengenai kegiatan yang akan dilaksanakan."
         />
 
         <FormStepper steps={stepTwoProgress} />
 
-        <form className="mt-6 rounded-[10px] bg-white px-5 pb-5 pt-6">
+        <form
+          className="mt-6 rounded-[10px] bg-white px-5 pb-5 pt-6"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
+        >
           <div className="grid gap-x-5 gap-y-6 md:grid-cols-2">
             <div>
               <FieldLabel htmlFor="namaKegiatan">Nama Kegiatan</FieldLabel>
@@ -54,6 +103,8 @@ export default function AjukanFasilitasiFormStep2Page() {
                 name="namaKegiatan"
                 type="text"
                 placeholder="Masukan judul kegiatan"
+                value={namaKegiatan}
+                onChange={(e) => setNamaKegiatan(e.target.value)}
               />
             </div>
             <div>
@@ -63,16 +114,28 @@ export default function AjukanFasilitasiFormStep2Page() {
                 name="tujuanKegiatan"
                 type="text"
                 placeholder="Masukan tujuan kegiatan"
+                value={tujuanKegiatan}
+                onChange={(e) => setTujuanKegiatan(e.target.value)}
               />
             </div>
             <div>
               <FieldLabel htmlFor="tanggalMulai">Tanggal Mulai</FieldLabel>
-              <DateInput id="tanggalMulai" name="tanggalMulai" />
+              <DateInput
+                id="tanggalMulai"
+                name="tanggalMulai"
+                value={tanggalMulai}
+                onChange={(e) => setTanggalMulai(e.target.value)}
+              />
               <HelperText>Tanggal pelaksanaan harus sesuai dengan proposal</HelperText>
             </div>
             <div>
               <FieldLabel htmlFor="tanggalSelesai">Tanggal Selesai</FieldLabel>
-              <DateInput id="tanggalSelesai" name="tanggalSelesai" />
+              <DateInput
+                id="tanggalSelesai"
+                name="tanggalSelesai"
+                value={tanggalSelesai}
+                onChange={(e) => setTanggalSelesai(e.target.value)}
+              />
             </div>
           </div>
 
@@ -83,15 +146,19 @@ export default function AjukanFasilitasiFormStep2Page() {
               name="alamatLokasiKegiatan"
               placeholder="Masukan alamat kegiatan"
               className="h-17.5"
+              value={alamatLokasi}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAlamatLokasi(e.target.value)}
             />
           </div>
         </form>
 
         <FormActionBar>
-          <SecondaryLinkButton href="/dashboard/ajukan-fasilitasi/form">Kembali</SecondaryLinkButton>
-          <PrimaryLinkButton href="/dashboard/ajukan-fasilitasi/form/step-3">
+          <SecondaryLinkButton href={`/dashboard/ajukan-fasilitasi/form?jenis=${jenisId}`}>
+            Kembali
+          </SecondaryLinkButton>
+          <PrimaryButton onClick={handleSave}>
             Simpan Dan Lanjutkan
-          </PrimaryLinkButton>
+          </PrimaryButton>
         </FormActionBar>
       </div>
     </section>

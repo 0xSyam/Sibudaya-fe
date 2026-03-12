@@ -67,13 +67,24 @@ function StepItem({ number, title, subtitle, state }: FormStep) {
 
 function StepConnector({ active }: { active: boolean }) {
   return (
-    <div
-      className={
-        active
-          ? "h-[3px] min-w-10 flex-1 rounded-[40px] bg-[#c23513]"
-          : "h-[3px] min-w-10 flex-1 rounded-[40px] bg-[rgba(194,53,19,0.16)]"
-      }
-    />
+    <>
+      {/* Horizontal connector (desktop) */}
+      <div
+        className={
+          active
+            ? "hidden h-[3px] min-w-10 flex-1 rounded-[40px] bg-[#c23513] md:block"
+            : "hidden h-[3px] min-w-10 flex-1 rounded-[40px] bg-[rgba(194,53,19,0.16)] md:block"
+        }
+      />
+      {/* Vertical connector (mobile) */}
+      <div
+        className={
+          active
+            ? "mx-auto h-6 w-[3px] rounded-[40px] bg-[#c23513] md:hidden"
+            : "mx-auto h-6 w-[3px] rounded-[40px] bg-[rgba(194,53,19,0.16)] md:hidden"
+        }
+      />
+    </>
   );
 }
 
@@ -83,9 +94,9 @@ type FormStepperProps = {
 
 export function FormStepper({ steps }: FormStepperProps) {
   return (
-    <div className="mt-10 flex items-center gap-2">
+    <div className="mt-10 flex flex-col items-start gap-0 md:flex-row md:items-center md:gap-2">
       {steps.map((step, index) => (
-        <div key={step.number} className="contents">
+        <div key={step.number} className="flex flex-col items-start md:contents">
           <StepItem {...step} />
           {index < steps.length - 1 ? <StepConnector active={step.state === "completed"} /> : null}
         </div>
