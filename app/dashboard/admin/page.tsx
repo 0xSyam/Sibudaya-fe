@@ -2,11 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { adminPengajuanApi } from "@/app/lib/api";
-import type { Pengajuan } from "@/app/lib/types";
+import type { FilterPengajuanDto, Pengajuan } from "@/app/lib/types";
 
-type SubmissionStatus = "selesai" | "perlu_tindakan" | "dalam_proses" | "ditolak";
+type SubmissionStatus = "selesai" | "disetujui" | "perlu_tindakan" | "dalam_proses" | "ditolak";
 
 type Submission = {
   id: string;
@@ -17,14 +17,18 @@ type Submission = {
   actionHref: string;
 };
 
+type SubmissionJenisFilter = "all" | "sapras" | "pentas";
+
 function mapPengajuanToSubmission(p: Pengajuan): Submission {
   const category = p.jenis_fasilitasi_id === 1 ? "Fasilitasi Pentas" as const : "Fasilitasi Hibah" as const;
   const date = new Date(p.tanggal_pengajuan);
   const submittedAt = date.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
   let status: SubmissionStatus = "dalam_proses";
-  if (p.status === "SELESAI") status = "selesai";
-  else if (p.status === "DITOLAK") status = "ditolak";
+  if (p.status === "DITOLAK") status = "ditolak";
+  else if (p.status === "SELESAI" || p.surat_persetujuan?.file_path) status = "selesai";
+  else if (p.jenis_fasilitasi_id === 2 && p.survey_lapangan?.status === "SELESAI") status = "disetujui";
+  else if (p.status_pemeriksaan === "SELESAI") status = "disetujui";
   else if (p.status_pemeriksaan === "MENUNGGU") status = "perlu_tindakan";
 
   return {
@@ -47,6 +51,10 @@ const statusStyles: Record<
   selesai: {
     label: "Selesai",
     className: "bg-[rgba(114,225,40,0.16)] text-[#72e128]",
+  },
+  disetujui: {
+    label: "Disetujui",
+    className: "bg-[rgba(114,225,40,0.16)] text-[#58be15]",
   },
   perlu_tindakan: {
     label: "Perlu Tindakan",
@@ -343,8 +351,8 @@ function SearchAndToolbar({
   onToggleSortOrder: () => void;
   statusFilter: "all" | SubmissionStatus;
   onStatusFilterChange: (value: "all" | SubmissionStatus) => void;
-  jenisFilter: "sapras" | "pentas";
-  onJenisFilterChange: (value: "sapras" | "pentas") => void;
+  jenisFilter: SubmissionJenisFilter;
+  onJenisFilterChange: (value: SubmissionJenisFilter) => void;
   startDate: string;
   onStartDateChange: (value: string) => void;
   endDate: string;
@@ -408,7 +416,17 @@ function SearchAndToolbar({
               <div className="space-y-0">
                 <div className="px-4 py-3.5">
                   <p className="mb-2.5 text-[16px] font-medium leading-6 text-[#3c4358]">Jenis</p>
-                  <div className="flex items-center gap-6">
+                  <div className="flex flex-wrap items-center gap-6">
+                    <button
+                      type="button"
+                      onClick={() => onJenisFilterChange("all")}
+                      className="flex items-center gap-2.5 text-[#3c4358]"
+                    >
+                      <span className={`flex size-4.5 items-center justify-center rounded-full border-[3px] ${jenisFilter === "all" ? "border-[#cc3e15]" : "border-[#6d7285]"}`}>
+                        <span className={`size-1.5 rounded-full ${jenisFilter === "all" ? "bg-[#cc3e15]" : "bg-transparent"}`} />
+                      </span>
+                      <span className="text-[14px] leading-6">Semua</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => onJenisFilterChange("sapras")}
@@ -440,6 +458,7 @@ function SearchAndToolbar({
                     {[
                       { value: "all", label: "Semua", className: "bg-[rgba(109,120,141,0.16)] text-[#6d788d]" },
                       { value: "selesai", label: "Selesai", className: "bg-[rgba(114,225,40,0.2)] text-[#58be15]" },
+                      { value: "disetujui", label: "Disetujui", className: "bg-[rgba(114,225,40,0.2)] text-[#58be15]" },
                       { value: "dalam_proses", label: "Dalam Proses", className: "bg-[rgba(253,181,40,0.2)] text-[#eea006]" },
                       { value: "perlu_tindakan", label: "Perlu Tindakan", className: "bg-[rgba(38,198,249,0.2)] text-[#1ea8d5]" },
                       { value: "ditolak", label: "Ditolak", className: "bg-[#cc3e15] text-white" },
@@ -624,21 +643,42 @@ export default function AdminDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [statusFilter, setStatusFilter] = useState<"all" | SubmissionStatus>("all");
-  const [jenisFilter, setJenisFilter] = useState<"sapras" | "pentas">("sapras");
+  const [jenisFilter, setJenisFilter] = useState<SubmissionJenisFilter>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const fetchData = useCallback(() => {
     setLoading(true);
+    const filter: FilterPengajuanDto = {
+      search: deferredSearchQuery.trim() || undefined,
+      sort_order: sortOrder,
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
+      jenis_fasilitasi_id:
+        jenisFilter === "all" ? undefined : jenisFilter === "pentas" ? 1 : 2,
+      status:
+        statusFilter === "all" || statusFilter === "perlu_tindakan"
+          ? undefined
+          : statusFilter === "selesai"
+            ? "SELESAI"
+            : statusFilter === "disetujui"
+              ? "DALAM_PROSES"
+            : statusFilter === "ditolak"
+              ? "DITOLAK"
+              : "DALAM_PROSES",
+    };
+
     adminPengajuanApi
-      .getAll()
+      .getAll(filter)
       .then((data) => setAllSubmissions(data.map(mapPengajuanToSubmission)))
       .catch(() => setAllSubmissions([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [deferredSearchQuery, endDate, jenisFilter, sortOrder, startDate, statusFilter]);
 
   useEffect(() => {
-    fetchData();
+    const timeoutId = window.setTimeout(fetchData, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [fetchData]);
 
   const submissions = useMemo(() => {
@@ -652,7 +692,7 @@ export default function AdminDashboardPage() {
         : true;
       const matchesStatus = statusFilter === "all" ? true : submission.status === statusFilter;
       const isSapras = submission.category === "Fasilitasi Hibah";
-      const matchesJenis = jenisFilter === "sapras" ? isSapras : !isSapras;
+      const matchesJenis = jenisFilter === "all" ? true : jenisFilter === "sapras" ? isSapras : !isSapras;
       const dateTimestamp = parseIndonesianDate(submission.submittedAt);
       const matchesStartDate = startTimestamp === null ? true : dateTimestamp >= startTimestamp;
       const matchesEndDate = endTimestamp === null ? true : dateTimestamp <= endTimestamp;
@@ -670,7 +710,7 @@ export default function AdminDashboardPage() {
   const totalPengajuan = submissions.length;
   const dalamProses = submissions.filter((s) => s.status === "dalam_proses").length;
   const perluTindakan = submissions.filter((s) => s.status === "perlu_tindakan").length;
-  const selesai = submissions.filter((s) => s.status === "selesai").length;
+  const selesai = submissions.filter((s) => s.status === "selesai" || s.status === "disetujui").length;
 
   return (
     <section className="h-full overflow-y-auto px-4 py-6 sm:px-6">
@@ -730,7 +770,7 @@ export default function AdminDashboardPage() {
             icon={<SelesaiIcon />}
             iconBgClass="bg-[rgba(114,225,40,0.16)]"
             value={selesai}
-            label="Selesai"
+            label="Disetujui / Selesai"
           />
         </div>
 

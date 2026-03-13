@@ -8,6 +8,7 @@ import {
   SecondaryLinkButton,
 } from "@/app/dashboard/components/forms/actions";
 import {
+  DateInput,
   ErrorText,
   FieldLabel,
   FileInputField,
@@ -18,6 +19,8 @@ import {
 import { FormPageHeader } from "@/app/dashboard/components/forms/page-header";
 import { FormStepper, type FormStep } from "@/app/dashboard/components/forms/stepper";
 import { lembagaApi, fasilitasiApi } from "@/app/lib/api";
+import { pdfUploadValidation, validateUploadFile } from "@/app/lib/file-validation";
+import { setPendingSertifikatNikFile } from "@/app/lib/pengajuan-draft-store";
 import type { Lembaga, PaketFasilitasi } from "@/app/lib/types";
 
 const FORM_STORAGE_KEY = "pengajuan_form_data";
@@ -56,6 +59,8 @@ export default function AjukanFasilitasiFormPage() {
   const [namaLembaga, setNamaLembaga] = useState("");
   const [jenisKesenian, setJenisKesenian] = useState("");
   const [nik, setNik] = useState("");
+  const [nikTanggalTerbit, setNikTanggalTerbit] = useState("");
+  const [nikTanggalBerlakuSampai, setNikTanggalBerlakuSampai] = useState("");
   const [selectedPaket, setSelectedPaket] = useState("");
   const [sertifikatFile, setSertifikatFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -74,6 +79,8 @@ export default function AjukanFasilitasiFormPage() {
           setJenisKesenian(lem.jenis_kesenian);
           if (lem.sertifikat_nik) {
             setNik(lem.sertifikat_nik.nomor_nik);
+            setNikTanggalTerbit(lem.sertifikat_nik.tanggal_terbit.split("T")[0] ?? "");
+            setNikTanggalBerlakuSampai(lem.sertifikat_nik.tanggal_berlaku_sampai.split("T")[0] ?? "");
           }
         }
         setPaketList(paket);
@@ -85,6 +92,8 @@ export default function AjukanFasilitasiFormPage() {
           if (data.namaLembaga) setNamaLembaga(data.namaLembaga);
           if (data.jenisKesenian) setJenisKesenian(data.jenisKesenian);
           if (data.nik) setNik(data.nik);
+          if (data.nikTanggalTerbit) setNikTanggalTerbit(data.nikTanggalTerbit);
+          if (data.nikTanggalBerlakuSampai) setNikTanggalBerlakuSampai(data.nikTanggalBerlakuSampai);
           if (data.selectedPaket) setSelectedPaket(data.selectedPaket);
         }
       } finally {
@@ -96,10 +105,41 @@ export default function AjukanFasilitasiFormPage() {
 
   function validate() {
     const newErrors: Record<string, string> = {};
+    const existingSertifikat = lembaga?.sertifikat_nik;
+    const isUpdatingExistingCertificate = Boolean(sertifikatFile);
+
     if (!namaLembaga.trim()) newErrors.namaLembaga = "Nama lembaga wajib diisi";
     if (!jenisKesenian) newErrors.jenisKesenian = "Jenis kesenian wajib dipilih";
     if (!nik.trim()) newErrors.nik = "NIK wajib diisi";
-    if (!sertifikatFile) newErrors.sertifikatFile = "Sertifikat NIK wajib diunggah";
+    else if (!/^\d{16}$/.test(nik.trim())) newErrors.nik = "Format NIK harus 16 digit angka";
+    if (!existingSertifikat && !sertifikatFile) {
+      newErrors.sertifikatFile = "Sertifikat NIK wajib diunggah";
+    }
+    if (sertifikatFile) {
+      const sertifikatError = validateUploadFile(sertifikatFile, {
+        ...pdfUploadValidation,
+        label: "Sertifikat NIK",
+      });
+      if (sertifikatError) newErrors.sertifikatFile = sertifikatError;
+    }
+    if ((isUpdatingExistingCertificate || !existingSertifikat) && !nikTanggalTerbit) {
+      newErrors.nikTanggalTerbit = "Tanggal terbit sertifikat wajib diisi";
+    }
+    if ((isUpdatingExistingCertificate || !existingSertifikat) && !nikTanggalBerlakuSampai) {
+      newErrors.nikTanggalBerlakuSampai = "Tanggal berlaku sertifikat wajib diisi";
+    }
+    if (nikTanggalTerbit && nikTanggalBerlakuSampai && nikTanggalBerlakuSampai < nikTanggalTerbit) {
+      newErrors.nikTanggalBerlakuSampai = "Tanggal berlaku harus setelah tanggal terbit";
+    }
+    if (
+      existingSertifikat &&
+      !sertifikatFile &&
+      (nik.trim() !== existingSertifikat.nomor_nik ||
+        nikTanggalTerbit !== (existingSertifikat.tanggal_terbit.split("T")[0] ?? "") ||
+        nikTanggalBerlakuSampai !== (existingSertifikat.tanggal_berlaku_sampai.split("T")[0] ?? ""))
+    ) {
+      newErrors.sertifikatFile = "Unggah sertifikat baru untuk memperbarui data NIK";
+    }
     if (!selectedPaket) newErrors.selectedPaket = "Jenis paket fasilitasi wajib dipilih";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -115,14 +155,20 @@ export default function AjukanFasilitasiFormPage() {
       namaLembaga,
       jenisKesenian,
       nik,
+      nikTanggalTerbit,
+      nikTanggalBerlakuSampai,
       selectedPaket,
       lembagaId: lembaga?.lembaga_id ?? existing.lembagaId,
+      hasExistingSertifikat: Boolean(lembaga?.sertifikat_nik),
     };
     localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
 
-    // Store sertifikat file reference info (can't store File in localStorage)
+    setPendingSertifikatNikFile(sertifikatFile);
+
     if (sertifikatFile) {
       sessionStorage.setItem("sertifikat_file_name", sertifikatFile.name);
+    } else {
+      sessionStorage.removeItem("sertifikat_file_name");
     }
 
     router.push(`/dashboard/ajukan-fasilitasi/form/step-2?jenis=${jenisId}`);
@@ -203,11 +249,53 @@ export default function AjukanFasilitasiFormPage() {
                 isError={!!errors.sertifikatFile}
                 onChange={(e) => {
                   const f = (e.target as HTMLInputElement).files?.[0] ?? null;
+                  if (f) {
+                    const validationMessage = validateUploadFile(f, {
+                      ...pdfUploadValidation,
+                      label: "Sertifikat NIK",
+                    });
+                    if (validationMessage) {
+                      setSertifikatFile(null);
+                      setErrors((p) => ({ ...p, sertifikatFile: validationMessage }));
+                      e.currentTarget.value = "";
+                      return;
+                    }
+                  }
                   setSertifikatFile(f);
                   setErrors((p) => ({ ...p, sertifikatFile: "" }));
                 }}
               />
-              {errors.sertifikatFile ? <ErrorText>{errors.sertifikatFile}</ErrorText> : <HelperText>Format file PDF dengan ukuran maksimal 10mb</HelperText>}
+              {errors.sertifikatFile ? <ErrorText>{errors.sertifikatFile}</ErrorText> : <HelperText>{lembaga?.sertifikat_nik ? "Biarkan kosong jika tidak mengganti sertifikat yang sudah terdaftar" : "Format file PDF dengan ukuran maksimal 10mb"}</HelperText>}
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="nikTanggalTerbit">Tanggal Terbit Sertifikat NIK</FieldLabel>
+              <DateInput
+                id="nikTanggalTerbit"
+                name="nikTanggalTerbit"
+                value={nikTanggalTerbit}
+                isError={!!errors.nikTanggalTerbit}
+                onChange={(e) => {
+                  setNikTanggalTerbit(e.target.value);
+                  setErrors((p) => ({ ...p, nikTanggalTerbit: "", nikTanggalBerlakuSampai: "" }));
+                }}
+              />
+              {errors.nikTanggalTerbit ? <ErrorText>{errors.nikTanggalTerbit}</ErrorText> : <HelperText>Isi sesuai tanggal terbit pada sertifikat</HelperText>}
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="nikTanggalBerlakuSampai">Tanggal Berlaku Sertifikat NIK</FieldLabel>
+              <DateInput
+                id="nikTanggalBerlakuSampai"
+                name="nikTanggalBerlakuSampai"
+                value={nikTanggalBerlakuSampai}
+                isError={!!errors.nikTanggalBerlakuSampai}
+                onChange={(e) => {
+                  setNikTanggalBerlakuSampai(e.target.value);
+                  setErrors((p) => ({ ...p, nikTanggalBerlakuSampai: "" }));
+                }}
+              />
+              {errors.nikTanggalBerlakuSampai ? <ErrorText>{errors.nikTanggalBerlakuSampai}</ErrorText> : <HelperText>Isi sesuai masa berlaku pada sertifikat</HelperText>}
             </div>
           </div>
 

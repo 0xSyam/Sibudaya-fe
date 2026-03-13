@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { adminPengajuanApi } from "@/app/lib/api";
-import type { Pengajuan } from "@/app/lib/types";
+import { adminPengajuanApi, fasilitasiApi } from "@/app/lib/api";
+import { documentUploadValidation, pdfUploadValidation, validateUploadFile } from "@/app/lib/file-validation";
+import type { PaketFasilitasi, Pengajuan } from "@/app/lib/types";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -17,7 +18,9 @@ type TimelineStep = {
   title: string;
   description: string;
   status: TimelineStatus;
+  detailsTitle?: string;
   details?: string[];
+  secondaryDetails?: string[];
   attachmentLabel?: string;
   attachmentFile?: string;
   scheduledDate?: string;
@@ -36,6 +39,88 @@ type StepAction =
   | { type: "upload_pencairan" }
   | { type: "selesaikan_pencairan" }
   | { type: "upload_pengiriman" };
+
+const ADMIN_PAKET_PENTAS: PaketFasilitasi[] = [
+  {
+    paket_id: "a1b2c3d4-e5f6-4a7b-8c9d-e0f1a2b3c4d5",
+    jenis_fasilitasi_id: 1,
+    nama_paket: "Paket Pembinaan",
+    kuota: 10,
+    nilai_bantuan: "60000000",
+    catatan: null,
+  },
+  {
+    paket_id: "b2c3d4e5-f6a7-4b8c-9d0e-f1a2b3c4d5e6",
+    jenis_fasilitasi_id: 1,
+    nama_paket: "Paket A",
+    kuota: 20,
+    nilai_bantuan: "30000000",
+    catatan: null,
+  },
+  {
+    paket_id: "c3d4e5f6-a7b8-4c9d-0e1f-a2b3c4d5e6f7",
+    jenis_fasilitasi_id: 1,
+    nama_paket: "Paket B",
+    kuota: 30,
+    nilai_bantuan: "20000000",
+    catatan: null,
+  },
+  {
+    paket_id: "d4e5f6a7-b8c9-4d0e-1f2a-b3c4d5e6f7a8",
+    jenis_fasilitasi_id: 1,
+    nama_paket: "Paket C",
+    kuota: 40,
+    nilai_bantuan: "10000000",
+    catatan: null,
+  },
+  {
+    paket_id: "e5f6a7b8-c9d0-4e1f-2a3b-c4d5e6f7a8b9",
+    jenis_fasilitasi_id: 1,
+    nama_paket: "Paket D",
+    kuota: 50,
+    nilai_bantuan: "5000000",
+    catatan: null,
+  },
+];
+
+const ADMIN_PAKET_HIBAH: PaketFasilitasi[] = [
+  {
+    paket_id: "f6a7b8c9-d0e1-4f2a-3b4c-d5e6f7a8b9c0",
+    jenis_fasilitasi_id: 2,
+    nama_paket: "Gamelan Slendro Pelog",
+    kuota: 5,
+    nilai_bantuan: null,
+    catatan: null,
+  },
+  {
+    paket_id: "a7b8c9d0-e1f2-4a3b-4c5d-e6f7a8b9c0d1",
+    jenis_fasilitasi_id: 2,
+    nama_paket: "Alat Musik Kesenian",
+    kuota: 20,
+    nilai_bantuan: null,
+    catatan: null,
+  },
+  {
+    paket_id: "b8c9d0e1-f2a3-4b4c-5d6e-f7a8b9c0d1e2",
+    jenis_fasilitasi_id: 2,
+    nama_paket: "Pakaian Kesenian",
+    kuota: 30,
+    nilai_bantuan: null,
+    catatan: null,
+  },
+];
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function resolveHibahPaketId(p: Pengajuan): string | undefined {
+  const namaTarget = (p.jenis_kegiatan ?? p.paket_fasilitasi?.nama_paket ?? "").trim().toLowerCase();
+  if (!namaTarget) return undefined;
+
+  const matched = ADMIN_PAKET_HIBAH.find((paket) => paket.nama_paket.trim().toLowerCase() === namaTarget);
+  return matched?.paket_id;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Timeline builder                                                   */
@@ -60,6 +145,7 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
           ? `Pengajuan ditolak. ${p.catatan_pemeriksaan ?? ""}`
           : "Data pendaftaran telah berhasil dikirim. Lihat data pengajuan untuk memastikan kelengkapan dan kesesuaian data.",
     status: pemStatus,
+    detailsTitle: pemStatus === "completed" && p.paket_fasilitasi ? "Detail paket yang disetujui:" : undefined,
     details:
       pemStatus === "completed" && p.paket_fasilitasi
         ? [`Nama Paket: ${p.paket_fasilitasi.nama_paket}`, ...(p.paket_fasilitasi.nilai_bantuan ? [`Nilai Bantuan: Rp ${Number(p.paket_fasilitasi.nilai_bantuan).toLocaleString("id-ID")}`] : [])]
@@ -75,9 +161,9 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
     description:
       suratStatus === "completed"
         ? "Surat persetujuan telah diterima dan dikonfirmasi di Kantor Dinas Kebudayaan DIY."
-        : "Surat persetujuan perlu diterbitkan. Unggah surat persetujuan untuk pemohon.",
+        : "Surat persetujuan telah diterbitkan. Pemohon wajib mengunduh surat persetujuan dan melakukan penandatanganan secara langsung di Kantor Dinas Kebudayaan DIY.",
     status: suratStatus,
-    attachmentLabel: p.surat_persetujuan?.file_path ? "Surat Persetujuan:" : undefined,
+    attachmentLabel: p.surat_persetujuan?.file_path ? (suratStatus === "completed" ? "Template Surat:" : "Surat Persetujuan:") : undefined,
     attachmentFile: p.surat_persetujuan?.file_path ? extractFilename(p.surat_persetujuan.file_path) : undefined,
     action:
       suratStatus === "in_progress" && !p.surat_persetujuan
@@ -95,10 +181,11 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
         ? "Laporan kegiatan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : laporanStatus === "rejected"
           ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin ?? ""}`
-          : "Menunggu pemohon mengunggah laporan kegiatan.",
-    status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
-    attachmentLabel: p.laporan_kegiatan?.file_laporan ? "File Laporan:" : undefined,
+          : "Silakan unggah laporan dan dokumentasi kegiatan setelah pelaksanaan pentas selesai.",
+    status: laporanStatus,
+    attachmentLabel: p.laporan_kegiatan?.file_laporan ? "Hasil Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
+    secondaryDetails: !p.laporan_kegiatan?.file_laporan ? ["Pengaju belum menginput laporan"] : undefined,
     action:
       laporanStatus === "in_progress" && p.laporan_kegiatan?.file_laporan
         ? { type: "setujui_laporan" }
@@ -111,10 +198,10 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
     description:
       pencairanStatus === "completed"
         ? "Dana fasilitasi telah dicairkan ke rekening lembaga budaya yang terdaftar."
-        : "Proses pencairan dana ke rekening lembaga budaya.",
+        : "Proses pencairan dana sedang dilakukan berdasarkan laporan kegiatan yang telah disetujui. Mohon menunggu.",
     status: pencairanStatus,
     details:
-      pencairanStatus === "completed"
+      pencairanStatus === "completed" || pencairanStatus === "in_progress"
         ? [`Nomor Rekening: ${p.nomor_rekening ?? "-"}`, `Nama Pemegang Rekening: ${p.nama_pemegang_rekening ?? "-"}`]
         : undefined,
     attachmentLabel: p.pencairan_dana?.bukti_transfer ? "Bukti Pencairan:" : undefined,
@@ -147,7 +234,7 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
         ? "Data dan dokumen pengajuan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : pemStatus === "rejected"
           ? `Pengajuan ditolak. ${p.catatan_pemeriksaan ?? ""}`
-          : "Data pendaftaran telah berhasil dikirim. Menunggu verifikasi.",
+          : "Data pendaftaran telah berhasil dikirim dan sedang diperiksa oleh Admin Dinas Kebudayaan DIY untuk memastikan kelengkapan dan kesesuaian data.",
     status: pemStatus,
     action: pemStatus === "in_progress" ? { type: "setujui_pemeriksaan" } : undefined,
   });
@@ -159,8 +246,8 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
     title: "Survey Lapangan Oleh Pihak Dinas Kebudayaan",
     description:
       surveyStatus === "completed"
-        ? "Survey lapangan telah selesai dilakukan oleh pihak Dinas Kebudayaan DIY."
-        : "Tentukan jadwal survey lapangan.",
+        ? "Survey lapangan telah dilaksanakan oleh Dinas Kebudayaan DIY sesuai lokasi yang diajukan pada tahap sebelumnya."
+        : "Pihak Dinas Kebudayaan DIY akan melakukan survey lapangan sesuai lokasi yang diajukan pada tahap sebelumnya.",
     status: surveyStatus,
     scheduledDate: p.survey_lapangan?.tanggal_survey ? formatDate(p.survey_lapangan.tanggal_survey) : undefined,
     action:
@@ -177,7 +264,7 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
     description:
       suratStatus === "completed"
         ? "Surat persetujuan telah diterima dan dikonfirmasi di Kantor Dinas Kebudayaan DIY."
-        : "Surat persetujuan perlu diterbitkan. Unggah surat persetujuan untuk pemohon.",
+        : "Surat persetujuan telah diterbitkan. Pemohon wajib mengunduh surat persetujuan dan melakukan penandatanganan secara langsung di Kantor Dinas Kebudayaan DIY.",
     status: suratStatus,
     attachmentLabel: p.surat_persetujuan?.file_path ? "Surat Persetujuan:" : undefined,
     attachmentFile: p.surat_persetujuan?.file_path ? extractFilename(p.surat_persetujuan.file_path) : undefined,
@@ -194,9 +281,25 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
     title: "Pengiriman Sarana Prasarana",
     description:
       pengirimanStatus === "completed"
-        ? "Sarana prasarana telah dikirim ke lokasi lembaga budaya yang terdaftar."
-        : "Proses pengiriman sarana prasarana ke lokasi lembaga budaya.",
+        ? "Fasilitas hibah telah dikirim oleh Dinas Kebudayaan DIY ke alamat yang terdaftar."
+        : "Proses penyiapan dan pengiriman sarana dan prasarana sedang dilakukan oleh Dinas Kebudayaan DIY dan akan segera dikirim ke:",
     status: pengirimanStatus,
+    details:
+      pengirimanStatus === "in_progress"
+        ? [
+            `Nama Penerima: ${p.nama_penerima ?? "-"}`,
+            `Alamat: ${[
+              p.alamat_pengiriman,
+              p.kelurahan_desa,
+              p.kecamatan,
+              p.kabupaten_kota,
+              p.provinsi,
+              p.kode_pos,
+            ]
+              .filter(Boolean)
+              .join(", ") || "-"}`,
+          ]
+        : undefined,
     attachmentLabel: p.pengiriman_sarana?.bukti_pengiriman ? "Bukti Pengiriman:" : undefined,
     attachmentFile: p.pengiriman_sarana?.bukti_pengiriman ? extractFilename(p.pengiriman_sarana.bukti_pengiriman) : undefined,
     action: pengirimanStatus === "in_progress" && !p.pengiriman_sarana?.bukti_pengiriman ? { type: "upload_pengiriman" } : undefined,
@@ -208,10 +311,11 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
     description:
       laporanStatus === "completed"
         ? "Laporan kegiatan telah diverifikasi dan dinyatakan sesuai ketentuan."
-        : "Menunggu pemohon mengunggah laporan kegiatan.",
-    status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
+        : "Silakan unggah laporan dan dokumentasi kegiatan saat fasilitas digunakan.",
+    status: laporanStatus,
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "File Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
+    secondaryDetails: !p.laporan_kegiatan?.file_laporan ? ["Pengaju belum menginput laporan"] : undefined,
     action:
       laporanStatus === "in_progress" && p.laporan_kegiatan?.file_laporan
         ? { type: "setujui_laporan" }
@@ -245,6 +349,50 @@ function getOverallChipStatus(p: Pengajuan): TimelineStatus {
   if (p.status === "SELESAI") return "completed";
   if (p.status === "DITOLAK") return "rejected";
   return "in_progress";
+}
+
+function getAdminReviewStatus(p: Pengajuan): {
+  label: string;
+  className: string;
+  description: string;
+} {
+  if (p.status === "DITOLAK") {
+    return {
+      label: "Ditolak",
+      className: "bg-[rgba(255,77,73,0.16)] text-[#ff4d49]",
+      description: "Review admin berakhir ditolak. Catatan dan surat penolakan tersimpan untuk lembaga budaya.",
+    };
+  }
+
+  if (p.status === "SELESAI" || p.surat_persetujuan?.file_path) {
+    return {
+      label: "Selesai",
+      className: "bg-[rgba(114,225,40,0.16)] text-[#58be15]",
+      description: "Proses review admin selesai. Surat persetujuan telah diterbitkan pada pengajuan ini.",
+    };
+  }
+
+  if (p.jenis_fasilitasi_id === 2 && p.survey_lapangan?.status === "SELESAI") {
+    return {
+      label: "Disetujui",
+      className: "bg-[rgba(114,225,40,0.16)] text-[#58be15]",
+      description: "Pengajuan telah disetujui pada tahap review admin dan siap dilanjutkan ke penerbitan surat persetujuan.",
+    };
+  }
+
+  if (p.status_pemeriksaan === "SELESAI") {
+    return {
+      label: "Disetujui",
+      className: "bg-[rgba(114,225,40,0.16)] text-[#58be15]",
+      description: "Pengajuan telah disetujui pada tahap review admin dan siap dilanjutkan ke tahap berikutnya.",
+    };
+  }
+
+  return {
+    label: "Dalam Proses",
+    className: "bg-[rgba(253,181,40,0.16)] text-[#fdb528]",
+    description: "Pengajuan masih dalam proses review admin.",
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -336,6 +484,76 @@ function TimelineDot({ status, showLine }: { status: TimelineStatus; showLine: b
   );
 }
 
+function ChevronIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M10 8L14 12L10 16" stroke="rgba(38,43,67,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StatusBadgeControl({
+  status,
+  options,
+  onSelect,
+  disabled = false,
+}: {
+  status: TimelineStatus;
+  options: TimelineStatus[];
+  onSelect: (value: TimelineStatus) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  if (options.length === 0) {
+    return <StatusChip status={status} />;
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <ChevronIcon />
+        <StatusChip status={status} />
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 top-[calc(100%+8px)] z-10 min-w-[150px] rounded-[10px] bg-white p-2 shadow-[0_6px_20px_0_rgba(38,43,67,0.18)]">
+          {options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="flex w-full items-center justify-start px-2 py-1.5 hover:bg-[rgba(38,43,67,0.04)]"
+              onClick={() => {
+                onSelect(option);
+                setOpen(false);
+              }}
+            >
+              <StatusChip status={option} />
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function PdfFileChip({ filename }: { filename: string }) {
   return (
     <div className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px]">
@@ -356,15 +574,20 @@ function ActionButton({
   label: string;
   onClick: () => void;
   disabled?: boolean;
-  variant?: "primary" | "danger";
+  variant?: "primary" | "danger" | "secondary";
 }) {
-  const bg = variant === "danger" ? "bg-red-600 hover:bg-red-700" : "bg-[#c23513] hover:bg-[#a62c10]";
+  const bg =
+    variant === "danger"
+      ? "bg-red-600 hover:bg-red-700"
+      : variant === "secondary"
+        ? "border border-[rgba(38,43,67,0.18)] bg-white text-[rgba(38,43,67,0.78)] hover:bg-[rgba(38,43,67,0.04)]"
+        : "bg-[#c23513] hover:bg-[#a62c10]";
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex w-fit items-center justify-center gap-2 rounded-lg ${bg} px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors disabled:opacity-50`}
+      className={`inline-flex w-fit items-center justify-center gap-2 rounded-lg ${bg} px-[22px] py-2 text-[15px] font-medium leading-[22px] ${variant === "secondary" ? "shadow-none" : "text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]"} transition-colors disabled:opacity-50`}
     >
       {label}
     </button>
@@ -386,9 +609,18 @@ export default function AdminStatusDetailPage() {
 
   // Form state for modals / inline inputs
   const [surveyDate, setSurveyDate] = useState("");
+  const [surveyCatatan, setSurveyCatatan] = useState("");
   const [tolakCatatan, setTolakCatatan] = useState("");
-  const [showTolakInput, setShowTolakInput] = useState(false);
+  const [tolakMode, setTolakMode] = useState<"pemeriksaan" | "laporan" | null>(null);
+  const [tolakSuratFile, setTolakSuratFile] = useState<File | null>(null);
   const [paketId, setPaketId] = useState("");
+  const [showPaketPicker, setShowPaketPicker] = useState(false);
+  const [paketOptions, setPaketOptions] = useState<PaketFasilitasi[]>([]);
+  const [nomorSurat, setNomorSurat] = useState("");
+  const [catatanPengiriman, setCatatanPengiriman] = useState("");
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [rejectReasonError, setRejectReasonError] = useState<string | null>(null);
+  const [stepStatusOverrides, setStepStatusOverrides] = useState<Record<string, TimelineStatus>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingFileAction, setPendingFileAction] = useState<StepAction["type"] | null>(null);
@@ -411,23 +643,83 @@ export default function AdminStatusDetailPage() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (!data || data.jenis_fasilitasi_id !== 1) {
+      setPaketOptions([]);
+      return;
+    }
+
+    // Admin action harus mengirim UUID paket Pentas yang sudah ditetapkan.
+    fasilitasiApi
+      .getPaketByJenis(1)
+      .then(() => setPaketOptions(ADMIN_PAKET_PENTAS))
+      .catch(() => setPaketOptions(ADMIN_PAKET_PENTAS));
+  }, [data]);
+
   async function handleAction(actionType: StepAction["type"]) {
     if (!data) return;
     try {
       setActionLoading(true);
+      setActionMessage(null);
       switch (actionType) {
         case "setujui_pemeriksaan":
-          await adminPengajuanApi.setujui(data.pengajuan_id, { paket_id: paketId || undefined });
+          if (data.jenis_fasilitasi_id === 1 && !paketId) {
+            alert("Pilih paket terlebih dahulu");
+            setActionLoading(false);
+            return;
+          }
+
+          const paketIdToSend =
+            data.jenis_fasilitasi_id === 1
+              ? paketId
+              : resolveHibahPaketId(data);
+
+          if (!paketIdToSend || !isUuid(paketIdToSend)) {
+            setActionMessage(
+              data.jenis_fasilitasi_id === 1
+                ? "Paket tidak valid. Pilih paket Pentas yang tersedia."
+                : "Paket Hibah tidak ditemukan atau UUID tidak valid. Periksa data jenis kegiatan pada pengajuan.",
+            );
+            setActionLoading(false);
+            return;
+          }
+
+          const selectedPaket = paketOptions.find((paket) => paket.paket_id === paketId);
+          await adminPengajuanApi.setujui(data.pengajuan_id, {
+            paket_id: paketIdToSend,
+            catatan:
+              data.jenis_fasilitasi_id === 1
+                ? selectedPaket
+                  ? `Data lengkap dan sesuai. ${selectedPaket.nama_paket}${selectedPaket.nilai_bantuan ? ` (Rp ${Number(selectedPaket.nilai_bantuan).toLocaleString("id-ID")})` : ""} ditetapkan.`
+                  : "Data lengkap dan sesuai. Paket fasilitasi ditetapkan."
+                : "Data dan dokumen telah diverifikasi sesuai ketentuan.",
+          });
+          setShowPaketPicker(false);
           break;
         case "tolak_pemeriksaan":
-          await adminPengajuanApi.tolak(data.pengajuan_id, { catatan: tolakCatatan });
-          setShowTolakInput(false);
+          if (!tolakCatatan.trim()) {
+            setRejectReasonError("Alasan penolakan wajib diisi");
+            setActionLoading(false);
+            return;
+          }
+          await adminPengajuanApi.tolak(
+            data.pengajuan_id,
+            { catatan: tolakCatatan.trim() },
+            tolakSuratFile ?? undefined,
+          );
+          setTolakMode(null);
           setTolakCatatan("");
+          setTolakSuratFile(null);
+          setRejectReasonError(null);
           break;
         case "set_survey":
           if (!surveyDate) { alert("Pilih tanggal survey terlebih dahulu"); setActionLoading(false); return; }
-          await adminPengajuanApi.setSurvey(data.pengajuan_id, { tanggal_survey: surveyDate });
+          await adminPengajuanApi.setSurvey(data.pengajuan_id, {
+            tanggal_survey: surveyDate,
+            catatan: surveyCatatan.trim() || undefined,
+          });
           setSurveyDate("");
+          setSurveyCatatan("");
           break;
         case "selesaikan_survey":
           await adminPengajuanApi.selesaikanSurvey(data.pengajuan_id);
@@ -439,9 +731,15 @@ export default function AdminStatusDetailPage() {
           await adminPengajuanApi.setujuiLaporan(data.pengajuan_id);
           break;
         case "tolak_laporan":
-          await adminPengajuanApi.tolakLaporan(data.pengajuan_id, { catatan_admin: tolakCatatan });
-          setShowTolakInput(false);
+          if (!tolakCatatan.trim()) {
+            setRejectReasonError("Alasan penolakan wajib diisi");
+            setActionLoading(false);
+            return;
+          }
+          await adminPengajuanApi.tolakLaporan(data.pengajuan_id, { catatan_admin: tolakCatatan.trim() });
+          setTolakMode(null);
           setTolakCatatan("");
+          setRejectReasonError(null);
           break;
         case "selesaikan_pencairan":
           await adminPengajuanApi.selesaikanPencairan(data.pengajuan_id);
@@ -453,7 +751,7 @@ export default function AdminStatusDetailPage() {
       await fetchData();
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Aksi gagal";
-      alert(msg);
+      setActionMessage(msg);
     } finally {
       setActionLoading(false);
     }
@@ -461,15 +759,35 @@ export default function AdminStatusDetailPage() {
 
   async function handleFileUpload(file: File) {
     if (!data || !pendingFileAction) return;
+
+    const validationConfig =
+      pendingFileAction === "upload_surat"
+        ? { ...pdfUploadValidation, label: "Surat persetujuan" }
+        : pendingFileAction === "upload_pencairan"
+          ? { ...documentUploadValidation, label: "Bukti pencairan" }
+          : { ...documentUploadValidation, label: "Bukti pengiriman" };
+
+    const validationMessage = validateUploadFile(file, validationConfig);
+    if (validationMessage) {
+      setActionMessage(validationMessage);
+      setPendingFileAction(null);
+      return;
+    }
+
     try {
       setActionLoading(true);
+      setActionMessage(null);
       switch (pendingFileAction) {
         case "upload_surat":
           await adminPengajuanApi.uploadSuratPersetujuan(
             data.pengajuan_id,
-            { tanggal_terbit: new Date().toISOString().split("T")[0] },
+            {
+              nomor_surat: nomorSurat.trim() || undefined,
+              tanggal_terbit: new Date().toISOString().split("T")[0],
+            },
             file,
           );
+          setNomorSurat("");
           break;
         case "upload_pencairan":
           await adminPengajuanApi.uploadBuktiPencairan(
@@ -481,16 +799,20 @@ export default function AdminStatusDetailPage() {
         case "upload_pengiriman":
           await adminPengajuanApi.uploadBuktiPengiriman(
             data.pengajuan_id,
-            { tanggal_pengiriman: new Date().toISOString().split("T")[0] },
+            {
+              tanggal_pengiriman: new Date().toISOString().split("T")[0],
+              catatan: catatanPengiriman.trim() || undefined,
+            },
             file,
           );
+          setCatatanPengiriman("");
           break;
       }
       setPendingFileAction(null);
       await fetchData();
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Upload gagal";
-      alert(msg);
+      setActionMessage(msg);
     } finally {
       setActionLoading(false);
     }
@@ -526,11 +848,112 @@ export default function AdminStatusDetailPage() {
   const isPentas = data.jenis_fasilitasi_id === 1;
   const timeline = isPentas ? buildAdminPentasTimeline(data) : buildAdminHibahTimeline(data);
   const overallStatus = getOverallChipStatus(data);
+  const reviewStatus = getAdminReviewStatus(data);
   const kategori = isPentas ? "Fasilitasi Pentas" : "Fasilitasi Hibah";
   const namaKegiatan = data.lembaga_budaya?.nama_lembaga ?? data.judul_kegiatan ?? data.jenis_kegiatan ?? "-";
   const tanggalPengajuan = formatDate(data.tanggal_pengajuan);
 
+  function getStepKey(step: TimelineStep, index: number): string {
+    return `${index}-${step.title}`;
+  }
+
+  function getStatusControl(step: TimelineStep): "pemeriksaan" | "laporan" | "surat" | "survey" | "pencairan" | null {
+    if (step.title.includes("Pemeriksaan Data")) return "pemeriksaan";
+    if (step.title === "Pelaporan Kegiatan") return "laporan";
+    if (step.title.includes("Surat Persetujuan") || step.title.includes("Penandatangan Surat")) return "surat";
+    if (step.title.includes("Survey Lapangan")) return "survey";
+    if (step.title.includes("Pencairan Dana")) return "pencairan";
+    return null;
+  }
+
+  function getSelectableStatuses(step: TimelineStep): TimelineStatus[] {
+    const statusControl = getStatusControl(step);
+    switch (statusControl) {
+      case "pemeriksaan":
+      case "laporan":
+        return ["completed", "rejected", "in_progress"];
+      case "surat":
+      case "survey":
+      case "pencairan":
+        return ["completed", "in_progress"];
+      default:
+        return [];
+    }
+  }
+
+  function handleBadgeStatusChange(step: TimelineStep, index: number, nextStatus: TimelineStatus) {
+    const stepKey = getStepKey(step, index);
+    const allowedStatuses = getSelectableStatuses(step);
+    if (!allowedStatuses.includes(nextStatus)) {
+      setActionMessage("Perubahan status ini belum didukung backend untuk step tersebut.");
+      return;
+    }
+
+    const currentStatus = stepStatusOverrides[stepKey] ?? step.status;
+    if (currentStatus === nextStatus) {
+      return;
+    }
+
+    if (nextStatus === "in_progress") {
+      setStepStatusOverrides((prev) => ({ ...prev, [stepKey]: "in_progress" }));
+      setActionMessage("Badge diubah ke Dalam Proses. Perubahan ini bersifat sementara sampai endpoint reset status tersedia.");
+      return;
+    }
+
+    setStepStatusOverrides((prev) => {
+      const { [stepKey]: _removed, ...rest } = prev;
+      return rest;
+    });
+
+    const statusControl = getStatusControl(step);
+    if (!statusControl) return;
+
+    if (statusControl === "pemeriksaan") {
+      if (nextStatus === "completed") {
+        if (isPentas) {
+          setShowPaketPicker(true);
+          return;
+        }
+        void handleAction("setujui_pemeriksaan");
+        return;
+      }
+
+      if (nextStatus === "rejected") {
+        setTolakMode("pemeriksaan");
+      }
+      return;
+    }
+
+    if (statusControl === "laporan") {
+      if (nextStatus === "completed") {
+        void handleAction("setujui_laporan");
+        return;
+      }
+
+      if (nextStatus === "rejected") {
+        setTolakMode("laporan");
+      }
+      return;
+    }
+
+    if (statusControl === "surat" && nextStatus === "completed") {
+      void handleAction("konfirmasi_surat");
+      return;
+    }
+
+    if (statusControl === "pencairan" && nextStatus === "completed") {
+      void handleAction("selesaikan_pencairan");
+      return;
+    }
+
+    if (statusControl === "survey" && nextStatus === "completed") {
+      void handleAction("selesaikan_survey");
+      return;
+    }
+  }
+
   function renderStepActions(step: TimelineStep) {
+    if (step.status === "locked") return null;
     if (!step.action) return null;
     const { type } = step.action;
 
@@ -539,31 +962,86 @@ export default function AdminStatusDetailPage() {
         return (
           <div className="mt-4 space-y-3">
             <div>
-              <label className="block text-[13px] text-[rgba(38,43,67,0.7)]">Paket ID (opsional)</label>
-              <input
-                type="text"
-                value={paketId}
-                onChange={(e) => setPaketId(e.target.value)}
-                placeholder="ID Paket fasilitasi"
-                className="mt-1 w-full max-w-[300px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
-              />
+              <Link
+                href="#ringkasan-pengajuan"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#c23513] px-[18px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+              >
+                Lihat Data Pengajuan
+                <UploadIcon />
+              </Link>
             </div>
             <div className="flex gap-2">
-              <ActionButton label="Setujui" onClick={() => handleAction("setujui_pemeriksaan")} disabled={actionLoading} />
-              {!showTolakInput ? (
-                <ActionButton label="Tolak" variant="danger" onClick={() => setShowTolakInput(true)} disabled={actionLoading} />
+              <ActionButton
+                label={isPentas ? "Pilih Paket" : "Setujui"}
+                onClick={() => {
+                  if (isPentas) {
+                    setShowPaketPicker(true);
+                    return;
+                  }
+                  handleAction("setujui_pemeriksaan");
+                }}
+                disabled={actionLoading}
+              />
+              {tolakMode !== "pemeriksaan" ? (
+                <ActionButton label="Tolak" variant="danger" onClick={() => setTolakMode("pemeriksaan")} disabled={actionLoading} />
               ) : (
-                <div className="flex items-end gap-2">
+                <div className="flex flex-wrap items-end gap-2">
                   <div>
                     <input
                       type="text"
                       value={tolakCatatan}
-                      onChange={(e) => setTolakCatatan(e.target.value)}
+                      onChange={(e) => {
+                        setTolakCatatan(e.target.value);
+                        setRejectReasonError(null);
+                        setActionMessage(null);
+                      }}
                       placeholder="Alasan penolakan"
                       className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
                     />
+                    {rejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{rejectReasonError}</p> : null}
                   </div>
-                  <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_pemeriksaan")} disabled={actionLoading || !tolakCatatan} />
+                  <label className="flex h-[42px] cursor-pointer items-center rounded-lg border border-[rgba(38,43,67,0.22)] px-3 text-[14px] text-[rgba(38,43,67,0.72)]">
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const selectedFile = e.target.files?.[0] ?? null;
+                        if (!selectedFile) {
+                          setTolakSuratFile(null);
+                          return;
+                        }
+
+                        const validationMessage = validateUploadFile(selectedFile, {
+                          ...pdfUploadValidation,
+                          label: "Surat penolakan",
+                        });
+
+                        if (validationMessage) {
+                          setTolakSuratFile(null);
+                          setActionMessage(validationMessage);
+                          e.currentTarget.value = "";
+                          return;
+                        }
+
+                        setActionMessage(null);
+                        setTolakSuratFile(selectedFile);
+                      }}
+                    />
+                    {tolakSuratFile ? `Surat: ${tolakSuratFile.name}` : "Lampiran surat penolakan (opsional)"}
+                  </label>
+                  <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_pemeriksaan")} disabled={actionLoading} />
+                  <ActionButton
+                    label="Batal"
+                    variant="secondary"
+                    onClick={() => {
+                      setTolakMode(null);
+                      setTolakCatatan("");
+                      setTolakSuratFile(null);
+                      setRejectReasonError(null);
+                    }}
+                    disabled={actionLoading}
+                  />
                 </div>
               )}
             </div>
@@ -573,14 +1051,20 @@ export default function AdminStatusDetailPage() {
       case "set_survey":
         return (
           <div className="mt-4 space-y-3">
-            <label className="block text-[13px] text-[rgba(38,43,67,0.7)]">Tanggal Survey</label>
+            <label className="block text-[13px] text-[rgba(38,43,67,0.7)]">Tentukan tanggal survey lapangan:</label>
             <input
               type="date"
               value={surveyDate}
               onChange={(e) => setSurveyDate(e.target.value)}
               className="w-full max-w-[300px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
             />
-            <ActionButton label="Set Jadwal Survey" onClick={() => handleAction("set_survey")} disabled={actionLoading || !surveyDate} />
+            <textarea
+              value={surveyCatatan}
+              onChange={(e) => setSurveyCatatan(e.target.value)}
+              placeholder="Catatan survey (opsional)"
+              className="min-h-[92px] w-full max-w-[420px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
+            />
+            <ActionButton label="Simpan Jadwal Survey" onClick={() => handleAction("set_survey")} disabled={actionLoading || !surveyDate} />
           </div>
         );
 
@@ -593,14 +1077,21 @@ export default function AdminStatusDetailPage() {
 
       case "upload_surat":
         return (
-          <div className="mt-4">
+          <div className="mt-4 space-y-3">
+            <input
+              type="text"
+              value={nomorSurat}
+              onChange={(e) => setNomorSurat(e.target.value)}
+              placeholder="Nomor surat (opsional)"
+              className="w-full max-w-[320px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
+            />
             <button
               type="button"
               disabled={actionLoading}
               onClick={() => triggerFileUpload("upload_surat")}
               className="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-50"
             >
-              Unggah Surat Persetujuan
+              {step.attachmentFile ? "Unggah Ulang" : "Unggah Berkas"}
               <UploadIcon />
             </button>
           </div>
@@ -617,18 +1108,33 @@ export default function AdminStatusDetailPage() {
         return (
           <div className="mt-4 flex gap-2">
             <ActionButton label="Setujui Laporan" onClick={() => handleAction("setujui_laporan")} disabled={actionLoading} />
-            {!showTolakInput ? (
-              <ActionButton label="Tolak Laporan" variant="danger" onClick={() => setShowTolakInput(true)} disabled={actionLoading} />
+            {tolakMode !== "laporan" ? (
+              <ActionButton label="Tolak Laporan" variant="danger" onClick={() => setTolakMode("laporan")} disabled={actionLoading} />
             ) : (
               <div className="flex items-end gap-2">
                 <input
                   type="text"
                   value={tolakCatatan}
-                  onChange={(e) => setTolakCatatan(e.target.value)}
+                  onChange={(e) => {
+                    setTolakCatatan(e.target.value);
+                    setRejectReasonError(null);
+                    setActionMessage(null);
+                  }}
                   placeholder="Alasan penolakan"
                   className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
                 />
-                <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_laporan")} disabled={actionLoading || !tolakCatatan} />
+                {rejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{rejectReasonError}</p> : null}
+                <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_laporan")} disabled={actionLoading} />
+                <ActionButton
+                  label="Batal"
+                  variant="secondary"
+                  onClick={() => {
+                    setTolakMode(null);
+                    setTolakCatatan("");
+                    setRejectReasonError(null);
+                  }}
+                  disabled={actionLoading}
+                />
               </div>
             )}
           </div>
@@ -643,7 +1149,7 @@ export default function AdminStatusDetailPage() {
               onClick={() => triggerFileUpload("upload_pencairan")}
               className="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-50"
             >
-              Unggah Bukti Pencairan
+              {step.attachmentFile ? "Unggah Ulang" : "Unggah Berkas"}
               <UploadIcon />
             </button>
           </div>
@@ -658,14 +1164,20 @@ export default function AdminStatusDetailPage() {
 
       case "upload_pengiriman":
         return (
-          <div className="mt-4">
+          <div className="mt-4 space-y-3">
+            <textarea
+              value={catatanPengiriman}
+              onChange={(e) => setCatatanPengiriman(e.target.value)}
+              placeholder="Catatan pengiriman (opsional)"
+              className="min-h-[92px] w-full max-w-[420px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
+            />
             <button
               type="button"
               disabled={actionLoading}
               onClick={() => triggerFileUpload("upload_pengiriman")}
               className="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-50"
             >
-              Unggah Bukti Pengiriman
+              {step.attachmentFile ? "Unggah Ulang" : "Unggah Berkas"}
               <UploadIcon />
             </button>
           </div>
@@ -691,6 +1203,70 @@ export default function AdminStatusDetailPage() {
         }}
       />
 
+      {showPaketPicker && isPentas ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+          <div className="w-full max-w-[594px] rounded-[10px] bg-white p-6 shadow-[0_24px_60px_rgba(22,35,71,0.22)]">
+            <h2 className="text-center text-[28px] font-bold leading-[42px] text-[rgba(38,43,67,0.9)]">Pilih Paket</h2>
+            <p className="mt-1 text-center text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+              Tetapkan paket yang sesuai dengan pengajuan
+            </p>
+
+            <div className="mt-6 space-y-2.5">
+              {paketOptions.map((paket) => {
+                const isSelected = paketId === paket.paket_id;
+                return (
+                  <button
+                    key={paket.paket_id}
+                    type="button"
+                    onClick={() => setPaketId(paket.paket_id)}
+                    className={`flex w-full items-center gap-3 rounded-[10px] border px-4 py-4 text-left transition-colors ${
+                      isSelected
+                        ? "border-[#c23513] bg-[rgba(194,53,19,0.02)]"
+                        : "border-[rgba(38,43,67,0.12)] bg-white"
+                    }`}
+                  >
+                    <span className={`flex size-4 items-center justify-center rounded-full border-2 ${isSelected ? "border-[#c23513]" : "border-[#6d7285]"}`}>
+                      <span className={`size-1.5 rounded-full ${isSelected ? "bg-[#c23513]" : "bg-transparent"}`} />
+                    </span>
+                    <span className="text-[17px] leading-[26px] text-[rgba(38,43,67,0.9)]">
+                      {paket.nama_paket}
+                      {paket.nilai_bantuan ? (
+                        <span className="font-medium text-[#c23513]"> {`(Rp ${Number(paket.nilai_bantuan).toLocaleString("id-ID")})`}</span>
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPaketPicker(false);
+                  setPaketId("");
+                }}
+                className="inline-flex items-center justify-center rounded-[10px] border border-[#c23513] px-6 py-2 text-[17px] font-medium leading-[26px] text-[#c23513]"
+              >
+                Kembali
+              </button>
+              <button
+                type="button"
+                disabled={!paketId || actionLoading}
+                onClick={async () => {
+                  await handleAction("setujui_pemeriksaan");
+                  setShowPaketPicker(false);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-[10px] bg-[#c23513] px-6 py-2 text-[17px] font-medium leading-[26px] text-white disabled:opacity-50"
+              >
+                Pilih Paket
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mx-auto w-full max-w-[950px] pb-10 pt-6 lg:pt-[28px]">
         <Link
           href="/dashboard/admin"
@@ -708,7 +1284,25 @@ export default function AdminStatusDetailPage() {
             Kelola dan perbarui status pengajuan fasilitas lembaga budaya.
           </p>
 
-          <div className="mt-4 overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
+          {actionMessage ? (
+            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-700">
+              {actionMessage}
+            </div>
+          ) : null}
+
+          <div className="mt-4 rounded-[10px] bg-white p-5 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
+            <p className="text-[13px] leading-5 text-[rgba(38,43,67,0.7)]">Status Review Admin</p>
+            <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <span className={`inline-flex w-fit items-center justify-center whitespace-nowrap rounded-full px-2 py-0.5 text-[13px] font-medium leading-5 ${reviewStatus.className}`}>
+                {reviewStatus.label}
+              </span>
+              <p className="text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)] md:text-right">
+                {reviewStatus.description}
+              </p>
+            </div>
+          </div>
+
+          <div id="ringkasan-pengajuan" className="mt-4 overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
             <div className="overflow-x-auto">
               <div className="min-w-[920px]">
                 {/* Table Header */}
@@ -742,42 +1336,65 @@ export default function AdminStatusDetailPage() {
                 {/* Timeline Section */}
                 <div className="px-5 py-4">
                   <div className="space-y-6">
-                    {timeline.map((step, index) => (
+                    {timeline.map((step, index) => {
+                        const stepKey = getStepKey(step, index);
+                        const effectiveStatus = stepStatusOverrides[stepKey] ?? step.status;
+                        const effectiveStep = effectiveStatus === step.status ? step : { ...step, status: effectiveStatus };
+                        return (
                       <div key={step.title} className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 md:grid-cols-[160px_32px_minmax(0,1fr)] md:gap-5">
                         <div className="hidden items-start justify-end pt-3 md:flex">
-                          <StatusChip status={step.status} />
+                          <StatusBadgeControl
+                            status={effectiveStep.status}
+                            options={getSelectableStatuses(step)}
+                            onSelect={(value) => handleBadgeStatusChange(step, index, value)}
+                            disabled={actionLoading}
+                          />
                         </div>
 
-                        <TimelineDot status={step.status} showLine={index < timeline.length - 1} />
+                        <TimelineDot status={effectiveStep.status} showLine={index < timeline.length - 1} />
 
                         <article className="rounded-[10px] bg-white p-4 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)] md:p-5">
                           <div className="mb-2 md:hidden">
-                            <StatusChip status={step.status} />
+                            <StatusBadgeControl
+                              status={effectiveStep.status}
+                              options={getSelectableStatuses(step)}
+                              onSelect={(value) => handleBadgeStatusChange(step, index, value)}
+                              disabled={actionLoading}
+                            />
                           </div>
                           <h2 className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
                             {step.title}
                           </h2>
-                          {step.status !== "locked" && (
+                          {effectiveStep.status !== "locked" && (
                             <p className="mt-4 text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
-                              {step.description}
+                              {effectiveStep.description}
                             </p>
                           )}
 
                           {step.details && (
                             <div className="mt-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
-                              <p>Detail:</p>
-                              <ul className="ml-[22px] list-disc">
+                              {step.detailsTitle ? <p className="mb-1">{step.detailsTitle}</p> : null}
+                              <ul className="list-none">
                                 {step.details.map((d) => (
-                                  <li key={d}>{d}</li>
+                                  <li key={d}>• {d}</li>
                                 ))}
                               </ul>
                             </div>
                           )}
 
-                          {step.scheduledDate && (
-                            <div className="mt-3 inline-flex items-center gap-2 text-[15px] text-[rgba(38,43,67,0.7)]">
-                              <span>Jadwal:</span>
-                              <span className="font-medium text-[rgba(38,43,67,0.9)]">{step.scheduledDate}</span>
+                          {!isPentas && step.scheduledDate && (
+                            <div className="mt-3 space-y-1 text-[15px] text-[rgba(38,43,67,0.7)]">
+                              <p>Tentukan tanggal survey lapangan:</p>
+                              <div className="inline-flex items-center gap-2 rounded-lg border border-[rgba(38,43,67,0.16)] px-3 py-2">
+                                <span className="font-medium text-[rgba(38,43,67,0.9)]">{step.scheduledDate}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {step.title === "Pelaporan Kegiatan" && effectiveStep.status !== "locked" && (
+                            <div className="mt-4 space-y-2">
+                              <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">Contoh Laporan:</p>
+                              <PdfFileChip filename="Contoh Laporan Kegiatan.pdf" />
                             </div>
                           )}
 
@@ -788,10 +1405,22 @@ export default function AdminStatusDetailPage() {
                             </div>
                           )}
 
-                          {renderStepActions(step)}
+                          {step.secondaryDetails && (
+                            <div className="mt-4 space-y-1">
+                              <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">Hasil Laporan:</p>
+                              {step.secondaryDetails.map((detail) => (
+                                <div key={detail} className="inline-flex items-center rounded-[8px] bg-[rgba(38,43,67,0.06)] px-3 py-2 text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+                                  {detail}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {renderStepActions(effectiveStep)}
                         </article>
                       </div>
-                    ))}
+                        );
+                      })}
                   </div>
                 </div>
               </div>

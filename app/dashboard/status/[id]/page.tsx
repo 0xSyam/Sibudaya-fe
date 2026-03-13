@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { pengajuanApi } from "@/app/lib/api";
+import { pdfUploadValidation, validateUploadFile } from "@/app/lib/file-validation";
 import type { Pengajuan } from "@/app/lib/types";
 
 /* ------------------------------------------------------------------ */
@@ -355,6 +356,7 @@ export default function UserStatusDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -378,13 +380,25 @@ export default function UserStatusDetailPage() {
 
   async function handleUploadLaporan(file: File) {
     if (!data) return;
+
+    const validationMessage = validateUploadFile(file, {
+      ...pdfUploadValidation,
+      label: "Laporan kegiatan",
+    });
+
+    if (validationMessage) {
+      setUploadError(validationMessage);
+      return;
+    }
+
     try {
       setUploading(true);
+      setUploadError(null);
       await pengajuanApi.uploadLaporan(data.pengajuan_id, file);
       await fetchData();
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Gagal mengunggah laporan";
-      alert(msg);
+      setUploadError(msg);
     } finally {
       setUploading(false);
     }
@@ -437,6 +451,12 @@ export default function UserStatusDetailPage() {
           <p className="mt-4 text-[13px] leading-5 text-[rgba(38,43,67,0.7)]">
             Pantau perkembangan pengajuan fasilitas pentas dan sarana prasarana yang telah Anda ajukan.
           </p>
+
+          {uploadError ? (
+            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-700">
+              {uploadError}
+            </div>
+          ) : null}
 
           <div className="mt-4 overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
             <div className="overflow-x-auto">
@@ -527,6 +547,7 @@ export default function UserStatusDetailPage() {
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file) handleUploadLaporan(file);
+                                  e.currentTarget.value = "";
                                 }}
                               />
                               <button
@@ -557,6 +578,25 @@ export default function UserStatusDetailPage() {
               </div>
             </div>
           </div>
+
+          {data.surat_penolakan_file ? (
+            <div className="mt-6 rounded-[10px] bg-white p-5 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
+              <h2 className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+                Surat Penolakan
+              </h2>
+              <p className="mt-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+                Surat penolakan dari admin tersedia dan dapat diakses melalui tautan berikut.
+              </p>
+              <a
+                href={data.surat_penolakan_file}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex items-center justify-center rounded-[8px] bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+              >
+                Buka Surat Penolakan
+              </a>
+            </div>
+          ) : null}
         </section>
       </div>
     </section>
