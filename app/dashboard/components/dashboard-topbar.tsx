@@ -97,7 +97,12 @@ export function DashboardTopbar() {
   const unreadCount = notifications.filter((n) => !n.status_baca).length;
 
   const fetchNotifications = useCallback(() => {
-    notifikasiApi.getAll().then(setNotifications).catch(() => {});
+    notifikasiApi
+      .getAll()
+      .then((data) => setNotifications(Array.isArray(data) ? data : []))
+      .catch(() => {
+        setNotifications([]);
+      });
   }, []);
 
   useEffect(() => {

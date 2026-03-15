@@ -364,7 +364,13 @@ export const pengajuanApi = {
 export const notifikasiApi = {
   /** Daftar notifikasi user */
   getAll(): Promise<Notifikasi[]> {
-    return apiFetch<Notifikasi[]>("/notifikasi");
+    return apiFetch<Notifikasi[] | { data?: unknown }>("/notifikasi").then((response) => {
+      if (Array.isArray(response)) return response;
+      if (response && typeof response === "object" && Array.isArray(response.data)) {
+        return response.data as Notifikasi[];
+      }
+      return [];
+    });
   },
 
   /** Tandai satu notifikasi sudah dibaca */
