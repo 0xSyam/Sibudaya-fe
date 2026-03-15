@@ -7,6 +7,7 @@ import type {
   SafeUser,
   JenisFasilitasi,
   PaketFasilitasi,
+  AdminJenisFasilitasi,
   Lembaga,
   CreateLembagaDto,
   UpdateLembagaDto,
@@ -501,5 +502,71 @@ export const adminPengajuanApi = {
     formData.append("tanggal_pengiriman", dto.tanggal_pengiriman);
     if (dto.catatan) formData.append("catatan", dto.catatan);
     return apiMultipartFetch<PengirimanSarana>(`/admin/pengajuan/${pengajuanId}/pengiriman`, formData);
+  },
+};
+// ─── Admin Fasilitasi API ────────────────────────────────────────────────────
+export const adminFasilitasiApi = {
+  getAll(): Promise<AdminJenisFasilitasi[]> {
+    return apiFetch<AdminJenisFasilitasi[]>("/admin/fasilitasi");
+  },
+
+  createPaket(
+    jenisFasilitasiId: number,
+    dto: {
+      nama_paket: string;
+      kuota: number;
+      nilai_bantuan?: string;
+      catatan?: string;
+    },
+  ): Promise<PaketFasilitasi> {
+    return apiFetch<PaketFasilitasi>(
+      `/admin/fasilitasi/${jenisFasilitasiId}/paket`,
+      { method: "POST", body: JSON.stringify(dto) },
+    );
+  },
+
+  updatePaket(
+    paketId: string,
+    dto: {
+      nama_paket?: string;
+      kuota?: number;
+      nilai_bantuan?: string;
+      catatan?: string;
+    },
+  ): Promise<PaketFasilitasi> {
+    return apiFetch<PaketFasilitasi>(`/admin/fasilitasi/paket/${paketId}`, {
+      method: "PATCH",
+      body: JSON.stringify(dto),
+    });
+  },
+
+  deletePaket(paketId: string): Promise<unknown> {
+    return apiFetch(`/admin/fasilitasi/paket/${paketId}`, {
+      method: "DELETE",
+    });
+  },
+
+  uploadTemplateProposal(
+    jenisFasilitasiId: number,
+    file: File,
+  ): Promise<AdminJenisFasilitasi> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiMultipartFetch<AdminJenisFasilitasi>(
+      `/admin/fasilitasi/${jenisFasilitasiId}/template/proposal`,
+      formData,
+    );
+  },
+
+  uploadTemplateLaporan(
+    jenisFasilitasiId: number,
+    file: File,
+  ): Promise<AdminJenisFasilitasi> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiMultipartFetch<AdminJenisFasilitasi>(
+      `/admin/fasilitasi/${jenisFasilitasiId}/template/laporan`,
+      formData,
+    );
   },
 };

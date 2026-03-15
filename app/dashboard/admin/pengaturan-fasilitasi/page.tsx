@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { adminFasilitasiApi } from "../../../lib/api";
+import type { AdminJenisFasilitasi as ApiFasilitasi } from "../../../lib/types";
 
 // ─── Icons ───────────────────────────────────────────────
 
@@ -1099,18 +1101,10 @@ function GeneralTabContent() {
 
 // ─── Pentas Tab Content ─────────────────────────────────
 
-type JenisFasilitasi = {
+type LocalJenisFasilitasiRow = {
   jenis: string;
   danaPembinaan: string;
 };
-
-const defaultJenisFasilitasi: JenisFasilitasi[] = [
-  { jenis: "Pembinaan", danaPembinaan: "Rp. 60.000.000" },
-  { jenis: "Paket A", danaPembinaan: "Rp. 30.000.000" },
-  { jenis: "Paket B", danaPembinaan: "Rp. 20.000.000" },
-  { jenis: "Paket C", danaPembinaan: "Rp. 10.000.000" },
-  { jenis: "Paket D", danaPembinaan: "Rp. 5.000.000" },
-];
 
 type KuotaPengajuan = {
   jenis: string;
@@ -1118,13 +1112,7 @@ type KuotaPengajuan = {
   kuotaPengajuan: string;
 };
 
-const defaultKuotaPengajuan: KuotaPengajuan[] = [
-  { jenis: "Pembinaan", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
-  { jenis: "Paket A", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
-  { jenis: "Paket B", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
-  { jenis: "Paket C", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
-  { jenis: "Paket D", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
-];
+type JenisFasilitasi = LocalJenisFasilitasiRow;
 
 function JenisFasilitasiTable({
   items,
@@ -1243,7 +1231,7 @@ function KuotaPengajuanTable({
       <div className="overflow-x-auto">
         <div className="min-w-[700px]">
       <div className="flex items-center">
-        <div className="flex flex-1 items-center bg-[#f5f5f7] p-5">
+        <div className="flex min-w-[200px] flex-1 items-center bg-[#f5f5f7] p-5">
           <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis</p>
           <div className="h-3.5 w-0.5 bg-[rgba(38,43,67,0.12)]" />
         </div>
@@ -1265,9 +1253,9 @@ function KuotaPengajuanTable({
       {items.map((item, index) => (
         <div
           key={`${item.jenis}-${index}`}
-          className="flex h-[50px] items-center border-b border-[rgba(38,43,67,0.12)]"
+          className="flex min-h-[50px] items-center border-b border-[rgba(38,43,67,0.12)]"
         >
-          <div className="flex flex-1 items-center px-5">
+          <div className="flex min-w-[200px] flex-1 items-center px-5 py-3">
             <p className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
               {item.jenis}
             </p>
@@ -1342,63 +1330,162 @@ function DocumentCard({
   );
 }
 
-function PentasTabContent() {
-  const [jenisFasilitasi, setJenisFasilitasi] = useState(defaultJenisFasilitasi);
-  const [kuotaPengajuan, setKuotaPengajuan] = useState(defaultKuotaPengajuan);
+function PentasTabContent({
+  data,
+  onRefetch,
+}: {
+  data: ApiFasilitasi | null;
+  onRefetch: () => void;
+}) {
+  const JENIS_ID = 1;
+
   const [showAddJenisDialog, setShowAddJenisDialog] = useState(false);
   const [showAddKuotaDialog, setShowAddKuotaDialog] = useState(false);
   const [editingJenisIndex, setEditingJenisIndex] = useState<number | null>(null);
   const [editingKuotaIndex, setEditingKuotaIndex] = useState<number | null>(null);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<"proposal" | "laporan">("proposal");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pakets = data?.paket_fasilitasi ?? [];
+
+  const formatRupiah = (v: string | null) => {
+    if (!v) return "-";
+    const n = Number(v);
+    return isNaN(n) ? v : `Rp. ${n.toLocaleString("id-ID")}`;
+  };
+
+  const jenisFasilitasiItems: JenisFasilitasi[] = pakets.map((p) => ({
+    jenis: p.nama_paket,
+    danaPembinaan: formatRupiah(p.nilai_bantuan),
+  }));
+
+  const kuotaItems: KuotaPengajuan[] = pakets.map((p) => ({
+    jenis: p.nama_paket,
+    totalPengajuan: `${p._count.pengajuan}`,
+    kuotaPengajuan: `${p.kuota}`,
+  }));
+
+  const parseNilai = (display: string) => display.replace(/[^\d]/g, "") || "0";
+
+  const withSave = async (fn: () => Promise<unknown>) => {
+      setSaving(true);
+      setError(null);
+      try {
+        await fn();
+        onRefetch();
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Terjadi kesalahan";
+        setError(msg);
+      } finally {
+        setSaving(false);
+      }
+    };
+
+  const handleAddJenis = (payload: { jenis: string; danaPembinaan?: string }) => {
+    withSave(() =>
+      adminFasilitasiApi.createPaket(JENIS_ID, {
+        nama_paket: payload.jenis,
+        kuota: 0,
+        nilai_bantuan: parseNilai(payload.danaPembinaan ?? "0"),
+      })
+    );
+  };
+
+  const handleEditJenis = (payload: JenisFasilitasi) => {
+    if (editingJenisIndex === null) return;
+    const paket = pakets[editingJenisIndex];
+    if (!paket) return;
+    withSave(() =>
+      adminFasilitasiApi.updatePaket(paket.paket_id, {
+        nama_paket: payload.jenis,
+        nilai_bantuan: parseNilai(payload.danaPembinaan),
+      })
+    );
+    setEditingJenisIndex(null);
+  };
 
   const handleDeleteJenis = (index: number) => {
-    setJenisFasilitasi((prev) => prev.filter((_, i) => i !== index));
+    const paket = pakets[index];
+    if (!paket) return;
+    withSave(() => adminFasilitasiApi.deletePaket(paket.paket_id));
   };
 
-  const handleEditJenis = (index: number) => {
-    setEditingJenisIndex(index);
+  const handleAddKuota = (payload: KuotaPengajuan) => {
+    withSave(() =>
+      adminFasilitasiApi.createPaket(JENIS_ID, {
+        nama_paket: payload.jenis,
+        kuota: parseInt(payload.kuotaPengajuan) || 0,
+      })
+    );
   };
 
-  const handleAddJenis = () => {
-    setShowAddJenisDialog(true);
+  const handleEditKuota = (payload: KuotaPengajuan) => {
+    if (editingKuotaIndex === null) return;
+    const paket = pakets[editingKuotaIndex];
+    if (!paket) return;
+    withSave(() =>
+      adminFasilitasiApi.updatePaket(paket.paket_id, {
+        kuota: parseInt(payload.kuotaPengajuan) || 0,
+      })
+    );
+    setEditingKuotaIndex(null);
   };
 
-  const handleSave = () => {
-    // TODO: persist changes
-    setShowSaveDialog(false);
+  const handleDeleteKuota = (index: number) => handleDeleteJenis(index);
+
+  const handleUpload = (file: File) => {
+    withSave(() =>
+      uploadTarget === "proposal"
+        ? adminFasilitasiApi.uploadTemplateProposal(JENIS_ID, file)
+        : adminFasilitasiApi.uploadTemplateLaporan(JENIS_ID, file)
+    );
   };
 
-  const handleCancel = () => {
-    setJenisFasilitasi(defaultJenisFasilitasi);
-    setKuotaPengajuan(defaultKuotaPengajuan);
-    setShowCancelDialog(false);
-  };
+  const proposalFilename = data?.template_proposal_file
+    ? data.template_proposal_file.split("/").pop()!
+    : "Belum ada template proposal";
+  const laporanFilename = data?.template_laporan_file
+    ? data.template_laporan_file.split("/").pop()!
+    : "Belum ada template laporan";
 
   return (
     <>
+      {error && (
+        <div className="rounded-lg bg-[#fff0ed] px-4 py-3 text-[14px] text-[#c23513]">
+          {error}{" "}
+          <button type="button" onClick={() => setError(null)} className="underline">
+            Tutup
+          </button>
+        </div>
+      )}
+      {saving && (
+        <div className="rounded-lg bg-[#f5f5f7] px-4 py-2 text-[14px] text-[rgba(38,43,67,0.6)]">
+          Menyimpan...
+        </div>
+      )}
+
       {/* 1. Jenis Fasilitasi table */}
       <JenisFasilitasiTable
-        items={jenisFasilitasi}
-        onEdit={handleEditJenis}
+        items={jenisFasilitasiItems}
+        onEdit={(index) => setEditingJenisIndex(index)}
         onDelete={handleDeleteJenis}
-        onAdd={handleAddJenis}
+        onAdd={() => setShowAddJenisDialog(true)}
       />
 
       {/* 2. Kuota Pengajuan table */}
       <KuotaPengajuanTable
-        items={kuotaPengajuan}
+        items={kuotaItems}
         onAdd={() => setShowAddKuotaDialog(true)}
         onEdit={(index) => setEditingKuotaIndex(index)}
-        onDelete={(index) => setKuotaPengajuan((prev) => prev.filter((_, i) => i !== index))}
+        onDelete={handleDeleteKuota}
       />
 
       {/* 3. Contoh Proposal */}
       <DocumentCard
         title="Contoh Proposal"
-        filename="Contoh Proposal Pentas.pdf"
+        filename={proposalFilename}
         onUbah={() => {
           setUploadTarget("proposal");
           setShowUploadDialog(true);
@@ -1408,69 +1495,31 @@ function PentasTabContent() {
       {/* 4. Contoh Laporan */}
       <DocumentCard
         title="Contoh Laporan"
-        filename="Contoh Laporan Pentas.pdf"
+        filename={laporanFilename}
         onUbah={() => {
           setUploadTarget("laporan");
           setShowUploadDialog(true);
         }}
       />
 
-      {/* Action buttons */}
-      <div className="flex items-start justify-end gap-4">
-        <button
-          type="button"
-          onClick={() => setShowCancelDialog(true)}
-          className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowSaveDialog(true)}
-          className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
-        >
-          Simpan Perubahan
-        </button>
-      </div>
-
-      <ConfirmSaveDialog
-        open={showSaveDialog}
-        onClose={() => setShowSaveDialog(false)}
-        onConfirm={handleSave}
-      />
-      <ConfirmCancelDialog
-        open={showCancelDialog}
-        onClose={() => setShowCancelDialog(false)}
-        onConfirm={handleCancel}
-      />
       <UploadFileDialog
         open={showUploadDialog}
         onClose={() => setShowUploadDialog(false)}
-        onFileSelected={(file) => {
-          // TODO: handle file upload for pentas {uploadTarget}
-          console.log(`Pentas ${uploadTarget} file selected:`, file.name);
-        }}
+        onFileSelected={handleUpload}
       />
       <AddJenisDialog
         open={showAddJenisDialog}
         onClose={() => setShowAddJenisDialog(false)}
         title="Tambah Jenis Fasilitasi"
         includeDanaPembinaan
-        onSubmit={({ jenis, danaPembinaan }) => {
-          if (!danaPembinaan) return;
-          setJenisFasilitasi((prev) => [...prev, { jenis, danaPembinaan }]);
-        }}
+        onSubmit={handleAddJenis}
       />
-      {editingJenisIndex !== null ? (
+      {editingJenisIndex !== null && jenisFasilitasiItems[editingJenisIndex] ? (
         <EditJenisFasilitasiDialog
           title="Edit Jenis Fasilitasi"
-          initialValue={jenisFasilitasi[editingJenisIndex]}
+          initialValue={jenisFasilitasiItems[editingJenisIndex]}
           onClose={() => setEditingJenisIndex(null)}
-          onSubmit={(payload) => {
-            setJenisFasilitasi((prev) =>
-              prev.map((item, i) => (i === editingJenisIndex ? payload : item))
-            );
-          }}
+          onSubmit={handleEditJenis}
         />
       ) : null}
       <KuotaPengajuanDialog
@@ -1478,22 +1527,16 @@ function PentasTabContent() {
         onClose={() => setShowAddKuotaDialog(false)}
         title="Tambah Kuota Pengajuan 2026"
         submitLabel="Tambah Kuota"
-        onSubmit={(payload) => {
-          setKuotaPengajuan((prev) => [...prev, payload]);
-        }}
+        onSubmit={handleAddKuota}
       />
-      {editingKuotaIndex !== null ? (
+      {editingKuotaIndex !== null && kuotaItems[editingKuotaIndex] ? (
         <KuotaPengajuanDialog
           open
           onClose={() => setEditingKuotaIndex(null)}
           title="Edit Kuota Pengajuan 2026"
           submitLabel="Simpan Kuota"
-          initialValue={kuotaPengajuan[editingKuotaIndex]}
-          onSubmit={(payload) => {
-            setKuotaPengajuan((prev) =>
-              prev.map((item, i) => (i === editingKuotaIndex ? payload : item))
-            );
-          }}
+          initialValue={kuotaItems[editingKuotaIndex]}
+          onSubmit={handleEditKuota}
         />
       ) : null}
     </>
@@ -1502,163 +1545,151 @@ function PentasTabContent() {
 
 // ─── Sarana Prasarana (Fasilitasi Hibah) default data ───
 
-const defaultSaprasJenisLembaga = ["Gamelan Besi", "Alat", "Pakaian Kesenian"];
+function SaranaPrasaranaTabContent({
+  data,
+  onRefetch,
+}: {
+  data: ApiFasilitasi | null;
+  onRefetch: () => void;
+}) {
+  const JENIS_ID = 2;
 
-const defaultSaprasKuota: KuotaPengajuan[] = [
-  { jenis: "Gamelan Besi", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
-  { jenis: "Alat", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
-  { jenis: "Pakaian Kesenian", totalPengajuan: "124 Pengajuan", kuotaPengajuan: "1000 Pengajuan" },
-];
-
-function SaranaPrasaranaTabContent() {
-  const [jenisLembaga, setJenisLembaga] = useState(defaultSaprasJenisLembaga);
-  const [kuotaPengajuan, setKuotaPengajuan] = useState(defaultSaprasKuota);
-  const [showAddJenisDialog, setShowAddJenisDialog] = useState(false);
   const [showAddKuotaDialog, setShowAddKuotaDialog] = useState(false);
-  const [editingJenisIndex, setEditingJenisIndex] = useState<number | null>(null);
   const [editingKuotaIndex, setEditingKuotaIndex] = useState<number | null>(null);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<"proposal" | "laporan">("proposal");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleDeleteJenis = (index: number) => {
-    setJenisLembaga((prev) => prev.filter((_, i) => i !== index));
+  const pakets = data?.paket_fasilitasi ?? [];
+
+  const kuotaItems: KuotaPengajuan[] = pakets.map((p) => ({
+    jenis: p.nama_paket,
+    totalPengajuan: `${p._count.pengajuan}`,
+    kuotaPengajuan: `${p.kuota}`,
+  }));
+
+  const withSave = async (fn: () => Promise<unknown>) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await fn();
+      onRefetch();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Terjadi kesalahan";
+      setError(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleAddJenis = () => {
-    setShowAddJenisDialog(true);
+  const handleAddKuota = (payload: KuotaPengajuan) => {
+    withSave(() =>
+      adminFasilitasiApi.createPaket(JENIS_ID, {
+        nama_paket: payload.jenis,
+        kuota: parseInt(payload.kuotaPengajuan) || 0,
+      })
+    );
   };
 
-  const handleSave = () => {
-    // TODO: persist changes
-    setShowSaveDialog(false);
+  const handleEditKuota = (payload: KuotaPengajuan) => {
+    if (editingKuotaIndex === null) return;
+    const paket = pakets[editingKuotaIndex];
+    if (!paket) return;
+    withSave(() =>
+      adminFasilitasiApi.updatePaket(paket.paket_id, {
+        nama_paket: payload.jenis,
+        kuota: parseInt(payload.kuotaPengajuan) || 0,
+      })
+    );
+    setEditingKuotaIndex(null);
   };
 
-  const handleCancel = () => {
-    setJenisLembaga(defaultSaprasJenisLembaga);
-    setKuotaPengajuan(defaultSaprasKuota);
-    setShowCancelDialog(false);
+  const handleDeleteKuota = (index: number) => {
+    const paket = pakets[index];
+    if (!paket) return;
+    withSave(() => adminFasilitasiApi.deletePaket(paket.paket_id));
   };
+
+  const handleUpload = (file: File) => {
+    withSave(() =>
+      uploadTarget === "proposal"
+        ? adminFasilitasiApi.uploadTemplateProposal(JENIS_ID, file)
+        : adminFasilitasiApi.uploadTemplateLaporan(JENIS_ID, file)
+    );
+  };
+
+  const proposalFilename = data?.template_proposal_file
+    ? data.template_proposal_file.split("/").pop()!
+    : "Belum ada template proposal";
+  const laporanFilename = data?.template_laporan_file
+    ? data.template_laporan_file.split("/").pop()!
+    : "Belum ada template laporan";
 
   return (
     <>
-      {/* 1. Jenis Lembaga table */}
-      <JenisLembagaTable
-        items={jenisLembaga}
-        onEdit={(index) => setEditingJenisIndex(index)}
-        onDelete={handleDeleteJenis}
-        onAdd={handleAddJenis}
-      />
+      {error && (
+        <div className="rounded-lg bg-[#fff0ed] px-4 py-3 text-[14px] text-[#c23513]">
+          {error}{" "}
+          <button type="button" onClick={() => setError(null)} className="underline">
+            Tutup
+          </button>
+        </div>
+      )}
+      {saving && (
+        <div className="rounded-lg bg-[#f5f5f7] px-4 py-2 text-[14px] text-[rgba(38,43,67,0.6)]">
+          Menyimpan...
+        </div>
+      )}
 
-      {/* 2. Kuota Pengajuan table */}
+      {/* 1. Kuota Pengajuan table */}
       <KuotaPengajuanTable
-        items={kuotaPengajuan}
+        items={kuotaItems}
         onAdd={() => setShowAddKuotaDialog(true)}
         onEdit={(index) => setEditingKuotaIndex(index)}
-        onDelete={(index) => setKuotaPengajuan((prev) => prev.filter((_, i) => i !== index))}
+        onDelete={handleDeleteKuota}
       />
 
-      {/* 3. Contoh Proposal */}
+      {/* 2. Contoh Proposal */}
       <DocumentCard
         title="Contoh Proposal"
-        filename="Contoh Proposal Sapras.pdf"
+        filename={proposalFilename}
         onUbah={() => {
           setUploadTarget("proposal");
           setShowUploadDialog(true);
         }}
       />
 
-      {/* 4. Contoh Laporan */}
+      {/* 3. Contoh Laporan */}
       <DocumentCard
         title="Contoh Laporan"
-        filename="Contoh Laporan Sapras.pdf"
+        filename={laporanFilename}
         onUbah={() => {
           setUploadTarget("laporan");
           setShowUploadDialog(true);
         }}
       />
 
-      {/* Action buttons */}
-      <div className="flex items-start justify-end gap-4">
-        <button
-          type="button"
-          onClick={() => setShowCancelDialog(true)}
-          className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowSaveDialog(true)}
-          className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
-        >
-          Simpan Perubahan
-        </button>
-      </div>
-
-      <ConfirmSaveDialog
-        open={showSaveDialog}
-        onClose={() => setShowSaveDialog(false)}
-        onConfirm={handleSave}
-      />
-      <ConfirmCancelDialog
-        open={showCancelDialog}
-        onClose={() => setShowCancelDialog(false)}
-        onConfirm={handleCancel}
-      />
       <UploadFileDialog
         open={showUploadDialog}
         onClose={() => setShowUploadDialog(false)}
-        onFileSelected={(file) => {
-          // TODO: handle file upload for sapras {uploadTarget}
-          console.log(`Sapras ${uploadTarget} file selected:`, file.name);
-        }}
+        onFileSelected={handleUpload}
       />
-      <JenisLembagaDialog
-        open={showAddJenisDialog}
-        onClose={() => setShowAddJenisDialog(false)}
-        title="Tambah Jenis Sarana Prasarana"
-        submitLabel="Tambah Jenis"
-        onSubmit={(jenis) => {
-          setJenisLembaga((prev) => [...prev, jenis]);
-        }}
-      />
-      {editingJenisIndex !== null ? (
-        <JenisLembagaDialog
-          open
-          onClose={() => setEditingJenisIndex(null)}
-          title="Edit Jenis Sarana Prasarana"
-          submitLabel="Simpan Jenis"
-          initialValue={jenisLembaga[editingJenisIndex]}
-          onSubmit={(jenis) => {
-            setJenisLembaga((prev) =>
-              prev.map((item, i) => (i === editingJenisIndex ? jenis : item))
-            );
-          }}
-        />
-      ) : null}
       <KuotaPengajuanDialog
         open={showAddKuotaDialog}
         onClose={() => setShowAddKuotaDialog(false)}
-        title="Tambah Kuota Pengajuan 2026"
-        submitLabel="Tambah Kuota"
-        onSubmit={(payload) => {
-          setKuotaPengajuan((prev) => [...prev, payload]);
-        }}
+        title="Tambah Paket Sarana Prasarana 2026"
+        submitLabel="Tambah Paket"
+        onSubmit={handleAddKuota}
       />
-      {editingKuotaIndex !== null ? (
+      {editingKuotaIndex !== null && kuotaItems[editingKuotaIndex] ? (
         <KuotaPengajuanDialog
           open
           onClose={() => setEditingKuotaIndex(null)}
-          title="Edit Kuota Pengajuan 2026"
-          submitLabel="Simpan Kuota"
-          initialValue={kuotaPengajuan[editingKuotaIndex]}
-          onSubmit={(payload) => {
-            setKuotaPengajuan((prev) =>
-              prev.map((item, i) => (i === editingKuotaIndex ? payload : item))
-            );
-          }}
+          title="Edit Paket Sarana Prasarana 2026"
+          submitLabel="Simpan Paket"
+          initialValue={kuotaItems[editingKuotaIndex]}
+          onSubmit={handleEditKuota}
         />
       ) : null}
     </>
@@ -1669,15 +1700,34 @@ function SaranaPrasaranaTabContent() {
 
 export default function PengaturanFasilitasiPage() {
   const [activeTab, setActiveTab] = useState<TabId>("general");
+  const [fasilitasiData, setFasilitasiData] = useState<ApiFasilitasi[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setLoadingData(true);
+    try {
+      const data = await adminFasilitasiApi.getAll();
+      setFasilitasiData(data);
+    } finally {
+      setLoadingData(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const pentas = fasilitasiData.find((j) => j.jenis_fasilitasi_id === 1) ?? null;
+  const hibah = fasilitasiData.find((j) => j.jenis_fasilitasi_id === 2) ?? null;
 
   const renderTabContent = () => {
     switch (activeTab) {
       case "general":
         return <GeneralTabContent />;
       case "pentas":
-        return <PentasTabContent />;
+        return <PentasTabContent data={pentas} onRefetch={loadData} />;
       case "sarana-prasarana":
-        return <SaranaPrasaranaTabContent />;
+        return <SaranaPrasaranaTabContent data={hibah} onRefetch={loadData} />;
     }
   };
 

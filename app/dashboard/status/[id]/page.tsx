@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { pengajuanApi } from "@/app/lib/api";
+import { pengajuanApi, fasilitasiApi } from "@/app/lib/api";
 import { pdfUploadValidation, validateUploadFile } from "@/app/lib/file-validation";
 import type { Pengajuan } from "@/app/lib/types";
 
@@ -389,6 +389,7 @@ export default function UserStatusDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [templateLaporanUrl, setTemplateLaporanUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -405,6 +406,13 @@ export default function UserStatusDetailPage() {
       setLoading(false);
     }
   }, [id]);
+
+  useEffect(() => {
+    fasilitasiApi.getAll().then((list) => {
+      const pentas = list.find((j) => j.jenis_fasilitasi_id === 1);
+      setTemplateLaporanUrl(pentas?.template_laporan_file ?? null);
+    }).catch(() => {/* silently ignore */});
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -569,7 +577,18 @@ export default function UserStatusDetailPage() {
                               <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
                                 Contoh Laporan:
                               </p>
-                              <PdfFileChip filename="Contoh Laporan Kegiatan.pdf" />
+                              {templateLaporanUrl ? (
+                                <a
+                                  href={buildUploadUrl(templateLaporanUrl)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex"
+                                >
+                                  <PdfFileChip filename={templateLaporanUrl.split("/").pop() ?? "Contoh Laporan Kegiatan.pdf"} />
+                                </a>
+                              ) : (
+                                <PdfFileChip filename="Contoh Laporan Kegiatan.pdf" />
+                              )}
                             </div>
                           )}
 

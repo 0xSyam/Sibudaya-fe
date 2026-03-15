@@ -59,11 +59,26 @@ export interface PaketFasilitasi {
   catatan: string | null;
 }
 
+export interface PaketFasilitasiWithCount extends PaketFasilitasi {
+  _count: { pengajuan: number };
+}
+
 export interface JenisFasilitasi {
   jenis_fasilitasi_id: number;
   nama: string;
   deskripsi: string | null;
+  template_proposal_file?: string | null;
+  template_laporan_file?: string | null;
   paket_fasilitasi: PaketFasilitasi[];
+}
+
+export interface AdminJenisFasilitasi {
+  jenis_fasilitasi_id: number;
+  nama: string;
+  deskripsi: string | null;
+  template_proposal_file: string | null;
+  template_laporan_file: string | null;
+  paket_fasilitasi: PaketFasilitasiWithCount[];
 }
 
 // ─── Lembaga Types ───────────────────────────────────────────────────────────
