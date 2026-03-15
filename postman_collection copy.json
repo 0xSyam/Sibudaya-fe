@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "PAD2 - Fasilitasi Dinas Kebudayaan",
-    "description": "Koleksi endpoint API sistem fasilitasi pentas dan hibah Dinas Kebudayaan DIY.\n\n**Setup:**\n1. Set variable `base_url` → `http://localhost:3000/api/v1`\n2. Jalankan `POST /auth/login` → token akan otomatis tersimpan ke `access_token` via Test script\n3. Semua request yang butuh auth sudah pakai Bearer token dari variable `access_token`",
+    "description": "Koleksi endpoint API sistem fasilitasi pentas dan hibah Dinas Kebudayaan DIY.\n\n**Setup:**\n1. Set variable `base_url` → `http://localhost:3000/api/v1`\n2. Jalankan `POST /auth/login` → token USER tersimpan otomatis ke `user_token`\n3. Jalankan `POST /auth/login (Admin)` → token ADMIN tersimpan otomatis ke `admin_token`\n4. Endpoint user pakai `{{user_token}}`, endpoint admin pakai `{{admin_token}}` — tidak perlu ganti token manual",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,11 +10,13 @@
       "value": "http://localhost:3000/api/v1",
       "type": "string"
     },
-    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "user_token", "value": "", "type": "string" },
+    { "key": "admin_token", "value": "", "type": "string" },
     { "key": "refresh_token", "value": "", "type": "string" },
     { "key": "pengajuan_id", "value": "", "type": "string" },
     { "key": "lembaga_id", "value": "", "type": "string" },
     { "key": "notifikasi_id", "value": "", "type": "string" },
+    { "key": "jenis_fasilitasi_id", "value": "1", "type": "string" },
     {
       "key": "test_email",
       "value": "isi_email_kamu@gmail.com",
@@ -48,7 +50,7 @@
                 "exec": [
                   "if (pm.response.code === 201) {",
                   "  const res = pm.response.json();",
-                  "  pm.collectionVariables.set('access_token', res.access_token);",
+                  "  pm.collectionVariables.set('user_token', res.access_token);",
                   "  pm.collectionVariables.set('refresh_token', res.refresh_token);",
                   "  pm.test('Register berhasil', () => pm.response.to.have.status(201));",
                   "}"
@@ -80,7 +82,7 @@
                 "exec": [
                   "if (pm.response.code === 200 || pm.response.code === 201) {",
                   "  const res = pm.response.json();",
-                  "  pm.collectionVariables.set('access_token', res.access_token);",
+                  "  pm.collectionVariables.set('user_token', res.access_token);",
                   "  pm.collectionVariables.set('refresh_token', res.refresh_token);",
                   "  pm.test('Login berhasil', () => pm.response.to.have.status(200));",
                   "}"
@@ -112,7 +114,7 @@
                 "exec": [
                   "if (pm.response.code === 200 || pm.response.code === 201) {",
                   "  const res = pm.response.json();",
-                  "  pm.collectionVariables.set('access_token', res.access_token);",
+                  "  pm.collectionVariables.set('admin_token', res.access_token);",
                   "  pm.collectionVariables.set('refresh_token', res.refresh_token);",
                   "  pm.test('Login admin berhasil', () => pm.response.to.have.status(200));",
                   "}"
@@ -144,7 +146,7 @@
                 "exec": [
                   "if (pm.response.code === 200 || pm.response.code === 201) {",
                   "  const res = pm.response.json();",
-                  "  pm.collectionVariables.set('access_token', res.access_token);",
+                  "  pm.collectionVariables.set('user_token', res.access_token);",
                   "}"
                 ]
               }
@@ -156,7 +158,7 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/auth/me",
@@ -231,6 +233,17 @@
           }
         },
         {
+          "name": "Paket Fasilitasi by Jenis (variable)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/fasilitasi/{{jenis_fasilitasi_id}}/paket",
+              "host": ["{{base_url}}"],
+              "path": ["fasilitasi", "{{jenis_fasilitasi_id}}", "paket"]
+            }
+          }
+        },
+        {
           "name": "Paket Fasilitasi Pentas (id=1)",
           "request": {
             "method": "GET",
@@ -262,7 +275,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -296,7 +309,7 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/lembaga/me",
@@ -310,7 +323,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -330,7 +343,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/lembaga/me/sertifikat-nik",
@@ -374,7 +387,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/pengajuan/pentas",
@@ -463,7 +476,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/pengajuan/hibah",
@@ -540,7 +553,7 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/pengajuan",
@@ -554,7 +567,7 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/pengajuan/{{pengajuan_id}}",
@@ -564,11 +577,94 @@
           }
         },
         {
+          "name": "Perbarui Pengajuan Pentas (setelah ditolak pemeriksaan)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/pengajuan/{{pengajuan_id}}/revisi/pentas",
+              "host": ["{{base_url}}"],
+              "path": ["pengajuan", "{{pengajuan_id}}", "revisi", "pentas"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "proposal_file",
+                  "type": "file",
+                  "description": "Opsional: unggah proposal revisi"
+                },
+                {
+                  "key": "judul_kegiatan",
+                  "value": "Pentas Seni Tribhuwana 2026 (Revisi)",
+                  "type": "text"
+                },
+                {
+                  "key": "tujuan_kegiatan",
+                  "value": "Revisi tujuan kegiatan sesuai catatan pemeriksaan.",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Perbarui Pengajuan Hibah (setelah ditolak pemeriksaan)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/pengajuan/{{pengajuan_id}}/revisi/hibah",
+              "host": ["{{base_url}}"],
+              "path": ["pengajuan", "{{pengajuan_id}}", "revisi", "hibah"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "proposal_file",
+                  "type": "file",
+                  "description": "Opsional: unggah proposal revisi"
+                },
+                {
+                  "key": "alamat_pengiriman",
+                  "value": "Jl. Kaliurang KM 10 No. 10 (Revisi)",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Batalkan Pengajuan (setelah ditolak pemeriksaan)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/pengajuan/{{pengajuan_id}}/batal",
+              "host": ["{{base_url}}"],
+              "path": ["pengajuan", "{{pengajuan_id}}", "batal"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"alasan\": \"Memilih membatalkan pengajuan setelah evaluasi internal lembaga.\"\n}"
+            }
+          }
+        },
+        {
           "name": "Upload Laporan Kegiatan",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/pengajuan/{{pengajuan_id}}/laporan",
@@ -597,7 +693,7 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan?status=DALAM_PROSES",
@@ -624,7 +720,7 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}",
@@ -638,7 +734,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -649,7 +745,7 @@
             "body": {
               "mode": "raw",
               "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"paket_id\": \"00000000-0000-0000-0000-000000000002\",\n  \"catatan\": \"Data lengkap dan sesuai. Paket A ditetapkan.\"\n}"
+              "raw": "{\n  \"paket_id\": \"b2c3d4e5-f6a7-4b8c-9d0e-f1a2b3c4d5e6\",\n  \"catatan\": \"Data lengkap dan sesuai. Paket A ditetapkan.\"\n}"
             }
           }
         },
@@ -658,7 +754,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -678,7 +774,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/tolak",
@@ -707,7 +803,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -727,7 +823,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/survey/selesai",
@@ -743,11 +839,37 @@
           }
         },
         {
+          "name": "❌ [Hibah] Tolak Survey (terminal)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/survey/tolak",
+              "host": ["{{base_url}}"],
+              "path": [
+                "admin",
+                "pengajuan",
+                "{{pengajuan_id}}",
+                "survey",
+                "tolak"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"catatan\": \"Hasil survey lapangan tidak memenuhi kriteria kelayakan hibah.\"\n}"
+            }
+          }
+        },
+        {
           "name": "📄 Upload Surat Persetujuan",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/surat-persetujuan",
@@ -786,7 +908,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/surat-persetujuan/konfirmasi",
@@ -806,7 +928,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/laporan/setujui",
@@ -826,7 +948,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -852,7 +974,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/pencairan",
@@ -882,7 +1004,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/pencairan/selesai",
@@ -902,7 +1024,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/pengiriman",
@@ -934,6 +1056,242 @@
       ]
     },
     {
+      "name": "🚫 Error Test — Pengajuan Workflow",
+      "description": "Jalankan untuk memastikan endpoint menolak alur terbalik/invalid. Pastikan {{pengajuan_id}}, {{user_token}}, dan {{admin_token}} sudah terisi.",
+      "item": [
+        {
+          "name": "User revisi sebelum pemeriksaan ditolak -> harus gagal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Expected 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "const res = pm.response.json();",
+                  "pm.test('Response berisi message error', () => pm.expect(res.message).to.exist);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/pengajuan/{{pengajuan_id}}/revisi/pentas",
+              "host": ["{{base_url}}"],
+              "path": ["pengajuan", "{{pengajuan_id}}", "revisi", "pentas"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "judul_kegiatan",
+                  "value": "Percobaan Revisi Sebelum Ditolak",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "User batalkan sebelum pemeriksaan ditolak -> harus gagal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Expected 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "const res = pm.response.json();",
+                  "pm.test('Response berisi message error', () => pm.expect(res.message).to.exist);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/pengajuan/{{pengajuan_id}}/batal",
+              "host": ["{{base_url}}"],
+              "path": ["pengajuan", "{{pengajuan_id}}", "batal"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"alasan\": \"Test batalkan sebelum ditolak\"\n}"
+            }
+          }
+        },
+        {
+          "name": "User upload laporan sebelum tahap terbuka -> harus gagal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Expected 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "const res = pm.response.json();",
+                  "pm.test('Response berisi message error', () => pm.expect(res.message).to.exist);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/pengajuan/{{pengajuan_id}}/laporan",
+              "host": ["{{base_url}}"],
+              "path": ["pengajuan", "{{pengajuan_id}}", "laporan"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file_laporan",
+                  "type": "file",
+                  "description": "Isi file untuk memicu validasi alur (bukan validasi file kosong)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin tolak survey sebelum survey dibuat -> harus gagal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Expected 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "const res = pm.response.json();",
+                  "pm.test('Response berisi message error', () => pm.expect(res.message).to.exist);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/survey/tolak",
+              "host": ["{{base_url}}"],
+              "path": [
+                "admin",
+                "pengajuan",
+                "{{pengajuan_id}}",
+                "survey",
+                "tolak"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"catatan\": \"Tes invalid sequence: survey belum dibuat\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Admin upload pencairan sebelum laporan disetujui -> harus gagal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Expected 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "const res = pm.response.json();",
+                  "pm.test('Response berisi message error', () => pm.expect(res.message).to.exist);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/pencairan",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "pengajuan", "{{pengajuan_id}}", "pencairan"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "bukti_transfer",
+                  "type": "file",
+                  "description": "Isi file untuk memicu validasi alur"
+                },
+                { "key": "total_dana", "value": "30000000", "type": "text" },
+                {
+                  "key": "tanggal_pencairan",
+                  "value": "2026-06-01",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin upload pengiriman hibah sebelum surat dikonfirmasi -> harus gagal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Expected 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "const res = pm.response.json();",
+                  "pm.test('Response berisi message error', () => pm.expect(res.message).to.exist);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/pengiriman",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "pengajuan", "{{pengajuan_id}}", "pengiriman"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "bukti_pengiriman",
+                  "type": "file",
+                  "description": "Isi file untuk memicu validasi alur"
+                },
+                {
+                  "key": "tanggal_pengiriman",
+                  "value": "2026-05-10",
+                  "type": "text"
+                },
+                {
+                  "key": "catatan",
+                  "value": "Tes invalid sequence",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "🔔 Notifikasi",
       "item": [
         {
@@ -941,7 +1299,7 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/notifikasi",
@@ -970,7 +1328,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/notifikasi/{{notifikasi_id}}/baca",
@@ -984,7 +1342,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/notifikasi/baca-semua",
@@ -1022,7 +1380,7 @@
                 "exec": [
                   "const res = pm.response.json();",
                   "if (res.access_token) {",
-                  "  pm.collectionVariables.set('access_token', res.access_token);",
+                  "  pm.collectionVariables.set('user_token', res.access_token);",
                   "  pm.collectionVariables.set('refresh_token', res.refresh_token);",
                   "}"
                 ]
@@ -1035,7 +1393,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -1068,7 +1426,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/pengajuan/pentas",
@@ -1170,7 +1528,7 @@
                 "exec": [
                   "const res = pm.response.json();",
                   "if (res.access_token) {",
-                  "  pm.collectionVariables.set('access_token', res.access_token);",
+                  "  pm.collectionVariables.set('admin_token', res.access_token);",
                   "}"
                 ]
               }
@@ -1182,7 +1540,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "url": {
@@ -1193,7 +1551,7 @@
             "body": {
               "mode": "raw",
               "options": { "raw": { "language": "json" } },
-              "raw": "{\n  \"paket_id\": \"00000000-0000-0000-0000-000000000002\",\n  \"catatan\": \"Data lengkap. Paket A (Rp 30.000.000) ditetapkan.\"\n}"
+              "raw": "{\n  \"paket_id\": \"b2c3d4e5-f6a7-4b8c-9d0e-f1a2b3c4d5e6\",\n  \"catatan\": \"Data lengkap. Paket A (Rp 30.000.000) ditetapkan.\"\n}"
             }
           }
         },
@@ -1202,7 +1560,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/surat-persetujuan",
@@ -1237,7 +1595,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/surat-persetujuan/konfirmasi",
@@ -1275,7 +1633,7 @@
                 "exec": [
                   "const res = pm.response.json();",
                   "if (res.access_token) {",
-                  "  pm.collectionVariables.set('access_token', res.access_token);",
+                  "  pm.collectionVariables.set('user_token', res.access_token);",
                   "}"
                 ]
               }
@@ -1287,7 +1645,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{user_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/pengajuan/{{pengajuan_id}}/laporan",
@@ -1322,7 +1680,7 @@
               "script": {
                 "exec": [
                   "const res = pm.response.json();",
-                  "if (res.access_token) pm.collectionVariables.set('access_token', res.access_token);"
+                  "if (res.access_token) pm.collectionVariables.set('admin_token', res.access_token);"
                 ]
               }
             }
@@ -1333,7 +1691,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/laporan/setujui",
@@ -1353,7 +1711,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/pencairan",
@@ -1379,7 +1737,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/admin/pengajuan/{{pengajuan_id}}/pencairan/selesai",

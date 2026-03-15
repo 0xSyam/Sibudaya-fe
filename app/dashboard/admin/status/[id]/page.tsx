@@ -40,88 +40,6 @@ type StepAction =
   | { type: "selesaikan_pencairan" }
   | { type: "upload_pengiriman" };
 
-const ADMIN_PAKET_PENTAS: PaketFasilitasi[] = [
-  {
-    paket_id: "a1b2c3d4-e5f6-4a7b-8c9d-e0f1a2b3c4d5",
-    jenis_fasilitasi_id: 1,
-    nama_paket: "Paket Pembinaan",
-    kuota: 10,
-    nilai_bantuan: "60000000",
-    catatan: null,
-  },
-  {
-    paket_id: "b2c3d4e5-f6a7-4b8c-9d0e-f1a2b3c4d5e6",
-    jenis_fasilitasi_id: 1,
-    nama_paket: "Paket A",
-    kuota: 20,
-    nilai_bantuan: "30000000",
-    catatan: null,
-  },
-  {
-    paket_id: "c3d4e5f6-a7b8-4c9d-0e1f-a2b3c4d5e6f7",
-    jenis_fasilitasi_id: 1,
-    nama_paket: "Paket B",
-    kuota: 30,
-    nilai_bantuan: "20000000",
-    catatan: null,
-  },
-  {
-    paket_id: "d4e5f6a7-b8c9-4d0e-1f2a-b3c4d5e6f7a8",
-    jenis_fasilitasi_id: 1,
-    nama_paket: "Paket C",
-    kuota: 40,
-    nilai_bantuan: "10000000",
-    catatan: null,
-  },
-  {
-    paket_id: "e5f6a7b8-c9d0-4e1f-2a3b-c4d5e6f7a8b9",
-    jenis_fasilitasi_id: 1,
-    nama_paket: "Paket D",
-    kuota: 50,
-    nilai_bantuan: "5000000",
-    catatan: null,
-  },
-];
-
-const ADMIN_PAKET_HIBAH: PaketFasilitasi[] = [
-  {
-    paket_id: "f6a7b8c9-d0e1-4f2a-3b4c-d5e6f7a8b9c0",
-    jenis_fasilitasi_id: 2,
-    nama_paket: "Gamelan Slendro Pelog",
-    kuota: 5,
-    nilai_bantuan: null,
-    catatan: null,
-  },
-  {
-    paket_id: "a7b8c9d0-e1f2-4a3b-4c5d-e6f7a8b9c0d1",
-    jenis_fasilitasi_id: 2,
-    nama_paket: "Alat Musik Kesenian",
-    kuota: 20,
-    nilai_bantuan: null,
-    catatan: null,
-  },
-  {
-    paket_id: "b8c9d0e1-f2a3-4b4c-5d6e-f7a8b9c0d1e2",
-    jenis_fasilitasi_id: 2,
-    nama_paket: "Pakaian Kesenian",
-    kuota: 30,
-    nilai_bantuan: null,
-    catatan: null,
-  },
-];
-
-function isUuid(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-function resolveHibahPaketId(p: Pengajuan): string | undefined {
-  const namaTarget = (p.jenis_kegiatan ?? p.paket_fasilitasi?.nama_paket ?? "").trim().toLowerCase();
-  if (!namaTarget) return undefined;
-
-  const matched = ADMIN_PAKET_HIBAH.find((paket) => paket.nama_paket.trim().toLowerCase() === namaTarget);
-  return matched?.paket_id;
-}
-
 /* ------------------------------------------------------------------ */
 /*  Timeline builder                                                   */
 /* ------------------------------------------------------------------ */
@@ -182,7 +100,7 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
         : laporanStatus === "rejected"
           ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin ?? ""}`
           : "Silakan unggah laporan dan dokumentasi kegiatan setelah pelaksanaan pentas selesai.",
-    status: laporanStatus,
+    status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "Hasil Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
     secondaryDetails: !p.laporan_kegiatan?.file_laporan ? ["Pengaju belum menginput laporan"] : undefined,
@@ -312,7 +230,7 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
       laporanStatus === "completed"
         ? "Laporan kegiatan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : "Silakan unggah laporan dan dokumentasi kegiatan saat fasilitas digunakan.",
-    status: laporanStatus,
+    status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "File Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
     secondaryDetails: !p.laporan_kegiatan?.file_laporan ? ["Pengaju belum menginput laporan"] : undefined,
@@ -620,7 +538,6 @@ export default function AdminStatusDetailPage() {
   const [catatanPengiriman, setCatatanPengiriman] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [rejectReasonError, setRejectReasonError] = useState<string | null>(null);
-  const [stepStatusOverrides, setStepStatusOverrides] = useState<Record<string, TimelineStatus>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingFileAction, setPendingFileAction] = useState<StepAction["type"] | null>(null);
@@ -649,11 +566,10 @@ export default function AdminStatusDetailPage() {
       return;
     }
 
-    // Admin action harus mengirim UUID paket Pentas yang sudah ditetapkan.
     fasilitasiApi
       .getPaketByJenis(1)
-      .then(() => setPaketOptions(ADMIN_PAKET_PENTAS))
-      .catch(() => setPaketOptions(ADMIN_PAKET_PENTAS));
+      .then(setPaketOptions)
+      .catch(() => setPaketOptions(data.jenis_fasilitasi?.paket_fasilitasi ?? []));
   }, [data]);
 
   async function handleAction(actionType: StepAction["type"]) {
@@ -669,24 +585,9 @@ export default function AdminStatusDetailPage() {
             return;
           }
 
-          const paketIdToSend =
-            data.jenis_fasilitasi_id === 1
-              ? paketId
-              : resolveHibahPaketId(data);
-
-          if (!paketIdToSend || !isUuid(paketIdToSend)) {
-            setActionMessage(
-              data.jenis_fasilitasi_id === 1
-                ? "Paket tidak valid. Pilih paket Pentas yang tersedia."
-                : "Paket Hibah tidak ditemukan atau UUID tidak valid. Periksa data jenis kegiatan pada pengajuan.",
-            );
-            setActionLoading(false);
-            return;
-          }
-
           const selectedPaket = paketOptions.find((paket) => paket.paket_id === paketId);
           await adminPengajuanApi.setujui(data.pengajuan_id, {
-            paket_id: paketIdToSend,
+            paket_id: paketId || undefined,
             catatan:
               data.jenis_fasilitasi_id === 1
                 ? selectedPaket
@@ -853,62 +754,29 @@ export default function AdminStatusDetailPage() {
   const namaKegiatan = data.lembaga_budaya?.nama_lembaga ?? data.judul_kegiatan ?? data.jenis_kegiatan ?? "-";
   const tanggalPengajuan = formatDate(data.tanggal_pengajuan);
 
-  function getStepKey(step: TimelineStep, index: number): string {
-    return `${index}-${step.title}`;
-  }
-
-  function getStatusControl(step: TimelineStep): "pemeriksaan" | "laporan" | "surat" | "survey" | "pencairan" | null {
-    if (step.title.includes("Pemeriksaan Data")) return "pemeriksaan";
-    if (step.title === "Pelaporan Kegiatan") return "laporan";
-    if (step.title.includes("Surat Persetujuan") || step.title.includes("Penandatangan Surat")) return "surat";
-    if (step.title.includes("Survey Lapangan")) return "survey";
-    if (step.title.includes("Pencairan Dana")) return "pencairan";
-    return null;
-  }
-
   function getSelectableStatuses(step: TimelineStep): TimelineStatus[] {
-    const statusControl = getStatusControl(step);
-    switch (statusControl) {
-      case "pemeriksaan":
-      case "laporan":
-        return ["completed", "rejected", "in_progress"];
-      case "surat":
-      case "survey":
-      case "pencairan":
-        return ["completed", "in_progress"];
+    if (!step.action || step.status === "completed" || step.status === "locked") {
+      return [];
+    }
+
+    switch (step.action.type) {
+      case "setujui_pemeriksaan":
+        return ["completed", "rejected"];
+      case "setujui_laporan":
+        return ["completed", "rejected"];
+      case "konfirmasi_surat":
+      case "selesaikan_pencairan":
+      case "selesaikan_survey":
+        return ["completed"];
       default:
         return [];
     }
   }
 
-  function handleBadgeStatusChange(step: TimelineStep, index: number, nextStatus: TimelineStatus) {
-    const stepKey = getStepKey(step, index);
-    const allowedStatuses = getSelectableStatuses(step);
-    if (!allowedStatuses.includes(nextStatus)) {
-      setActionMessage("Perubahan status ini belum didukung backend untuk step tersebut.");
-      return;
-    }
+  function handleBadgeStatusChange(step: TimelineStep, nextStatus: TimelineStatus) {
+    if (!step.action) return;
 
-    const currentStatus = stepStatusOverrides[stepKey] ?? step.status;
-    if (currentStatus === nextStatus) {
-      return;
-    }
-
-    if (nextStatus === "in_progress") {
-      setStepStatusOverrides((prev) => ({ ...prev, [stepKey]: "in_progress" }));
-      setActionMessage("Badge diubah ke Dalam Proses. Perubahan ini bersifat sementara sampai endpoint reset status tersedia.");
-      return;
-    }
-
-    setStepStatusOverrides((prev) => {
-      const { [stepKey]: _removed, ...rest } = prev;
-      return rest;
-    });
-
-    const statusControl = getStatusControl(step);
-    if (!statusControl) return;
-
-    if (statusControl === "pemeriksaan") {
+    if (step.action.type === "setujui_pemeriksaan") {
       if (nextStatus === "completed") {
         if (isPentas) {
           setShowPaketPicker(true);
@@ -924,7 +792,7 @@ export default function AdminStatusDetailPage() {
       return;
     }
 
-    if (statusControl === "laporan") {
+    if (step.action.type === "setujui_laporan") {
       if (nextStatus === "completed") {
         void handleAction("setujui_laporan");
         return;
@@ -936,24 +804,18 @@ export default function AdminStatusDetailPage() {
       return;
     }
 
-    if (statusControl === "surat" && nextStatus === "completed") {
+    if (nextStatus !== "completed") return;
+
+    if (step.action.type === "konfirmasi_surat") {
       void handleAction("konfirmasi_surat");
-      return;
-    }
-
-    if (statusControl === "pencairan" && nextStatus === "completed") {
+    } else if (step.action.type === "selesaikan_pencairan") {
       void handleAction("selesaikan_pencairan");
-      return;
-    }
-
-    if (statusControl === "survey" && nextStatus === "completed") {
+    } else if (step.action.type === "selesaikan_survey") {
       void handleAction("selesaikan_survey");
-      return;
     }
   }
 
   function renderStepActions(step: TimelineStep) {
-    if (step.status === "locked") return null;
     if (!step.action) return null;
     const { type } = step.action;
 
@@ -1336,38 +1198,34 @@ export default function AdminStatusDetailPage() {
                 {/* Timeline Section */}
                 <div className="px-5 py-4">
                   <div className="space-y-6">
-                    {timeline.map((step, index) => {
-                        const stepKey = getStepKey(step, index);
-                        const effectiveStatus = stepStatusOverrides[stepKey] ?? step.status;
-                        const effectiveStep = effectiveStatus === step.status ? step : { ...step, status: effectiveStatus };
-                        return (
+                    {timeline.map((step, index) => (
                       <div key={step.title} className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 md:grid-cols-[160px_32px_minmax(0,1fr)] md:gap-5">
                         <div className="hidden items-start justify-end pt-3 md:flex">
                           <StatusBadgeControl
-                            status={effectiveStep.status}
+                            status={step.status}
                             options={getSelectableStatuses(step)}
-                            onSelect={(value) => handleBadgeStatusChange(step, index, value)}
+                            onSelect={(value) => handleBadgeStatusChange(step, value)}
                             disabled={actionLoading}
                           />
                         </div>
 
-                        <TimelineDot status={effectiveStep.status} showLine={index < timeline.length - 1} />
+                        <TimelineDot status={step.status} showLine={index < timeline.length - 1} />
 
                         <article className="rounded-[10px] bg-white p-4 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)] md:p-5">
                           <div className="mb-2 md:hidden">
                             <StatusBadgeControl
-                              status={effectiveStep.status}
+                              status={step.status}
                               options={getSelectableStatuses(step)}
-                              onSelect={(value) => handleBadgeStatusChange(step, index, value)}
+                              onSelect={(value) => handleBadgeStatusChange(step, value)}
                               disabled={actionLoading}
                             />
                           </div>
                           <h2 className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
                             {step.title}
                           </h2>
-                          {effectiveStep.status !== "locked" && (
+                          {step.status !== "locked" && (
                             <p className="mt-4 text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
-                              {effectiveStep.description}
+                              {step.description}
                             </p>
                           )}
 
@@ -1391,7 +1249,7 @@ export default function AdminStatusDetailPage() {
                             </div>
                           )}
 
-                          {step.title === "Pelaporan Kegiatan" && effectiveStep.status !== "locked" && (
+                          {step.title === "Pelaporan Kegiatan" && step.status !== "locked" && (
                             <div className="mt-4 space-y-2">
                               <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">Contoh Laporan:</p>
                               <PdfFileChip filename="Contoh Laporan Kegiatan.pdf" />
@@ -1416,11 +1274,10 @@ export default function AdminStatusDetailPage() {
                             </div>
                           )}
 
-                          {renderStepActions(effectiveStep)}
+                          {renderStepActions(step)}
                         </article>
                       </div>
-                        );
-                      })}
+                    ))}
                   </div>
                 </div>
               </div>
