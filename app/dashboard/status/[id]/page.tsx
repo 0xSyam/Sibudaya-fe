@@ -18,6 +18,7 @@ type TimelineStep = {
   title: string;
   description: string;
   status: TimelineStatus;
+  detailsTitle?: string;
   details?: string[];
   attachmentLabel?: string;
   attachmentFile?: string;
@@ -50,6 +51,7 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
           ? `Pengajuan ditolak. ${p.catatan_pemeriksaan ?? ""}`
           : "Data pendaftaran telah berhasil dikirim. Menunggu verifikasi oleh pihak Admin.",
     status: pemeriksaanStatus,
+    detailsTitle: pemeriksaanStatus === "completed" && p.paket_fasilitasi ? "Detail paket yang disetujui:" : undefined,
     details:
       pemeriksaanStatus === "completed" && p.paket_fasilitasi
         ? [
@@ -70,7 +72,7 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
         ? "Surat persetujuan telah diterima dan dikonfirmasi di Kantor Dinas Kebudayaan DIY."
         : "Silakan isi dan tandatangani surat persetujuan di Kantor Dinas Kebudayaan DIY.",
     status: suratStatus,
-    attachmentLabel: p.surat_persetujuan?.file_path ? "Surat Persetujuan:" : undefined,
+    attachmentLabel: p.surat_persetujuan?.file_path ? "Template Surat Persetujuan:" : undefined,
     attachmentFile: p.surat_persetujuan?.file_path ? extractFilename(p.surat_persetujuan.file_path) : undefined,
   });
 
@@ -147,7 +149,7 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
         ? "Survey lapangan telah selesai dilakukan oleh pihak Dinas Kebudayaan DIY."
         : "Pihak Dinas Kebudayaan DIY akan melakukan survey lapangan sesuai lokasi yang sudah kirim pada tahap sebelumnya pada:",
     status: surveyStatus,
-    scheduledDate: surveyStatus === "in_progress" && p.survey_lapangan?.tanggal_survey
+    scheduledDate: p.survey_lapangan?.tanggal_survey
       ? formatDate(p.survey_lapangan.tanggal_survey)
       : undefined,
   });
@@ -161,7 +163,7 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
         ? "Surat persetujuan telah diterima dan dikonfirmasi di Kantor Dinas Kebudayaan DIY."
         : "Silakan isi dan tandatangani surat persetujuan di Kantor Dinas Kebudayaan DIY.",
     status: suratStatus,
-    attachmentLabel: p.surat_persetujuan?.file_path ? "Surat Persetujuan:" : undefined,
+    attachmentLabel: p.surat_persetujuan?.file_path ? "Template Surat Persetujuan:" : undefined,
     attachmentFile: p.surat_persetujuan?.file_path ? extractFilename(p.surat_persetujuan.file_path) : undefined,
   });
 
@@ -171,9 +173,25 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
     title: "Pengiriman Sarana Prasarana",
     description:
       pengirimanStatus === "completed"
-        ? "Sarana prasarana telah dikirim ke lokasi lembaga budaya yang terdaftar."
-        : "Proses pengiriman sarana prasarana sedang berlangsung ke lokasi lembaga budaya.",
+        ? "Fasilitas hibah telah dikirim oleh Dinas Kebudayaan DIY ke alamat yang terdaftar."
+        : "Proses penyiapan dan pengiriman sarana dan prasarana sedang dilakukan oleh Dinas Kebudayaan DIY dan akan segera dikirim ke:",
     status: pengirimanStatus,
+    details:
+      pengirimanStatus === "in_progress"
+        ? [
+            `Nama Penerima: ${p.nama_penerima ?? "-"}`,
+            `Alamat: ${[
+              p.alamat_pengiriman,
+              p.kelurahan_desa,
+              p.kecamatan,
+              p.kabupaten_kota,
+              p.provinsi,
+              p.kode_pos,
+            ]
+              .filter(Boolean)
+              .join(", ") || "-"}`,
+          ]
+        : undefined,
     attachmentLabel: p.pengiriman_sarana?.bukti_pengiriman ? "Bukti Pengiriman:" : undefined,
     attachmentFile: p.pengiriman_sarana?.bukti_pengiriman ? extractFilename(p.pengiriman_sarana.bukti_pengiriman) : undefined,
   });
@@ -199,7 +217,7 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
 
 function mapSubStatus(subStatus: string, overallStatus: string): TimelineStatus {
   if (overallStatus === "DITOLAK" && subStatus === "DITOLAK") return "rejected";
-  if (subStatus === "SELESAI") return "completed";
+  if (subStatus === "SELESAI" || subStatus === "DISETUJUI") return "completed";
   if (subStatus === "DALAM_PROSES" || subStatus === "MENUNGGU") return "in_progress";
   if (subStatus === "DITOLAK") return "rejected";
   return "locked";
@@ -515,7 +533,7 @@ export default function UserStatusDetailPage() {
 
                           {step.details && (
                             <div className="mt-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
-                              <p>Detail paket yang disetujui:</p>
+                              {step.detailsTitle ? <p>{step.detailsTitle}</p> : null}
                               <ul className="ml-[22px] list-disc">
                                 {step.details.map((d) => (
                                   <li key={d}>{d}</li>
@@ -526,14 +544,9 @@ export default function UserStatusDetailPage() {
 
                           {step.scheduledDate && (
                             <div className="mt-4">
-                              <div className="w-full max-w-[422px]">
-                                <div className="flex items-center gap-[10px] rounded-[10px] border border-[rgba(38,43,67,0.22)] px-4 py-3">
-                                  <p className="flex-1 text-[17px] leading-6 text-[rgba(38,43,67,0.9)]">
-                                    {step.scheduledDate}
-                                  </p>
-                                  <CalendarIcon />
-                                </div>
-                              </div>
+                              <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+                                Hari/Tanggal: <span className="font-semibold text-[rgba(38,43,67,0.9)]">{step.scheduledDate}</span>
+                              </p>
                             </div>
                           )}
 

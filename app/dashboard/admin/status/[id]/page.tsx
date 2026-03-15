@@ -245,7 +245,7 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
 
 function mapSubStatus(sub: string, overall: string): TimelineStatus {
   if (overall === "DITOLAK" && sub === "DITOLAK") return "rejected";
-  if (sub === "SELESAI") return "completed";
+  if (sub === "SELESAI" || sub === "DISETUJUI") return "completed";
   if (sub === "DALAM_PROSES" || sub === "MENUNGGU") return "in_progress";
   if (sub === "DITOLAK") return "rejected";
   return "locked";
@@ -298,7 +298,7 @@ function getAdminReviewStatus(p: Pengajuan): {
     };
   }
 
-  if (p.status_pemeriksaan === "SELESAI") {
+  if (p.status_pemeriksaan === "SELESAI" || p.status_pemeriksaan === "DISETUJUI") {
     return {
       label: "Disetujui",
       className: "bg-[rgba(114,225,40,0.16)] text-[#58be15]",
@@ -483,6 +483,15 @@ function PdfFileChip({ filename }: { filename: string }) {
   );
 }
 
+function DataRow({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="flex gap-3">
+      <dt className="w-[160px] shrink-0 text-[13px] text-[rgba(38,43,67,0.5)]">{label}</dt>
+      <dd className="text-[14px] text-[rgba(38,43,67,0.9)]">{value ?? "-"}</dd>
+    </div>
+  );
+}
+
 function ActionButton({
   label,
   onClick,
@@ -527,17 +536,16 @@ export default function AdminStatusDetailPage() {
 
   // Form state for modals / inline inputs
   const [surveyDate, setSurveyDate] = useState("");
-  const [surveyCatatan, setSurveyCatatan] = useState("");
   const [tolakCatatan, setTolakCatatan] = useState("");
   const [tolakMode, setTolakMode] = useState<"pemeriksaan" | "laporan" | null>(null);
   const [tolakSuratFile, setTolakSuratFile] = useState<File | null>(null);
   const [paketId, setPaketId] = useState("");
   const [showPaketPicker, setShowPaketPicker] = useState(false);
   const [paketOptions, setPaketOptions] = useState<PaketFasilitasi[]>([]);
-  const [nomorSurat, setNomorSurat] = useState("");
-  const [catatanPengiriman, setCatatanPengiriman] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [rejectReasonError, setRejectReasonError] = useState<string | null>(null);
+  const [showDataModal, setShowDataModal] = useState(false);
+  const [selectedPengirimanFile, setSelectedPengirimanFile] = useState<File | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingFileAction, setPendingFileAction] = useState<StepAction["type"] | null>(null);
@@ -617,10 +625,8 @@ export default function AdminStatusDetailPage() {
           if (!surveyDate) { alert("Pilih tanggal survey terlebih dahulu"); setActionLoading(false); return; }
           await adminPengajuanApi.setSurvey(data.pengajuan_id, {
             tanggal_survey: surveyDate,
-            catatan: surveyCatatan.trim() || undefined,
           });
           setSurveyDate("");
-          setSurveyCatatan("");
           break;
         case "selesaikan_survey":
           await adminPengajuanApi.selesaikanSurvey(data.pengajuan_id);
@@ -658,13 +664,14 @@ export default function AdminStatusDetailPage() {
     }
   }
 
-  async function handleFileUpload(file: File) {
-    if (!data || !pendingFileAction) return;
+  async function handleFileUpload(file: File, actionTypeOverride?: StepAction["type"]) {
+    const currentAction = actionTypeOverride ?? pendingFileAction;
+    if (!data || !currentAction) return;
 
     const validationConfig =
-      pendingFileAction === "upload_surat"
+      currentAction === "upload_surat"
         ? { ...pdfUploadValidation, label: "Surat persetujuan" }
-        : pendingFileAction === "upload_pencairan"
+        : currentAction === "upload_pencairan"
           ? { ...documentUploadValidation, label: "Bukti pencairan" }
           : { ...documentUploadValidation, label: "Bukti pengiriman" };
 
@@ -678,17 +685,15 @@ export default function AdminStatusDetailPage() {
     try {
       setActionLoading(true);
       setActionMessage(null);
-      switch (pendingFileAction) {
+      switch (currentAction) {
         case "upload_surat":
           await adminPengajuanApi.uploadSuratPersetujuan(
             data.pengajuan_id,
             {
-              nomor_surat: nomorSurat.trim() || undefined,
               tanggal_terbit: new Date().toISOString().split("T")[0],
             },
             file,
           );
-          setNomorSurat("");
           break;
         case "upload_pencairan":
           await adminPengajuanApi.uploadBuktiPencairan(
@@ -702,11 +707,10 @@ export default function AdminStatusDetailPage() {
             data.pengajuan_id,
             {
               tanggal_pengiriman: new Date().toISOString().split("T")[0],
-              catatan: catatanPengiriman.trim() || undefined,
             },
             file,
           );
-          setCatatanPengiriman("");
+          setSelectedPengirimanFile(null);
           break;
       }
       setPendingFileAction(null);
@@ -762,6 +766,10 @@ export default function AdminStatusDetailPage() {
     switch (step.action.type) {
       case "setujui_pemeriksaan":
         return ["completed", "rejected"];
+      case "set_survey":
+        return ["completed"];
+      case "upload_pengiriman":
+        return ["completed"];
       case "setujui_laporan":
         return ["completed", "rejected"];
       case "konfirmasi_surat":
@@ -804,6 +812,46 @@ export default function AdminStatusDetailPage() {
       return;
     }
 
+    if (step.action.type === "set_survey") {
+      if (nextStatus !== "completed") return;
+      if (!surveyDate) {
+        setActionMessage("Pilih tanggal survey terlebih dahulu");
+        return;
+      }
+
+      void (async () => {
+        if (!data) return;
+
+        try {
+          setActionLoading(true);
+          setActionMessage(null);
+          await adminPengajuanApi.setSurvey(data.pengajuan_id, {
+            tanggal_survey: surveyDate,
+          });
+          await adminPengajuanApi.selesaikanSurvey(data.pengajuan_id);
+          setSurveyDate("");
+          await fetchData();
+        } catch (err: unknown) {
+          const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Aksi gagal";
+          setActionMessage(msg);
+        } finally {
+          setActionLoading(false);
+        }
+      })();
+      return;
+    }
+
+    if (step.action.type === "upload_pengiriman") {
+      if (nextStatus !== "completed") return;
+      if (!selectedPengirimanFile) {
+        setActionMessage("Unggah bukti pengiriman terlebih dahulu");
+        return;
+      }
+
+      void handleFileUpload(selectedPengirimanFile, "upload_pengiriman");
+      return;
+    }
+
     if (nextStatus !== "completed") return;
 
     if (step.action.type === "konfirmasi_surat") {
@@ -824,89 +872,86 @@ export default function AdminStatusDetailPage() {
         return (
           <div className="mt-4 space-y-3">
             <div>
-              <Link
-                href="#ringkasan-pengajuan"
+              <button
+                type="button"
+                onClick={() => setShowDataModal(true)}
                 className="inline-flex items-center gap-2 rounded-lg bg-[#c23513] px-[18px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
               >
                 Lihat Data Pengajuan
                 <UploadIcon />
-              </Link>
+              </button>
             </div>
-            <div className="flex gap-2">
-              <ActionButton
-                label={isPentas ? "Pilih Paket" : "Setujui"}
-                onClick={() => {
-                  if (isPentas) {
-                    setShowPaketPicker(true);
-                    return;
-                  }
-                  handleAction("setujui_pemeriksaan");
-                }}
-                disabled={actionLoading}
-              />
-              {tolakMode !== "pemeriksaan" ? (
-                <ActionButton label="Tolak" variant="danger" onClick={() => setTolakMode("pemeriksaan")} disabled={actionLoading} />
-              ) : (
-                <div className="flex flex-wrap items-end gap-2">
-                  <div>
-                    <input
-                      type="text"
-                      value={tolakCatatan}
-                      onChange={(e) => {
-                        setTolakCatatan(e.target.value);
+            {isPentas && (
+              <div className="flex gap-2">
+                <ActionButton
+                  label="Pilih Paket"
+                  onClick={() => setShowPaketPicker(true)}
+                  disabled={actionLoading}
+                />
+                {tolakMode !== "pemeriksaan" ? (
+                  <ActionButton label="Tolak" variant="danger" onClick={() => setTolakMode("pemeriksaan")} disabled={actionLoading} />
+                ) : (
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div>
+                      <input
+                        type="text"
+                        value={tolakCatatan}
+                        onChange={(e) => {
+                          setTolakCatatan(e.target.value);
+                          setRejectReasonError(null);
+                          setActionMessage(null);
+                        }}
+                        placeholder="Alasan penolakan"
+                        className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
+                      />
+                      {rejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{rejectReasonError}</p> : null}
+                    </div>
+                    <label className="flex h-[42px] cursor-pointer items-center rounded-lg border border-[rgba(38,43,67,0.22)] px-3 text-[14px] text-[rgba(38,43,67,0.72)]">
+                      <input
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const selectedFile = e.target.files?.[0] ?? null;
+                          if (!selectedFile) {
+                            setTolakSuratFile(null);
+                            return;
+                          }
+
+                          const validationMessage = validateUploadFile(selectedFile, {
+                            ...pdfUploadValidation,
+                            label: "Surat penolakan",
+                          });
+
+                          if (validationMessage) {
+                            setTolakSuratFile(null);
+                            setActionMessage(validationMessage);
+                            e.currentTarget.value = "";
+                            return;
+                          }
+
+                          setActionMessage(null);
+                          setTolakSuratFile(selectedFile);
+                        }}
+                      />
+                      {tolakSuratFile ? `Surat: ${tolakSuratFile.name}` : "Lampiran surat penolakan (opsional)"}
+                    </label>
+                    <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_pemeriksaan")} disabled={actionLoading} />
+                    <ActionButton
+                      label="Batal"
+                      variant="secondary"
+                      onClick={() => {
+                        setTolakMode(null);
+                        setTolakCatatan("");
+                        setTolakSuratFile(null);
                         setRejectReasonError(null);
-                        setActionMessage(null);
                       }}
-                      placeholder="Alasan penolakan"
-                      className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
+                      disabled={actionLoading}
                     />
-                    {rejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{rejectReasonError}</p> : null}
                   </div>
-                  <label className="flex h-[42px] cursor-pointer items-center rounded-lg border border-[rgba(38,43,67,0.22)] px-3 text-[14px] text-[rgba(38,43,67,0.72)]">
-                    <input
-                      type="file"
-                      accept=".pdf,application/pdf"
-                      className="hidden"
-                      onChange={(e) => {
-                        const selectedFile = e.target.files?.[0] ?? null;
-                        if (!selectedFile) {
-                          setTolakSuratFile(null);
-                          return;
-                        }
-
-                        const validationMessage = validateUploadFile(selectedFile, {
-                          ...pdfUploadValidation,
-                          label: "Surat penolakan",
-                        });
-
-                        if (validationMessage) {
-                          setTolakSuratFile(null);
-                          setActionMessage(validationMessage);
-                          e.currentTarget.value = "";
-                          return;
-                        }
-
-                        setActionMessage(null);
-                        setTolakSuratFile(selectedFile);
-                      }}
-                    />
-                    {tolakSuratFile ? `Surat: ${tolakSuratFile.name}` : "Lampiran surat penolakan (opsional)"}
-                  </label>
-                  <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_pemeriksaan")} disabled={actionLoading} />
-                  <ActionButton
-                    label="Batal"
-                    variant="secondary"
-                    onClick={() => {
-                      setTolakMode(null);
-                      setTolakCatatan("");
-                      setTolakSuratFile(null);
-                      setRejectReasonError(null);
-                    }}
-                    disabled={actionLoading}
-                  />
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         );
 
@@ -920,33 +965,15 @@ export default function AdminStatusDetailPage() {
               onChange={(e) => setSurveyDate(e.target.value)}
               className="w-full max-w-[300px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
             />
-            <textarea
-              value={surveyCatatan}
-              onChange={(e) => setSurveyCatatan(e.target.value)}
-              placeholder="Catatan survey (opsional)"
-              className="min-h-[92px] w-full max-w-[420px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
-            />
-            <ActionButton label="Simpan Jadwal Survey" onClick={() => handleAction("set_survey")} disabled={actionLoading || !surveyDate} />
           </div>
         );
 
       case "selesaikan_survey":
-        return (
-          <div className="mt-4">
-            <ActionButton label="Tandai Survey Selesai" onClick={() => handleAction("selesaikan_survey")} disabled={actionLoading} />
-          </div>
-        );
+        return null;
 
       case "upload_surat":
         return (
           <div className="mt-4 space-y-3">
-            <input
-              type="text"
-              value={nomorSurat}
-              onChange={(e) => setNomorSurat(e.target.value)}
-              placeholder="Nomor surat (opsional)"
-              className="w-full max-w-[320px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
-            />
             <button
               type="button"
               disabled={actionLoading}
@@ -960,47 +987,36 @@ export default function AdminStatusDetailPage() {
         );
 
       case "konfirmasi_surat":
-        return (
-          <div className="mt-4">
-            <ActionButton label="Konfirmasi Surat Ditandatangani" onClick={() => handleAction("konfirmasi_surat")} disabled={actionLoading} />
-          </div>
-        );
+        return null;
 
       case "setujui_laporan":
-        return (
-          <div className="mt-4 flex gap-2">
-            <ActionButton label="Setujui Laporan" onClick={() => handleAction("setujui_laporan")} disabled={actionLoading} />
-            {tolakMode !== "laporan" ? (
-              <ActionButton label="Tolak Laporan" variant="danger" onClick={() => setTolakMode("laporan")} disabled={actionLoading} />
-            ) : (
-              <div className="flex items-end gap-2">
-                <input
-                  type="text"
-                  value={tolakCatatan}
-                  onChange={(e) => {
-                    setTolakCatatan(e.target.value);
-                    setRejectReasonError(null);
-                    setActionMessage(null);
-                  }}
-                  placeholder="Alasan penolakan"
-                  className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
-                />
-                {rejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{rejectReasonError}</p> : null}
-                <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_laporan")} disabled={actionLoading} />
-                <ActionButton
-                  label="Batal"
-                  variant="secondary"
-                  onClick={() => {
-                    setTolakMode(null);
-                    setTolakCatatan("");
-                    setRejectReasonError(null);
-                  }}
-                  disabled={actionLoading}
-                />
-              </div>
-            )}
+        return tolakMode === "laporan" ? (
+          <div className="mt-4 flex items-end gap-2">
+            <input
+              type="text"
+              value={tolakCatatan}
+              onChange={(e) => {
+                setTolakCatatan(e.target.value);
+                setRejectReasonError(null);
+                setActionMessage(null);
+              }}
+              placeholder="Alasan penolakan"
+              className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
+            />
+            {rejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{rejectReasonError}</p> : null}
+            <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_laporan")} disabled={actionLoading} />
+            <ActionButton
+              label="Batal"
+              variant="secondary"
+              onClick={() => {
+                setTolakMode(null);
+                setTolakCatatan("");
+                setRejectReasonError(null);
+              }}
+              disabled={actionLoading}
+            />
           </div>
-        );
+        ) : null;
 
       case "upload_pencairan":
         return (
@@ -1026,20 +1042,14 @@ export default function AdminStatusDetailPage() {
 
       case "upload_pengiriman":
         return (
-          <div className="mt-4 space-y-3">
-            <textarea
-              value={catatanPengiriman}
-              onChange={(e) => setCatatanPengiriman(e.target.value)}
-              placeholder="Catatan pengiriman (opsional)"
-              className="min-h-[92px] w-full max-w-[420px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
-            />
+          <div className="mt-4">
             <button
               type="button"
               disabled={actionLoading}
               onClick={() => triggerFileUpload("upload_pengiriman")}
               className="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-50"
             >
-              {step.attachmentFile ? "Unggah Ulang" : "Unggah Berkas"}
+              {selectedPengirimanFile || step.attachmentFile ? "Unggah Ulang" : "Unggah Berkas"}
               <UploadIcon />
             </button>
           </div>
@@ -1052,6 +1062,103 @@ export default function AdminStatusDetailPage() {
 
   return (
     <section className="h-full overflow-y-auto px-4 py-6 sm:px-6">
+      {/* Data Pengajuan Modal */}
+      {showDataModal && data && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-8"
+          onClick={() => setShowDataModal(false)}
+        >
+          <div
+            className="relative w-full max-w-[640px] rounded-[14px] bg-white shadow-[0_24px_60px_rgba(22,35,71,0.22)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[rgba(38,43,67,0.10)] px-6 py-5">
+              <h2 className="text-[18px] font-semibold text-[rgba(38,43,67,0.9)]">Data Pengajuan</h2>
+              <button
+                type="button"
+                onClick={() => setShowDataModal(false)}
+                className="flex size-8 items-center justify-center rounded-full text-[rgba(38,43,67,0.5)] hover:bg-[rgba(38,43,67,0.06)]"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-6 px-6 py-5">
+              {/* Data Lembaga */}
+              {data.lembaga_budaya && (
+                <section>
+                  <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-[rgba(38,43,67,0.5)]">Data Lembaga Budaya</h3>
+                  <dl className="space-y-3">
+                    <DataRow label="Nama Lembaga" value={data.lembaga_budaya.nama_lembaga} />
+                    <DataRow label="Jenis Kesenian" value={data.lembaga_budaya.jenis_kesenian} />
+                    <DataRow label="Alamat" value={data.lembaga_budaya.alamat} />
+                    <DataRow label="No. HP" value={data.lembaga_budaya.no_hp} />
+                    <DataRow label="Email" value={data.lembaga_budaya.email} />
+                  </dl>
+                </section>
+              )}
+
+              {/* Data Pengajuan Hibah */}
+              {!isPentas && (
+                <section>
+                  <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-[rgba(38,43,67,0.5)]">Data Pengiriman</h3>
+                  <dl className="space-y-3">
+                    <DataRow label="Nama Penerima" value={data.nama_penerima} />
+                    <DataRow label="Alamat Pengiriman" value={data.alamat_pengiriman} />
+                    {data.kelurahan_desa && <DataRow label="Kelurahan / Desa" value={data.kelurahan_desa} />}
+                    {data.kecamatan && <DataRow label="Kecamatan" value={data.kecamatan} />}
+                    {data.kabupaten_kota && <DataRow label="Kabupaten / Kota" value={data.kabupaten_kota} />}
+                    {data.provinsi && <DataRow label="Provinsi" value={data.provinsi} />}
+                    {data.kode_pos && <DataRow label="Kode Pos" value={data.kode_pos} />}
+                  </dl>
+                </section>
+              )}
+
+              {/* Dokumen */}
+              <section>
+                <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-[rgba(38,43,67,0.5)]">Dokumen</h3>
+                <div className="space-y-2">
+                  {data.proposal_file && (
+                    <a
+                      href={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ?? "http://localhost:3000"}/uploads/proposal/${data.proposal_file.split("/").pop()}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px] hover:bg-[rgba(38,43,67,0.10)]"
+                    >
+                      <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-[2px] text-[8px] font-bold leading-none text-white">PDF</span>
+                      <span className="text-[15px] font-medium text-[rgba(38,43,67,0.7)]">{data.proposal_file.split("/").pop() ?? "Proposal"}</span>
+                    </a>
+                  )}
+                  {data.sertifikat_nik_file && (
+                    <a
+                      href={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ?? "http://localhost:3000"}/uploads/sertifikat/${data.sertifikat_nik_file.split("/").pop()}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px] hover:bg-[rgba(38,43,67,0.10)]"
+                    >
+                      <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-[2px] text-[8px] font-bold leading-none text-white">PDF</span>
+                      <span className="text-[15px] font-medium text-[rgba(38,43,67,0.7)]">{data.sertifikat_nik_file.split("/").pop() ?? "Sertifikat NIK"}</span>
+                    </a>
+                  )}
+                </div>
+              </section>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-[rgba(38,43,67,0.10)] px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setShowDataModal(false)}
+                className="inline-flex h-[38px] items-center justify-center rounded-[8px] border border-[rgba(38,43,67,0.22)] px-5 text-[15px] font-medium text-[rgba(38,43,67,0.78)] hover:bg-[rgba(38,43,67,0.04)]"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hidden file input for uploads */}
       <input
         ref={fileInputRef}
@@ -1060,7 +1167,22 @@ export default function AdminStatusDetailPage() {
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) handleFileUpload(file);
+          if (file && pendingFileAction === "upload_pengiriman") {
+            const validationMessage = validateUploadFile(file, {
+              ...documentUploadValidation,
+              label: "Bukti pengiriman",
+            });
+
+            if (validationMessage) {
+              setSelectedPengirimanFile(null);
+              setActionMessage(validationMessage);
+            } else {
+              setSelectedPengirimanFile(file);
+              setActionMessage(null);
+            }
+          } else if (file) {
+            handleFileUpload(file);
+          }
           e.target.value = "";
         }}
       />
