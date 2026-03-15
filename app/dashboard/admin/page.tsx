@@ -28,7 +28,7 @@ function mapPengajuanToSubmission(p: Pengajuan): Submission {
   if (p.status === "DITOLAK") status = "ditolak";
   else if (p.status === "SELESAI" || p.surat_persetujuan?.file_path) status = "selesai";
   else if (p.jenis_fasilitasi_id === 2 && p.survey_lapangan?.status === "SELESAI") status = "disetujui";
-  else if (p.status_pemeriksaan === "SELESAI") status = "disetujui";
+  else if (p.status_pemeriksaan === "SELESAI" || p.status_pemeriksaan === "DISETUJUI") status = "disetujui";
   else if (p.status_pemeriksaan === "MENUNGGU") status = "perlu_tindakan";
 
   return {

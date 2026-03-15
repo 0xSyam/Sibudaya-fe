@@ -24,7 +24,15 @@ type TimelineStep = {
   attachmentFile?: string;
   scheduledDate?: string;
   canUploadLaporan?: boolean;
+  attachmentPath?: string;
 };
+
+function buildUploadUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ?? "http://localhost:3000";
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${baseUrl}${normalizedPath}`;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Timeline builder                                                   */
@@ -49,7 +57,7 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
         ? "Data dan dokumen pengajuan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : pemeriksaanStatus === "rejected"
           ? `Pengajuan ditolak. ${p.catatan_pemeriksaan ?? ""}`
-          : "Data pendaftaran telah berhasil dikirim. Menunggu verifikasi oleh pihak Admin.",
+          : "Data pendaftaran telah berhasil dikirim dan sedang diperiksa oleh Admin Dinas Kebudayaan DIY untuk memastikan kelengkapan dan kesesuaian data.",
     status: pemeriksaanStatus,
     detailsTitle: pemeriksaanStatus === "completed" && p.paket_fasilitasi ? "Detail paket yang disetujui:" : undefined,
     details:
@@ -70,10 +78,11 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
     description:
       suratStatus === "completed"
         ? "Surat persetujuan telah diterima dan dikonfirmasi di Kantor Dinas Kebudayaan DIY."
-        : "Silakan isi dan tandatangani surat persetujuan di Kantor Dinas Kebudayaan DIY.",
+        : "Surat persetujuan telah diterbitkan. Pemohon wajib mengunduh surat persetujuan dan melakukan penandatanganan secara langsung di Kantor Dinas Kebudayaan DIY.",
     status: suratStatus,
-    attachmentLabel: p.surat_persetujuan?.file_path ? "Template Surat Persetujuan:" : undefined,
+    attachmentLabel: p.surat_persetujuan?.file_path ? "Surat Persetujuan:" : undefined,
     attachmentFile: p.surat_persetujuan?.file_path ? extractFilename(p.surat_persetujuan.file_path) : undefined,
+    attachmentPath: p.surat_persetujuan?.file_path ?? undefined,
   });
 
   // Step 4: Pelaporan Kegiatan
@@ -85,11 +94,12 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
         ? "Laporan kegiatan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : laporanStatus === "rejected"
           ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin ?? ""}`
-          : "Silakan unggah laporan kegiatan untuk diverifikasi oleh pihak Dinas Kebudayaan.",
+          : "Silakan unggah laporan dan dokumentasi kegiatan setelah pelaksanaan kegiatan selesai.",
     status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
     canUploadLaporan: laporanStatus === "in_progress" || laporanStatus === "rejected",
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "Hasil Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
+    attachmentPath: p.laporan_kegiatan?.file_laporan ?? undefined,
   });
 
   // Step 5: Pencairan Dana
@@ -102,7 +112,7 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
         : "Proses pencairan dana sedang berlangsung ke rekening lembaga budaya yang terdaftar.",
     status: pencairanStatus,
     details:
-      pencairanStatus === "completed"
+      pencairanStatus === "completed" || pencairanStatus === "in_progress"
         ? [
             `Nomor Rekening: ${p.nomor_rekening ?? "-"}`,
             `Nama Pemegang Rekening: ${p.nama_pemegang_rekening ?? "-"}`,
@@ -110,6 +120,7 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
         : undefined,
     attachmentLabel: p.pencairan_dana?.bukti_transfer ? "Bukti Pencairan:" : undefined,
     attachmentFile: p.pencairan_dana?.bukti_transfer ? extractFilename(p.pencairan_dana.bukti_transfer) : undefined,
+    attachmentPath: p.pencairan_dana?.bukti_transfer ?? undefined,
   });
 
   return steps;
@@ -161,10 +172,11 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
     description:
       suratStatus === "completed"
         ? "Surat persetujuan telah diterima dan dikonfirmasi di Kantor Dinas Kebudayaan DIY."
-        : "Silakan isi dan tandatangani surat persetujuan di Kantor Dinas Kebudayaan DIY.",
+        : "Surat persetujuan telah diterbitkan. Pemohon wajib mengunduh surat persetujuan dan melakukan penandatanganan secara langsung di Kantor Dinas Kebudayaan DIY.",
     status: suratStatus,
-    attachmentLabel: p.surat_persetujuan?.file_path ? "Template Surat Persetujuan:" : undefined,
+    attachmentLabel: p.surat_persetujuan?.file_path ? "Surat Persetujuan:" : undefined,
     attachmentFile: p.surat_persetujuan?.file_path ? extractFilename(p.surat_persetujuan.file_path) : undefined,
+    attachmentPath: p.surat_persetujuan?.file_path ?? undefined,
   });
 
   // Step 5: Pengiriman Sarana Prasarana
@@ -194,6 +206,7 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
         : undefined,
     attachmentLabel: p.pengiriman_sarana?.bukti_pengiriman ? "Bukti Pengiriman:" : undefined,
     attachmentFile: p.pengiriman_sarana?.bukti_pengiriman ? extractFilename(p.pengiriman_sarana.bukti_pengiriman) : undefined,
+    attachmentPath: p.pengiriman_sarana?.bukti_pengiriman ?? undefined,
   });
 
   // Step 6: Pelaporan Kegiatan
@@ -205,11 +218,12 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
         ? "Laporan kegiatan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : laporanStatus === "rejected"
           ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin ?? ""}`
-          : "Silakan unggah laporan kegiatan untuk diverifikasi oleh pihak Dinas Kebudayaan.",
+          : "Silakan unggah laporan dan dokumentasi kegiatan setelah pelaksanaan kegiatan selesai.",
     status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
     canUploadLaporan: laporanStatus === "in_progress" || laporanStatus === "rejected",
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "Hasil Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
+    attachmentPath: p.laporan_kegiatan?.file_laporan ?? undefined,
   });
 
   return steps;
@@ -550,37 +564,73 @@ export default function UserStatusDetailPage() {
                             </div>
                           )}
 
-                          {step.canUploadLaporan && (
-                            <div className="mt-4 flex flex-col gap-2">
-                              <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept=".pdf,application/pdf"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) handleUploadLaporan(file);
-                                  e.currentTarget.value = "";
-                                }}
-                              />
-                              <button
-                                type="button"
-                                disabled={uploading}
-                                onClick={() => fileInputRef.current?.click()}
-                                className="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium capitalize leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-50"
-                              >
-                                {uploading ? "Mengunggah..." : "Unggah Laporan"}
-                                <UploadCloudIcon />
-                              </button>
+                          {step.title === "Pelaporan Kegiatan" && step.status !== "locked" && (
+                            <div className="mt-4 space-y-2">
+                              <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+                                Contoh Laporan:
+                              </p>
+                              <PdfFileChip filename="Contoh Laporan Kegiatan.pdf" />
                             </div>
                           )}
 
-                          {step.attachmentLabel && step.attachmentFile && (
+                          {step.title === "Pelaporan Kegiatan" && step.status !== "locked" && (
+                            <div className="mt-4 space-y-2">
+                              <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+                                Hasil Laporan:
+                              </p>
+                              {step.attachmentFile && step.attachmentPath ? (
+                                <a
+                                  href={buildUploadUrl(step.attachmentPath)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex"
+                                >
+                                  <PdfFileChip filename={step.attachmentFile} />
+                                </a>
+                              ) : step.canUploadLaporan ? (
+                                <div className="flex flex-col gap-2">
+                                  <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".pdf,application/pdf"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleUploadLaporan(file);
+                                      e.currentTarget.value = "";
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    disabled={uploading}
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium capitalize leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-50"
+                                  >
+                                    {uploading ? "Mengunggah..." : "Unggah Laporan"}
+                                    <UploadCloudIcon />
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          )}
+
+                          {step.title !== "Pelaporan Kegiatan" && step.attachmentLabel && step.attachmentFile && (
                             <div className="mt-4 space-y-2">
                               <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
                                 {step.attachmentLabel}
                               </p>
-                              <PdfFileChip filename={step.attachmentFile} />
+                              {step.attachmentPath ? (
+                                <a
+                                  href={buildUploadUrl(step.attachmentPath)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex"
+                                >
+                                  <PdfFileChip filename={step.attachmentFile} />
+                                </a>
+                              ) : (
+                                <PdfFileChip filename={step.attachmentFile} />
+                              )}
                             </div>
                           )}
                         </article>
@@ -601,7 +651,7 @@ export default function UserStatusDetailPage() {
                 Surat penolakan dari admin tersedia dan dapat diakses melalui tautan berikut.
               </p>
               <a
-                href={data.surat_penolakan_file}
+                href={buildUploadUrl(data.surat_penolakan_file)}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-4 inline-flex items-center justify-center rounded-[8px] bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"

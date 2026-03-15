@@ -23,6 +23,7 @@ type TimelineStep = {
   secondaryDetails?: string[];
   attachmentLabel?: string;
   attachmentFile?: string;
+  attachmentPath?: string;
   scheduledDate?: string;
   action?: StepAction;
 };
@@ -83,6 +84,7 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
     status: suratStatus,
     attachmentLabel: p.surat_persetujuan?.file_path ? (suratStatus === "completed" ? "Template Surat:" : "Surat Persetujuan:") : undefined,
     attachmentFile: p.surat_persetujuan?.file_path ? extractFilename(p.surat_persetujuan.file_path) : undefined,
+    attachmentPath: p.surat_persetujuan?.file_path ?? undefined,
     action:
       suratStatus === "in_progress" && !p.surat_persetujuan
         ? { type: "upload_surat" }
@@ -103,6 +105,7 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
     status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "Hasil Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
+    attachmentPath: p.laporan_kegiatan?.file_laporan ?? undefined,
     secondaryDetails: !p.laporan_kegiatan?.file_laporan ? ["Pengaju belum menginput laporan"] : undefined,
     action:
       laporanStatus === "in_progress" && p.laporan_kegiatan?.file_laporan
@@ -124,6 +127,7 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
         : undefined,
     attachmentLabel: p.pencairan_dana?.bukti_transfer ? "Bukti Pencairan:" : undefined,
     attachmentFile: p.pencairan_dana?.bukti_transfer ? extractFilename(p.pencairan_dana.bukti_transfer) : undefined,
+    attachmentPath: p.pencairan_dana?.bukti_transfer ?? undefined,
     action:
       pencairanStatus === "in_progress" && !p.pencairan_dana?.bukti_transfer
         ? { type: "upload_pencairan" }
@@ -186,6 +190,7 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
     status: suratStatus,
     attachmentLabel: p.surat_persetujuan?.file_path ? "Surat Persetujuan:" : undefined,
     attachmentFile: p.surat_persetujuan?.file_path ? extractFilename(p.surat_persetujuan.file_path) : undefined,
+    attachmentPath: p.surat_persetujuan?.file_path ?? undefined,
     action:
       suratStatus === "in_progress" && !p.surat_persetujuan
         ? { type: "upload_surat" }
@@ -220,6 +225,7 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
         : undefined,
     attachmentLabel: p.pengiriman_sarana?.bukti_pengiriman ? "Bukti Pengiriman:" : undefined,
     attachmentFile: p.pengiriman_sarana?.bukti_pengiriman ? extractFilename(p.pengiriman_sarana.bukti_pengiriman) : undefined,
+    attachmentPath: p.pengiriman_sarana?.bukti_pengiriman ?? undefined,
     action: pengirimanStatus === "in_progress" && !p.pengiriman_sarana?.bukti_pengiriman ? { type: "upload_pengiriman" } : undefined,
   });
 
@@ -233,6 +239,7 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
     status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "File Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
+    attachmentPath: p.laporan_kegiatan?.file_laporan ?? undefined,
     secondaryDetails: !p.laporan_kegiatan?.file_laporan ? ["Pengaju belum menginput laporan"] : undefined,
     action:
       laporanStatus === "in_progress" && p.laporan_kegiatan?.file_laporan
@@ -257,6 +264,13 @@ function deriveNext(prev: TimelineStatus): TimelineStatus {
 
 function extractFilename(path: string): string {
   return path.split("/").pop() ?? path;
+}
+
+function buildUploadUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ?? "http://localhost:3000";
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${baseUrl}${normalizedPath}`;
 }
 
 function formatDate(dateStr: string): string {
@@ -881,77 +895,66 @@ export default function AdminStatusDetailPage() {
                 <UploadIcon />
               </button>
             </div>
-            {isPentas && (
-              <div className="flex gap-2">
+            {tolakMode === "pemeriksaan" ? (
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <input
+                    type="text"
+                    value={tolakCatatan}
+                    onChange={(e) => {
+                      setTolakCatatan(e.target.value);
+                      setRejectReasonError(null);
+                      setActionMessage(null);
+                    }}
+                    placeholder="Alasan penolakan"
+                    className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
+                  />
+                  {rejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{rejectReasonError}</p> : null}
+                </div>
+                <label className="flex h-[42px] cursor-pointer items-center rounded-lg border border-[rgba(38,43,67,0.22)] px-3 text-[14px] text-[rgba(38,43,67,0.72)]">
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const selectedFile = e.target.files?.[0] ?? null;
+                      if (!selectedFile) {
+                        setTolakSuratFile(null);
+                        return;
+                      }
+
+                      const validationMessage = validateUploadFile(selectedFile, {
+                        ...pdfUploadValidation,
+                        label: "Surat penolakan",
+                      });
+
+                      if (validationMessage) {
+                        setTolakSuratFile(null);
+                        setActionMessage(validationMessage);
+                        e.currentTarget.value = "";
+                        return;
+                      }
+
+                      setActionMessage(null);
+                      setTolakSuratFile(selectedFile);
+                    }}
+                  />
+                  {tolakSuratFile ? `Surat: ${tolakSuratFile.name}` : "Lampiran surat penolakan (opsional)"}
+                </label>
+                <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_pemeriksaan")} disabled={actionLoading} />
                 <ActionButton
-                  label="Pilih Paket"
-                  onClick={() => setShowPaketPicker(true)}
+                  label="Batal"
+                  variant="secondary"
+                  onClick={() => {
+                    setTolakMode(null);
+                    setTolakCatatan("");
+                    setTolakSuratFile(null);
+                    setRejectReasonError(null);
+                  }}
                   disabled={actionLoading}
                 />
-                {tolakMode !== "pemeriksaan" ? (
-                  <ActionButton label="Tolak" variant="danger" onClick={() => setTolakMode("pemeriksaan")} disabled={actionLoading} />
-                ) : (
-                  <div className="flex flex-wrap items-end gap-2">
-                    <div>
-                      <input
-                        type="text"
-                        value={tolakCatatan}
-                        onChange={(e) => {
-                          setTolakCatatan(e.target.value);
-                          setRejectReasonError(null);
-                          setActionMessage(null);
-                        }}
-                        placeholder="Alasan penolakan"
-                        className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
-                      />
-                      {rejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{rejectReasonError}</p> : null}
-                    </div>
-                    <label className="flex h-[42px] cursor-pointer items-center rounded-lg border border-[rgba(38,43,67,0.22)] px-3 text-[14px] text-[rgba(38,43,67,0.72)]">
-                      <input
-                        type="file"
-                        accept=".pdf,application/pdf"
-                        className="hidden"
-                        onChange={(e) => {
-                          const selectedFile = e.target.files?.[0] ?? null;
-                          if (!selectedFile) {
-                            setTolakSuratFile(null);
-                            return;
-                          }
-
-                          const validationMessage = validateUploadFile(selectedFile, {
-                            ...pdfUploadValidation,
-                            label: "Surat penolakan",
-                          });
-
-                          if (validationMessage) {
-                            setTolakSuratFile(null);
-                            setActionMessage(validationMessage);
-                            e.currentTarget.value = "";
-                            return;
-                          }
-
-                          setActionMessage(null);
-                          setTolakSuratFile(selectedFile);
-                        }}
-                      />
-                      {tolakSuratFile ? `Surat: ${tolakSuratFile.name}` : "Lampiran surat penolakan (opsional)"}
-                    </label>
-                    <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_pemeriksaan")} disabled={actionLoading} />
-                    <ActionButton
-                      label="Batal"
-                      variant="secondary"
-                      onClick={() => {
-                        setTolakMode(null);
-                        setTolakCatatan("");
-                        setTolakSuratFile(null);
-                        setRejectReasonError(null);
-                      }}
-                      disabled={actionLoading}
-                    />
-                  </div>
-                )}
               </div>
-            )}
+            ) : null}
           </div>
         );
 
@@ -1020,7 +1023,8 @@ export default function AdminStatusDetailPage() {
 
       case "upload_pencairan":
         return (
-          <div className="mt-4">
+          <div className="mt-4 space-y-2">
+            <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">Bukti Pencairan:</p>
             <button
               type="button"
               disabled={actionLoading}
@@ -1034,11 +1038,7 @@ export default function AdminStatusDetailPage() {
         );
 
       case "selesaikan_pencairan":
-        return (
-          <div className="mt-4">
-            <ActionButton label="Selesaikan Pencairan" onClick={() => handleAction("selesaikan_pencairan")} disabled={actionLoading} />
-          </div>
-        );
+        return null;
 
       case "upload_pengiriman":
         return (
@@ -1381,7 +1381,18 @@ export default function AdminStatusDetailPage() {
                           {step.attachmentLabel && step.attachmentFile && (
                             <div className="mt-4 space-y-2">
                               <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">{step.attachmentLabel}</p>
-                              <PdfFileChip filename={step.attachmentFile} />
+                              {step.attachmentPath ? (
+                                <a
+                                  href={buildUploadUrl(step.attachmentPath)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex"
+                                >
+                                  <PdfFileChip filename={step.attachmentFile} />
+                                </a>
+                              ) : (
+                                <PdfFileChip filename={step.attachmentFile} />
+                              )}
                             </div>
                           )}
 
