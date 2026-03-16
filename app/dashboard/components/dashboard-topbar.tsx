@@ -266,7 +266,7 @@ export function DashboardTopbar() {
                   type="button"
                   onClick={() => {
                     setShowMenu(false);
-                    router.push("/dashboard");
+                    router.push("/dashboard/my-profile");
                   }}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left text-[#3c4358] transition-colors hover:bg-[rgba(60,67,88,0.06)]"
                 >

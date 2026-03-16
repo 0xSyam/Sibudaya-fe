@@ -4,6 +4,7 @@ import type {
   RegisterDto,
   ForgotPasswordDto,
   ResetPasswordDto,
+  UpdateMyProfileDto,
   SafeUser,
   JenisFasilitasi,
   PaketFasilitasi,
@@ -248,6 +249,14 @@ export const authApi = {
   /** Ambil data user yang sedang login */
   getMe(): Promise<SafeUser> {
     return apiFetch<SafeUser>("/auth/me");
+  },
+
+  /** Update data profil user yang sedang login */
+  updateMe(dto: UpdateMyProfileDto): Promise<SafeUser> {
+    return apiFetch<SafeUser>("/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(dto),
+    });
   },
 
   /** Refresh access token */

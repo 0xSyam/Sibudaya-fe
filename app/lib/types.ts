@@ -42,6 +42,14 @@ export interface ResetPasswordDto {
   new_password: string;
 }
 
+export interface UpdateMyProfileDto {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  no_telp?: string;
+  address?: string;
+}
+
 export interface ApiError {
   statusCode: number;
   message: string | string[];
