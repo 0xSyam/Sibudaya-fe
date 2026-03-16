@@ -292,3 +292,41 @@ export interface UpdateTimelineStatusDto {
   status: "IN_PROGRESS" | "COMPLETED" | "REJECTED";
   note?: string;
 }
+
+export interface AdminAccount {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string;
+  email: string;
+  no_telp: string | null;
+  address: string | null;
+  role: "ADMIN";
+  provider: "LOCAL" | "GOOGLE";
+  created_at: string;
+}
+
+export interface CreateAdminAccountDto {
+  first_name: string;
+  last_name: string;
+  email: string;
+  no_telp: string;
+  address?: string;
+  password: string;
+  confirm_password: string;
+}
+
+export interface UpdateAdminAccountDto {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  no_telp?: string;
+  address?: string;
+  password?: string;
+  confirm_password?: string;
+}
+
+export interface ResetAdminPasswordDto {
+  new_password: string;
+  confirm_new_password: string;
+}

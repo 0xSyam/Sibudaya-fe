@@ -27,6 +27,10 @@ import type {
   SuratPersetujuan,
   PencairanDana,
   PengirimanSarana,
+  AdminAccount,
+  CreateAdminAccountDto,
+  UpdateAdminAccountDto,
+  ResetAdminPasswordDto,
 } from "./types";
 
 // ─── Base URL ────────────────────────────────────────────────────────────────
@@ -577,5 +581,44 @@ export const adminFasilitasiApi = {
       `/admin/fasilitasi/${jenisFasilitasiId}/template/laporan`,
       formData,
     );
+  },
+};
+
+// ─── Admin Pengaturan Akun API ──────────────────────────────────────────────
+
+export const adminAkunApi = {
+  getAllAdmins(): Promise<AdminAccount[]> {
+    return apiFetch<AdminAccount[]>('/admin/pengaturan-akun/admins');
+  },
+
+  getAdminById(userId: string): Promise<AdminAccount> {
+    return apiFetch<AdminAccount>(`/admin/pengaturan-akun/admins/${userId}`);
+  },
+
+  createAdmin(dto: CreateAdminAccountDto): Promise<AdminAccount> {
+    return apiFetch<AdminAccount>('/admin/pengaturan-akun/admins', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  updateAdmin(userId: string, dto: UpdateAdminAccountDto): Promise<AdminAccount> {
+    return apiFetch<AdminAccount>(`/admin/pengaturan-akun/admins/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  resetPassword(userId: string, dto: ResetAdminPasswordDto): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>(`/admin/pengaturan-akun/admins/${userId}/reset-password`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  deleteAdmin(userId: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>(`/admin/pengaturan-akun/admins/${userId}`, {
+      method: 'DELETE',
+    });
   },
 };
