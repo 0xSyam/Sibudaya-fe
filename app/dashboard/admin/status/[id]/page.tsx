@@ -14,7 +14,17 @@ import type { PaketFasilitasi, Pengajuan } from "@/app/lib/types";
 
 type TimelineStatus = "completed" | "in_progress" | "locked" | "rejected";
 
+type TimelineStepKey =
+  | "PENDAFTARAN"
+  | "PEMERIKSAAN"
+  | "SURVEY"
+  | "SURAT_PERSETUJUAN"
+  | "PENGIRIMAN"
+  | "PELAPORAN"
+  | "PENCAIRAN";
+
 type TimelineStep = {
+  key: TimelineStepKey;
   title: string;
   description: string;
   status: TimelineStatus;
@@ -49,6 +59,7 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
   const steps: TimelineStep[] = [];
 
   steps.push({
+    key: "PENDAFTARAN",
     title: "Pengajuan Data Pendaftaran",
     description: "Data awal lembaga dan jenis fasilitas pentas telah berhasil diajukan.",
     status: "completed",
@@ -56,12 +67,13 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
 
   const pemStatus = mapSubStatus(p.status_pemeriksaan, p.status);
   steps.push({
+    key: "PEMERIKSAAN",
     title: "Pemeriksaan Data oleh Admin dan Penetapan Paket Fasilitas",
     description:
       pemStatus === "completed"
         ? "Data dan dokumen pengajuan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : pemStatus === "rejected"
-          ? `Pengajuan ditolak. ${p.catatan_pemeriksaan ?? ""}`
+          ? `Pengajuan ditolak. ${p.catatan_pemeriksaan?.trim() || "Tidak ada alasan penolakan."}`
           : "Data pendaftaran telah berhasil dikirim. Lihat data pengajuan untuk memastikan kelengkapan dan kesesuaian data.",
     status: pemStatus,
     detailsTitle: pemStatus === "completed" && p.paket_fasilitasi ? "Detail paket yang disetujui:" : undefined,
@@ -72,17 +84,16 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
     action: pemStatus === "in_progress" ? { type: "setujui_pemeriksaan" } : undefined,
   });
 
-  if (p.status === "DITOLAK") return steps;
-
   const suratStatus = p.surat_persetujuan ? mapSubStatus(p.surat_persetujuan.status, p.status) : deriveNext(pemStatus);
   steps.push({
+    key: "SURAT_PERSETUJUAN",
     title: "Pengisian dan Penandatangan Surat Persetujuan",
     description:
       suratStatus === "completed"
         ? "Surat persetujuan telah diterima dan dikonfirmasi di Kantor Dinas Kebudayaan DIY."
         : "Surat persetujuan telah diterbitkan. Pemohon wajib mengunduh surat persetujuan dan melakukan penandatanganan secara langsung di Kantor Dinas Kebudayaan DIY.",
     status: suratStatus,
-    attachmentLabel: p.surat_persetujuan?.file_path ? (suratStatus === "completed" ? "Template Surat:" : "Surat Persetujuan:") : undefined,
+    attachmentLabel: p.surat_persetujuan?.file_path ? "Surat Persetujuan:" : undefined,
     attachmentFile: p.surat_persetujuan?.file_path ? extractFilename(p.surat_persetujuan.file_path) : undefined,
     attachmentPath: p.surat_persetujuan?.file_path ?? undefined,
     action:
@@ -95,14 +106,15 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
 
   const laporanStatus = p.laporan_kegiatan ? mapSubStatus(p.laporan_kegiatan.status, p.status) : deriveNext(suratStatus);
   steps.push({
+    key: "PELAPORAN",
     title: "Pelaporan Kegiatan",
     description:
       laporanStatus === "completed"
         ? "Laporan kegiatan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : laporanStatus === "rejected"
-          ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin ?? ""}`
+          ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin?.trim() || "Tidak ada alasan penolakan."}`
           : "Silakan unggah laporan dan dokumentasi kegiatan setelah pelaksanaan pentas selesai.",
-    status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
+    status: laporanStatus,
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "Hasil Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
     attachmentPath: p.laporan_kegiatan?.file_laporan ?? undefined,
@@ -115,6 +127,7 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
 
   const pencairanStatus = p.pencairan_dana ? mapSubStatus(p.pencairan_dana.status, p.status) : deriveNext(laporanStatus);
   steps.push({
+    key: "PENCAIRAN",
     title: "Pencairan Dana",
     description:
       pencairanStatus === "completed"
@@ -143,6 +156,7 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
   const steps: TimelineStep[] = [];
 
   steps.push({
+    key: "PENDAFTARAN",
     title: "Pengisian Data Pendaftaran",
     description: "Data awal lembaga dan jenis fasilitas hibah telah berhasil diajukan.",
     status: "completed",
@@ -150,25 +164,27 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
 
   const pemStatus = mapSubStatus(p.status_pemeriksaan, p.status);
   steps.push({
+    key: "PEMERIKSAAN",
     title: "Pemeriksaan Data oleh Admin",
     description:
       pemStatus === "completed"
         ? "Data dan dokumen pengajuan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : pemStatus === "rejected"
-          ? `Pengajuan ditolak. ${p.catatan_pemeriksaan ?? ""}`
+          ? `Pengajuan ditolak. ${p.catatan_pemeriksaan?.trim() || "Tidak ada alasan penolakan."}`
           : "Data pendaftaran telah berhasil dikirim dan sedang diperiksa oleh Admin Dinas Kebudayaan DIY untuk memastikan kelengkapan dan kesesuaian data.",
     status: pemStatus,
     action: pemStatus === "in_progress" ? { type: "setujui_pemeriksaan" } : undefined,
   });
 
-  if (p.status === "DITOLAK") return steps;
-
   const surveyStatus = p.survey_lapangan ? mapSubStatus(p.survey_lapangan.status, p.status) : deriveNext(pemStatus);
   steps.push({
+    key: "SURVEY",
     title: "Survey Lapangan Oleh Pihak Dinas Kebudayaan",
     description:
       surveyStatus === "completed"
         ? "Survey lapangan telah dilaksanakan oleh Dinas Kebudayaan DIY sesuai lokasi yang diajukan pada tahap sebelumnya."
+        : surveyStatus === "rejected"
+          ? `Survey lapangan ditolak. ${p.survey_lapangan?.catatan?.trim() || "Tidak ada alasan penolakan."}`
         : "Pihak Dinas Kebudayaan DIY akan melakukan survey lapangan sesuai lokasi yang diajukan pada tahap sebelumnya.",
     status: surveyStatus,
     scheduledDate: p.survey_lapangan?.tanggal_survey ? formatDate(p.survey_lapangan.tanggal_survey) : undefined,
@@ -180,8 +196,12 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
           : undefined,
   });
 
+  const rejectedAtSurvey = p.status === "DITOLAK" && surveyStatus === "rejected";
+  if (rejectedAtSurvey) return steps;
+
   const suratStatus = p.surat_persetujuan ? mapSubStatus(p.surat_persetujuan.status, p.status) : deriveNext(surveyStatus);
   steps.push({
+    key: "SURAT_PERSETUJUAN",
     title: "Pengisian dan Penandatangan Surat Persetujuan",
     description:
       suratStatus === "completed"
@@ -201,10 +221,13 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
 
   const pengirimanStatus = p.pengiriman_sarana ? mapSubStatus(p.pengiriman_sarana.status, p.status) : deriveNext(suratStatus);
   steps.push({
+    key: "PENGIRIMAN",
     title: "Pengiriman Sarana Prasarana",
     description:
       pengirimanStatus === "completed"
         ? "Fasilitas hibah telah dikirim oleh Dinas Kebudayaan DIY ke alamat yang terdaftar."
+        : pengirimanStatus === "rejected"
+          ? `Pengiriman sarana ditolak. ${p.pengiriman_sarana?.catatan?.trim() || "Tidak ada alasan penolakan."}`
         : "Proses penyiapan dan pengiriman sarana dan prasarana sedang dilakukan oleh Dinas Kebudayaan DIY dan akan segera dikirim ke:",
     status: pengirimanStatus,
     details:
@@ -231,12 +254,15 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
 
   const laporanStatus = p.laporan_kegiatan ? mapSubStatus(p.laporan_kegiatan.status, p.status) : deriveNext(pengirimanStatus);
   steps.push({
+    key: "PELAPORAN",
     title: "Pelaporan Kegiatan",
     description:
       laporanStatus === "completed"
         ? "Laporan kegiatan telah diverifikasi dan dinyatakan sesuai ketentuan."
-        : "Silakan unggah laporan dan dokumentasi kegiatan saat fasilitas digunakan.",
-    status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
+        : laporanStatus === "rejected"
+          ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin?.trim() || "Tidak ada alasan penolakan."}`
+          : "Silakan unggah laporan dan dokumentasi kegiatan saat fasilitas digunakan.",
+    status: laporanStatus,
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "File Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
     attachmentPath: p.laporan_kegiatan?.file_laporan ?? undefined,
@@ -558,6 +584,10 @@ export default function AdminStatusDetailPage() {
   const [paketOptions, setPaketOptions] = useState<PaketFasilitasi[]>([]);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [rejectReasonError, setRejectReasonError] = useState<string | null>(null);
+  const [timelineRejectStep, setTimelineRejectStep] = useState<TimelineStep | null>(null);
+  const [timelineRejectReason, setTimelineRejectReason] = useState("");
+  const [timelineRejectReasonError, setTimelineRejectReasonError] = useState<string | null>(null);
+  const [timelineRejectSuratFile, setTimelineRejectSuratFile] = useState<File | null>(null);
   const [showDataModal, setShowDataModal] = useState(false);
   const [selectedPengirimanFile, setSelectedPengirimanFile] = useState<File | null>(null);
 
@@ -773,108 +803,104 @@ export default function AdminStatusDetailPage() {
   const tanggalPengajuan = formatDate(data.tanggal_pengajuan);
 
   function getSelectableStatuses(step: TimelineStep): TimelineStatus[] {
-    if (!step.action || step.status === "completed" || step.status === "locked") {
+    if (step.key === "PENDAFTARAN") {
       return [];
     }
 
-    switch (step.action.type) {
-      case "setujui_pemeriksaan":
-        return ["completed", "rejected"];
-      case "set_survey":
-        return ["completed"];
-      case "upload_pengiriman":
-        return ["completed"];
-      case "setujui_laporan":
-        return ["completed", "rejected"];
-      case "konfirmasi_surat":
-      case "selesaikan_pencairan":
-      case "selesaikan_survey":
-        return ["completed"];
-      default:
-        return [];
+    const rejectableSteps: TimelineStepKey[] = ["PEMERIKSAAN", "SURVEY", "PENGIRIMAN", "PELAPORAN"];
+    if (rejectableSteps.includes(step.key)) {
+      return ["in_progress", "completed", "rejected"];
     }
+
+    return ["in_progress", "completed"];
+  }
+
+  function mapStepKeyToApi(stepKey: TimelineStepKey): "PEMERIKSAAN" | "SURVEY" | "SURAT_PERSETUJUAN" | "PENGIRIMAN" | "PELAPORAN" | "PENCAIRAN" | null {
+    if (stepKey === "PENDAFTARAN") return null;
+    return stepKey;
+  }
+
+  function mapTimelineStatusToApi(status: TimelineStatus): "IN_PROGRESS" | "COMPLETED" | "REJECTED" {
+    if (status === "completed") return "COMPLETED";
+    if (status === "rejected") return "REJECTED";
+    return "IN_PROGRESS";
   }
 
   function handleBadgeStatusChange(step: TimelineStep, nextStatus: TimelineStatus) {
-    if (!step.action) return;
+    if (!data) return;
+    const apiStep = mapStepKeyToApi(step.key);
+    if (!apiStep) return;
 
-    if (step.action.type === "setujui_pemeriksaan") {
-      if (nextStatus === "completed") {
-        if (isPentas) {
-          setShowPaketPicker(true);
-          return;
-        }
-        void handleAction("setujui_pemeriksaan");
-        return;
-      }
-
-      if (nextStatus === "rejected") {
-        setTolakMode("pemeriksaan");
-      }
+    if (nextStatus === "rejected") {
+      setTimelineRejectStep(step);
+      setTimelineRejectReason("");
+      setTimelineRejectReasonError(null);
+      setTimelineRejectSuratFile(null);
+      setActionMessage(null);
       return;
     }
 
-    if (step.action.type === "setujui_laporan") {
-      if (nextStatus === "completed") {
-        void handleAction("setujui_laporan");
-        return;
+    void (async () => {
+      try {
+        setActionLoading(true);
+        setActionMessage(null);
+        await adminPengajuanApi.updateTimelineStatus(data.pengajuan_id, {
+          step: apiStep,
+          status: mapTimelineStatusToApi(nextStatus),
+          note: undefined,
+        });
+        await fetchData();
+      } catch (err: unknown) {
+        const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Gagal mengubah status timeline";
+        setActionMessage(msg);
+      } finally {
+        setActionLoading(false);
       }
+    })();
+  }
 
-      if (nextStatus === "rejected") {
-        setTolakMode("laporan");
-      }
+  function submitTimelineReject() {
+    if (!data || !timelineRejectStep) return;
+
+    const reason = timelineRejectReason.trim();
+    if (!reason) {
+      setTimelineRejectReasonError("Alasan penolakan wajib diisi");
       return;
     }
 
-    if (step.action.type === "set_survey") {
-      if (nextStatus !== "completed") return;
-      if (!surveyDate) {
-        setActionMessage("Pilih tanggal survey terlebih dahulu");
-        return;
-      }
+    void (async () => {
+      try {
+        setActionLoading(true);
+        setActionMessage(null);
+        setTimelineRejectReasonError(null);
+        if (timelineRejectStep.key === "PEMERIKSAAN") {
+          await adminPengajuanApi.tolak(
+            data.pengajuan_id,
+            { catatan: reason },
+            timelineRejectSuratFile ?? undefined,
+          );
+        } else {
+          const apiStep = mapStepKeyToApi(timelineRejectStep.key);
+          if (!apiStep) return;
 
-      void (async () => {
-        if (!data) return;
-
-        try {
-          setActionLoading(true);
-          setActionMessage(null);
-          await adminPengajuanApi.setSurvey(data.pengajuan_id, {
-            tanggal_survey: surveyDate,
+          await adminPengajuanApi.updateTimelineStatus(data.pengajuan_id, {
+            step: apiStep,
+            status: "REJECTED",
+            note: reason,
           });
-          await adminPengajuanApi.selesaikanSurvey(data.pengajuan_id);
-          setSurveyDate("");
-          await fetchData();
-        } catch (err: unknown) {
-          const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Aksi gagal";
-          setActionMessage(msg);
-        } finally {
-          setActionLoading(false);
         }
-      })();
-      return;
-    }
 
-    if (step.action.type === "upload_pengiriman") {
-      if (nextStatus !== "completed") return;
-      if (!selectedPengirimanFile) {
-        setActionMessage("Unggah bukti pengiriman terlebih dahulu");
-        return;
+        setTimelineRejectStep(null);
+        setTimelineRejectReason("");
+        setTimelineRejectSuratFile(null);
+        await fetchData();
+      } catch (err: unknown) {
+        const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Gagal mengubah status timeline";
+        setActionMessage(msg);
+      } finally {
+        setActionLoading(false);
       }
-
-      void handleFileUpload(selectedPengirimanFile, "upload_pengiriman");
-      return;
-    }
-
-    if (nextStatus !== "completed") return;
-
-    if (step.action.type === "konfirmasi_surat") {
-      void handleAction("konfirmasi_surat");
-    } else if (step.action.type === "selesaikan_pencairan") {
-      void handleAction("selesaikan_pencairan");
-    } else if (step.action.type === "selesaikan_survey") {
-      void handleAction("selesaikan_survey");
-    }
+    })();
   }
 
   function renderStepActions(step: TimelineStep) {
@@ -1062,6 +1088,106 @@ export default function AdminStatusDetailPage() {
 
   return (
     <section className="h-full overflow-y-auto px-4 py-6 sm:px-6">
+      {timelineRejectStep ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-[520px] rounded-[12px] bg-white p-6 shadow-[0_24px_60px_rgba(22,35,71,0.22)]">
+            <h2 className="text-[20px] font-semibold text-[rgba(38,43,67,0.9)]">Alasan Penolakan</h2>
+            <p className="mt-2 text-[14px] text-[rgba(38,43,67,0.7)]">
+              Isi alasan penolakan.
+            </p>
+
+            <textarea
+              value={timelineRejectReason}
+              onChange={(e) => {
+                setTimelineRejectReason(e.target.value);
+                setTimelineRejectReasonError(null);
+              }}
+              placeholder="Tulis alasan penolakan"
+              rows={4}
+              className="mt-4 w-full rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
+            />
+            {timelineRejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{timelineRejectReasonError}</p> : null}
+
+            {timelineRejectStep.key === "PEMERIKSAAN" ? (
+              <div className="mt-3 space-y-2">
+                <label className="block cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const selectedFile = e.target.files?.[0] ?? null;
+                      if (!selectedFile) {
+                        setTimelineRejectSuratFile(null);
+                        return;
+                      }
+
+                      const validationMessage = validateUploadFile(selectedFile, {
+                        ...pdfUploadValidation,
+                        label: "Surat penolakan",
+                      });
+
+                      if (validationMessage) {
+                        setTimelineRejectSuratFile(null);
+                        setActionMessage(validationMessage);
+                        e.currentTarget.value = "";
+                        return;
+                      }
+
+                      setActionMessage(null);
+                      setTimelineRejectSuratFile(selectedFile);
+                    }}
+                  />
+
+                  <div className="rounded-xl border border-dashed border-[rgba(38,43,67,0.28)] bg-[rgba(38,43,67,0.02)] px-4 py-3 transition-colors hover:border-[#c23513] hover:bg-[rgba(194,53,19,0.04)]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-medium text-[rgba(38,43,67,0.9)]">
+                          Lampiran surat penolakan (opsional)
+                        </p>
+                        <p className="mt-0.5 truncate text-[13px] text-[rgba(38,43,67,0.64)]">
+                          {timelineRejectSuratFile ? timelineRejectSuratFile.name : "Klik untuk unggah file PDF"}
+                        </p>
+                      </div>
+                      <span className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#c23513] px-3 py-1.5 text-[13px] font-medium text-white">
+                        {timelineRejectSuratFile ? "Ganti File" : "Pilih File"}
+                      </span>
+                    </div>
+                  </div>
+                </label>
+
+                {timelineRejectSuratFile ? (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setTimelineRejectSuratFile(null)}
+                      className="text-[13px] font-medium text-[rgba(38,43,67,0.62)] underline underline-offset-2 hover:text-[rgba(38,43,67,0.9)]"
+                    >
+                      Hapus file
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <ActionButton
+                label="Batal"
+                variant="secondary"
+                onClick={() => {
+                  setTimelineRejectStep(null);
+                  setTimelineRejectReason("");
+                  setTimelineRejectReasonError(null);
+                  setTimelineRejectSuratFile(null);
+                }}
+                disabled={actionLoading}
+              />
+              <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={submitTimelineReject} disabled={actionLoading} />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Data Pengajuan Modal */}
       {showDataModal && data && (
         <div

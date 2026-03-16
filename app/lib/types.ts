@@ -280,3 +280,15 @@ export interface SetSurveyDto {
 export interface TolakLaporanDto {
   catatan_admin: string;
 }
+
+export interface UpdateTimelineStatusDto {
+  step:
+    | "PEMERIKSAAN"
+    | "SURVEY"
+    | "SURAT_PERSETUJUAN"
+    | "PENGIRIMAN"
+    | "PELAPORAN"
+    | "PENCAIRAN";
+  status: "IN_PROGRESS" | "COMPLETED" | "REJECTED";
+  note?: string;
+}

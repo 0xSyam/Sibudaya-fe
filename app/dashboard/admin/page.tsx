@@ -24,8 +24,15 @@ function mapPengajuanToSubmission(p: Pengajuan): Submission {
   const date = new Date(p.tanggal_pengajuan);
   const submittedAt = date.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
+  const hasRejectedStep =
+    p.status_pemeriksaan === "DITOLAK" ||
+    p.survey_lapangan?.status === "DITOLAK" ||
+    p.laporan_kegiatan?.status === "DITOLAK" ||
+    p.pengiriman_sarana?.status === "DITOLAK" ||
+    p.pencairan_dana?.status === "DITOLAK";
+
   let status: SubmissionStatus = "dalam_proses";
-  if (p.status === "DITOLAK") status = "ditolak";
+  if (p.status === "DITOLAK" || hasRejectedStep) status = "ditolak";
   else if (p.status === "SELESAI" || p.surat_persetujuan?.file_path) status = "selesai";
   else if (p.jenis_fasilitasi_id === 2 && p.survey_lapangan?.status === "SELESAI") status = "disetujui";
   else if (p.status_pemeriksaan === "SELESAI" || p.status_pemeriksaan === "DISETUJUI") status = "disetujui";

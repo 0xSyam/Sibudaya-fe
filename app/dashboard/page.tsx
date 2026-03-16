@@ -28,9 +28,16 @@ function mapPengajuanToSubmission(p: Pengajuan): Submission {
     year: "numeric",
   });
 
+  const hasRejectedStep =
+    p.status_pemeriksaan === "DITOLAK" ||
+    p.survey_lapangan?.status === "DITOLAK" ||
+    p.laporan_kegiatan?.status === "DITOLAK" ||
+    p.pengiriman_sarana?.status === "DITOLAK" ||
+    p.pencairan_dana?.status === "DITOLAK";
+
   let status: SubmissionStatus = "dalam_proses";
   if (p.status === "SELESAI") status = "selesai";
-  else if (p.status === "DITOLAK") status = "ditolak";
+  else if (p.status === "DITOLAK" || hasRejectedStep) status = "ditolak";
 
   return {
     id: p.pengajuan_id,

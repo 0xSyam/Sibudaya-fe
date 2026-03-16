@@ -56,7 +56,7 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
       pemeriksaanStatus === "completed"
         ? "Data dan dokumen pengajuan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : pemeriksaanStatus === "rejected"
-          ? `Pengajuan ditolak. ${p.catatan_pemeriksaan ?? ""}`
+          ? `Pengajuan ditolak. ${p.catatan_pemeriksaan?.trim() || "Tidak ada alasan penolakan."}`
           : "Data pendaftaran telah berhasil dikirim dan sedang diperiksa oleh Admin Dinas Kebudayaan DIY untuk memastikan kelengkapan dan kesesuaian data.",
     status: pemeriksaanStatus,
     detailsTitle: pemeriksaanStatus === "completed" && p.paket_fasilitasi ? "Detail paket yang disetujui:" : undefined,
@@ -68,8 +68,6 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
           ]
         : undefined,
   });
-
-  if (p.status === "DITOLAK") return steps;
 
   // Step 3: Surat Persetujuan
   const suratStatus = p.surat_persetujuan ? mapSubStatus(p.surat_persetujuan.status, p.status) : deriveLockedOrNext(pemeriksaanStatus);
@@ -93,9 +91,9 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
       laporanStatus === "completed"
         ? "Laporan kegiatan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : laporanStatus === "rejected"
-          ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin ?? ""}`
+          ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin?.trim() || "Tidak ada alasan penolakan."}`
           : "Silakan unggah laporan dan dokumentasi kegiatan setelah pelaksanaan kegiatan selesai.",
-    status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
+    status: laporanStatus,
     canUploadLaporan: laporanStatus === "in_progress" || laporanStatus === "rejected",
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "Hasil Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
@@ -144,12 +142,10 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
       pemeriksaanStatus === "completed"
         ? "Data dan dokumen pengajuan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : pemeriksaanStatus === "rejected"
-          ? `Pengajuan ditolak. ${p.catatan_pemeriksaan ?? ""}`
+          ? `Pengajuan ditolak. ${p.catatan_pemeriksaan?.trim() || "Tidak ada alasan penolakan."}`
           : "Data pendaftaran telah berhasil dikirim. Menunggu verifikasi oleh pihak Admin.",
     status: pemeriksaanStatus,
   });
-
-  if (p.status === "DITOLAK") return steps;
 
   // Step 3: Survey Lapangan
   const surveyStatus = p.survey_lapangan ? mapSubStatus(p.survey_lapangan.status, p.status) : deriveLockedOrNext(pemeriksaanStatus);
@@ -158,12 +154,17 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
     description:
       surveyStatus === "completed"
         ? "Survey lapangan telah selesai dilakukan oleh pihak Dinas Kebudayaan DIY."
+        : surveyStatus === "rejected"
+          ? `Survey lapangan ditolak. ${p.survey_lapangan?.catatan?.trim() || "Tidak ada alasan penolakan."}`
         : "Pihak Dinas Kebudayaan DIY akan melakukan survey lapangan sesuai lokasi yang sudah kirim pada tahap sebelumnya pada:",
     status: surveyStatus,
     scheduledDate: p.survey_lapangan?.tanggal_survey
       ? formatDate(p.survey_lapangan.tanggal_survey)
       : undefined,
   });
+
+  const rejectedAtSurvey = p.status === "DITOLAK" && surveyStatus === "rejected";
+  if (rejectedAtSurvey) return steps;
 
   // Step 4: Surat Persetujuan
   const suratStatus = p.surat_persetujuan ? mapSubStatus(p.surat_persetujuan.status, p.status) : deriveLockedOrNext(surveyStatus);
@@ -186,6 +187,8 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
     description:
       pengirimanStatus === "completed"
         ? "Fasilitas hibah telah dikirim oleh Dinas Kebudayaan DIY ke alamat yang terdaftar."
+        : pengirimanStatus === "rejected"
+          ? `Pengiriman sarana ditolak. ${p.pengiriman_sarana?.catatan?.trim() || "Tidak ada alasan penolakan."}`
         : "Proses penyiapan dan pengiriman sarana dan prasarana sedang dilakukan oleh Dinas Kebudayaan DIY dan akan segera dikirim ke:",
     status: pengirimanStatus,
     details:
@@ -217,9 +220,9 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
       laporanStatus === "completed"
         ? "Laporan kegiatan telah diverifikasi dan dinyatakan sesuai ketentuan."
         : laporanStatus === "rejected"
-          ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin ?? ""}`
+          ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin?.trim() || "Tidak ada alasan penolakan."}`
           : "Silakan unggah laporan dan dokumentasi kegiatan setelah pelaksanaan kegiatan selesai.",
-    status: laporanStatus === "rejected" ? "in_progress" : laporanStatus,
+    status: laporanStatus,
     canUploadLaporan: laporanStatus === "in_progress" || laporanStatus === "rejected",
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "Hasil Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,

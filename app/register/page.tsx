@@ -16,6 +16,10 @@ import {
 } from "@/app/components/auth/auth-ui";
 import { useAuth } from "@/app/lib/auth-context";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^\d+$/;
+const PASSWORD_8_4_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
 export default function RegisterPage() {
   const { register, loginWithGoogle, isAuthenticated } = useAuth();
 
@@ -48,13 +52,28 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!EMAIL_REGEX.test(email.trim())) {
+      setError("Format email tidak valid");
+      return;
+    }
+
     if (!noTelp.trim()) {
       setError("Nomor telepon wajib diisi");
       return;
     }
 
+    if (!PHONE_REGEX.test(noTelp.trim())) {
+      setError("Nomor telepon hanya boleh berisi angka");
+      return;
+    }
+
     if (password.length < 8) {
       setError("Password minimal 8 karakter");
+      return;
+    }
+
+    if (!PASSWORD_8_4_REGEX.test(password)) {
+      setError("Password harus mengandung huruf kecil, huruf besar, angka, dan karakter khusus");
       return;
     }
 
@@ -159,11 +178,13 @@ export default function RegisterPage() {
             value={noTelp}
             onChange={(e) => setNoTelp(e.target.value)}
             autoComplete="tel"
+            inputMode="numeric"
+            pattern="[0-9]+"
             required
           />
 
           <AuthPasswordInput
-            placeholder="Password (min. 8 karakter)"
+            placeholder="Password (Aturan 8-4)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"

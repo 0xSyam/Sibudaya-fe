@@ -21,6 +21,7 @@ import type {
   TolakPemeriksaanDto,
   SetSurveyDto,
   TolakLaporanDto,
+  UpdateTimelineStatusDto,
   LaporanKegiatan,
   SurveyLapangan,
   SuratPersetujuan,
@@ -466,6 +467,14 @@ export const adminPengajuanApi = {
   /** Tolak laporan kegiatan */
   tolakLaporan(pengajuanId: string, dto: TolakLaporanDto): Promise<LaporanKegiatan> {
     return apiFetch<LaporanKegiatan>(`/admin/pengajuan/${pengajuanId}/laporan/tolak`, {
+      method: "PATCH",
+      body: JSON.stringify(dto),
+    });
+  },
+
+  /** Ubah status step timeline secara fleksibel */
+  updateTimelineStatus(pengajuanId: string, dto: UpdateTimelineStatusDto): Promise<Pengajuan> {
+    return apiFetch<Pengajuan>(`/admin/pengajuan/${pengajuanId}/timeline/status`, {
       method: "PATCH",
       body: JSON.stringify(dto),
     });
