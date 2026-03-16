@@ -79,3 +79,26 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+
+/**
+ * SuperAdminGuard — proteksi halaman khusus super admin.
+ * Redirect ke /dashboard/admin jika user bukan SUPER_ADMIN.
+ */
+export function SuperAdminGuard({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && user && user.role !== "SUPER_ADMIN") {
+      router.replace("/dashboard/admin");
+    }
+  }, [isLoading, user, router]);
+
+  if (isLoading) return null;
+
+  if (!user || user.role !== "SUPER_ADMIN") {
+    return null;
+  }
+
+  return <>{children}</>;
+}

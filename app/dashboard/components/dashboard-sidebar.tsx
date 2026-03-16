@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useState, useCallback } from "react";
+import { useAuth } from "@/app/lib/auth-context";
 
 // ─── Sidebar Context (mobile drawer state) ─────────────────────────
 
@@ -129,6 +130,8 @@ function NavItem({
 export function DashboardSidebar() {
   const pathname = usePathname();
   const { isOpen, close } = useSidebar();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const isAdminDashboard = pathname.startsWith("/dashboard/admin");
   const homeHref = isAdminDashboard ? "/dashboard/admin" : "/dashboard";
   const isBeranda = isAdminDashboard
@@ -136,6 +139,7 @@ export function DashboardSidebar() {
     : pathname === "/dashboard" || pathname.startsWith("/dashboard/status");
   const isAjukan = pathname.startsWith("/dashboard/ajukan-fasilitasi");
   const isPengaturan = pathname.startsWith("/dashboard/admin/pengaturan-fasilitasi");
+  const isPengaturanAkun = pathname.startsWith("/dashboard/admin/pengaturan-akun");
 
   const sidebarContent = (
     <>
@@ -161,13 +165,24 @@ export function DashboardSidebar() {
             onClick={close}
           />
         ) : (
-          <NavItem
-            href="/dashboard/admin/pengaturan-fasilitasi"
-            label="Pengaturan Fasilitasi"
-            active={isPengaturan}
-            icon="settings"
-            onClick={close}
-          />
+          <>
+            <NavItem
+              href="/dashboard/admin/pengaturan-fasilitasi"
+              label="Pengaturan Fasilitasi"
+              active={isPengaturan}
+              icon="settings"
+              onClick={close}
+            />
+            {isSuperAdmin && (
+              <NavItem
+                href="/dashboard/admin/pengaturan-akun"
+                label="Pengaturan Akun"
+                active={isPengaturanAkun}
+                icon="settings"
+                onClick={close}
+              />
+            )}
+          </>
         )}
       </nav>
     </>
