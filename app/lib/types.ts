@@ -196,6 +196,7 @@ export interface Pengajuan {
   tanggal_mulai: string | null;
   tanggal_selesai: string | null;
   total_pengajuan_dana: string | null;
+  nama_bank: string | null;
   nomor_rekening: string | null;
   nama_pemegang_rekening: string | null;
   nama_penerima: string | null;
@@ -230,6 +231,7 @@ export interface CreatePengajuanPentasDto {
   tanggal_mulai: string;
   tanggal_selesai: string;
   total_pengajuan_dana: number;
+  nama_bank: string;
   nomor_rekening: string;
   nama_pemegang_rekening: string;
   alamat_lembaga: string;
