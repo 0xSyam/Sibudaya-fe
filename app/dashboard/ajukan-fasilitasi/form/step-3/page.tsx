@@ -160,7 +160,19 @@ export default function AjukanFasilitasiFormStep3Page() {
         const newLembaga = await lembagaApi.create(lembagaPayload);
         formData.lembagaId = newLembaga.lembaga_id;
       } else {
-        await lembagaApi.updateMe(lembagaPayload);
+        try {
+          await lembagaApi.updateMe(lembagaPayload);
+        } catch (error) {
+          const apiError = error as { statusCode?: number };
+
+          // Draft lokal bisa menyimpan lembagaId lama walau record lembaga sudah tidak ada.
+          if (apiError.statusCode === 404) {
+            const newLembaga = await lembagaApi.create(lembagaPayload);
+            formData.lembagaId = newLembaga.lembaga_id;
+          } else {
+            throw error;
+          }
+        }
       }
 
       if (pendingSertifikatNikFile) {
