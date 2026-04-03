@@ -892,9 +892,11 @@ const tabs: TabItem[] = [
   { id: "sarana-prasarana", label: "Sarana Prasarana", icon: <ShoppingBagIcon /> },
 ];
 
-// ─── Jenis Lembaga data ─────────────────────────────────
-
-const defaultJenisLembaga = ["Sanggar", "Komunitas Seni", "Paguyuban", "Lainnya"];
+type JenisLembagaItem = {
+  jenis_lembaga_id: number;
+  nama: string;
+  created_at: string;
+};
 
 // ─── Sub-components ─────────────────────────────────────
 
@@ -935,7 +937,7 @@ function JenisLembagaTable({
   onDelete,
   onAdd,
 }: {
-  items: string[];
+  items: JenisLembagaItem[];
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
   onAdd: () => void;
@@ -973,12 +975,12 @@ function JenisLembagaTable({
       {/* Table rows */}
       {items.map((item, index) => (
         <div
-          key={`${item}-${index}`}
+          key={item.jenis_lembaga_id}
           className="flex h-[50px] items-center border-b border-[rgba(38,43,67,0.12)]"
         >
           <div className="flex flex-1 items-center px-5">
             <p className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
-              {item}
+              {item.nama}
             </p>
           </div>
           <div className="flex w-[200px] items-center justify-center gap-2 px-5">
@@ -1010,87 +1012,104 @@ function JenisLembagaTable({
 // ─── General Tab Content ────────────────────────────────
 
 function GeneralTabContent() {
-  const [jenisLembaga, setJenisLembaga] = useState(defaultJenisLembaga);
+  const [jenisLembaga, setJenisLembaga] = useState<JenisLembagaItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showAddJenisDialog, setShowAddJenisDialog] = useState(false);
   const [editingJenisIndex, setEditingJenisIndex] = useState<number | null>(null);
 
+  const loadJenisLembaga = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await adminFasilitasiApi.getJenisLembaga();
+      setJenisLembaga(data);
+      setError(null);
+    } catch (e: unknown) {
+      const message =
+        typeof e === "object" && e !== null && "message" in e
+          ? String((e as { message: unknown }).message)
+          : "Gagal memuat jenis lembaga";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadJenisLembaga();
+  }, [loadJenisLembaga]);
+
+  const withSave = async (fn: () => Promise<unknown>) => {
+    setSaving(true);
+    try {
+      await fn();
+      await loadJenisLembaga();
+      setError(null);
+    } catch (e: unknown) {
+      const message =
+        typeof e === "object" && e !== null && "message" in e
+          ? String((e as { message: unknown }).message)
+          : "Terjadi kesalahan";
+      setError(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDelete = (index: number) => {
-    setJenisLembaga((prev) => prev.filter((_, i) => i !== index));
+    const target = jenisLembaga[index];
+    if (!target) return;
+
+    withSave(() => adminFasilitasiApi.deleteJenisLembaga(target.jenis_lembaga_id));
   };
 
-  const handleAdd = () => {
-    setShowAddJenisDialog(true);
-  };
-
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
-
-  const handleSave = () => {
-    // TODO: persist changes
-    setShowSaveDialog(false);
-  };
-
-  const handleCancel = () => {
-    setJenisLembaga(defaultJenisLembaga);
-    setShowCancelDialog(false);
-  };
+  const editingItem = editingJenisIndex !== null ? jenisLembaga[editingJenisIndex] : null;
 
   return (
     <>
+      {error && (
+        <div className="rounded-lg bg-[#fff0ed] px-4 py-3 text-[14px] text-[#c23513]">
+          {error}{" "}
+          <button type="button" onClick={() => setError(null)} className="underline">
+            Tutup
+          </button>
+        </div>
+      )}
+      {(loading || saving) && (
+        <div className="rounded-lg bg-[#f5f5f7] px-4 py-2 text-[14px] text-[rgba(38,43,67,0.6)]">
+          {loading ? "Memuat..." : "Menyimpan..."}
+        </div>
+      )}
+
       <JenisLembagaTable
         items={jenisLembaga}
         onEdit={(index) => setEditingJenisIndex(index)}
         onDelete={handleDelete}
-        onAdd={handleAdd}
+        onAdd={() => setShowAddJenisDialog(true)}
       />
 
-      {/* Action buttons */}
-      <div className="flex items-start justify-end gap-4">
-        <button
-          type="button"
-          onClick={() => setShowCancelDialog(true)}
-          className="inline-flex items-center justify-center rounded-lg border border-[#6d788d] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-[#6d788d] transition-colors hover:bg-[rgba(109,120,141,0.08)]"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowSaveDialog(true)}
-          className="inline-flex items-center justify-center rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
-        >
-          Simpan Perubahan
-        </button>
-      </div>
-
-      <ConfirmSaveDialog
-        open={showSaveDialog}
-        onClose={() => setShowSaveDialog(false)}
-        onConfirm={handleSave}
-      />
-      <ConfirmCancelDialog
-        open={showCancelDialog}
-        onClose={() => setShowCancelDialog(false)}
-        onConfirm={handleCancel}
-      />
       <JenisLembagaDialog
         open={showAddJenisDialog}
         onClose={() => setShowAddJenisDialog(false)}
         title="Tambah Jenis Lembaga"
         submitLabel="Tambah Jenis"
         onSubmit={(jenis) => {
-          setJenisLembaga((prev) => [...prev, jenis]);
+          withSave(() => adminFasilitasiApi.createJenisLembaga({ nama: jenis }));
         }}
       />
-      {editingJenisIndex !== null ? (
+      {editingItem ? (
         <JenisLembagaDialog
           open
           onClose={() => setEditingJenisIndex(null)}
           title="Edit Jenis Lembaga"
           submitLabel="Simpan Jenis"
-          initialValue={jenisLembaga[editingJenisIndex]}
+          initialValue={editingItem.nama}
           onSubmit={(jenis) => {
-            setJenisLembaga((prev) =>
-              prev.map((item, i) => (i === editingJenisIndex ? jenis : item))
+            withSave(() =>
+              adminFasilitasiApi.updateJenisLembaga(editingItem.jenis_lembaga_id, {
+                nama: jenis,
+              })
             );
           }}
         />
@@ -1385,7 +1404,7 @@ function PentasTabContent({
 
   const handleAddJenis = (payload: { jenis: string; danaPembinaan?: string }) => {
     withSave(() =>
-      adminFasilitasiApi.createPaket(JENIS_ID, {
+      adminFasilitasiApi.createKuota(JENIS_ID, {
         nama_paket: payload.jenis,
         kuota: 0,
         nilai_bantuan: parseNilai(payload.danaPembinaan ?? "0"),
@@ -1398,7 +1417,7 @@ function PentasTabContent({
     const paket = pakets[editingJenisIndex];
     if (!paket) return;
     withSave(() =>
-      adminFasilitasiApi.updatePaket(paket.paket_id, {
+      adminFasilitasiApi.updateKuota(paket.paket_id, {
         nama_paket: payload.jenis,
         nilai_bantuan: parseNilai(payload.danaPembinaan),
       })
@@ -1409,12 +1428,12 @@ function PentasTabContent({
   const handleDeleteJenis = (index: number) => {
     const paket = pakets[index];
     if (!paket) return;
-    withSave(() => adminFasilitasiApi.deletePaket(paket.paket_id));
+    withSave(() => adminFasilitasiApi.deleteKuota(paket.paket_id));
   };
 
   const handleAddKuota = (payload: KuotaPengajuan) => {
     withSave(() =>
-      adminFasilitasiApi.createPaket(JENIS_ID, {
+      adminFasilitasiApi.createKuota(JENIS_ID, {
         nama_paket: payload.jenis,
         kuota: parseInt(payload.kuotaPengajuan) || 0,
       })
@@ -1426,7 +1445,7 @@ function PentasTabContent({
     const paket = pakets[editingKuotaIndex];
     if (!paket) return;
     withSave(() =>
-      adminFasilitasiApi.updatePaket(paket.paket_id, {
+      adminFasilitasiApi.updateKuota(paket.paket_id, {
         kuota: parseInt(payload.kuotaPengajuan) || 0,
       })
     );
@@ -1585,7 +1604,7 @@ function SaranaPrasaranaTabContent({
 
   const handleAddKuota = (payload: KuotaPengajuan) => {
     withSave(() =>
-      adminFasilitasiApi.createPaket(JENIS_ID, {
+      adminFasilitasiApi.createKuota(JENIS_ID, {
         nama_paket: payload.jenis,
         kuota: parseInt(payload.kuotaPengajuan) || 0,
       })
@@ -1597,7 +1616,7 @@ function SaranaPrasaranaTabContent({
     const paket = pakets[editingKuotaIndex];
     if (!paket) return;
     withSave(() =>
-      adminFasilitasiApi.updatePaket(paket.paket_id, {
+      adminFasilitasiApi.updateKuota(paket.paket_id, {
         nama_paket: payload.jenis,
         kuota: parseInt(payload.kuotaPengajuan) || 0,
       })
@@ -1608,7 +1627,7 @@ function SaranaPrasaranaTabContent({
   const handleDeleteKuota = (index: number) => {
     const paket = pakets[index];
     if (!paket) return;
-    withSave(() => adminFasilitasiApi.deletePaket(paket.paket_id));
+    withSave(() => adminFasilitasiApi.deleteKuota(paket.paket_id));
   };
 
   const handleUpload = (file: File) => {

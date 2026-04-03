@@ -80,6 +80,7 @@ export default function AjukanFasilitasiFormPage() {
 
   const [lembaga, setLembaga] = useState<Lembaga | null>(null);
   const [paketList, setPaketList] = useState<PaketFasilitasi[]>([]);
+  const [jenisKesenianOptions, setJenisKesenianOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [sertifikatFile, setSertifikatFile] = useState<File | null>(null);
   const [sertifikatError, setSertifikatError] = useState<string | null>(null);
@@ -108,6 +109,11 @@ export default function AjukanFasilitasiFormPage() {
     [],
   );
 
+  const fallbackJenisKesenianOptions = useMemo(
+    () => ["Tari", "Musik", "Teater", "Seni Rupa", "Sastra", "Lainnya"],
+    [],
+  );
+
   useEffect(() => {
     async function load() {
       try {
@@ -115,6 +121,11 @@ export default function AjukanFasilitasiFormPage() {
           lembagaApi.getMe().catch(() => null),
           fasilitasiApi.getPaketByJenis(jenisId).catch(() => []),
         ]);
+
+        const jenisLembaga = await fasilitasiApi.getJenisLembaga().catch(() => []);
+        const dynamicOptions = jenisLembaga
+          .map((item) => trim(item.nama))
+          .filter((name) => name.length > 0);
 
         const draftRaw = localStorage.getItem(FORM_STORAGE_KEY);
         const draft = draftRaw ? (JSON.parse(draftRaw) as Partial<StepOneFormValues>) : {};
@@ -141,6 +152,7 @@ export default function AjukanFasilitasiFormPage() {
 
         reset(nextValues);
         setPaketList(paket);
+        setJenisKesenianOptions(dynamicOptions);
       } finally {
         setLoading(false);
       }
@@ -258,7 +270,7 @@ export default function AjukanFasilitasiFormPage() {
                     id="jenisKesenian"
                     name={field.name}
                     placeholder="Pilih jenis kesenian lembaga"
-                    options={["Tari", "Musik", "Teater", "Seni Rupa", "Sastra", "Lainnya"]}
+                    options={jenisKesenianOptions.length > 0 ? jenisKesenianOptions : fallbackJenisKesenianOptions}
                     value={field.value}
                     isError={!!errors.jenisKesenian}
                     onChange={(e) => {

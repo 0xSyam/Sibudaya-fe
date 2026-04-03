@@ -89,6 +89,12 @@ export interface AdminJenisFasilitasi {
   paket_fasilitasi: PaketFasilitasiWithCount[];
 }
 
+export interface JenisLembagaMaster {
+  jenis_lembaga_id: number;
+  nama: string;
+  created_at: string;
+}
+
 // ─── Lembaga Types ───────────────────────────────────────────────────────────
 
 export interface SertifikatNik {

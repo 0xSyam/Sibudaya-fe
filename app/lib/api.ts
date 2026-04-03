@@ -8,6 +8,7 @@ import type {
   SafeUser,
   JenisFasilitasi,
   PaketFasilitasi,
+  JenisLembagaMaster,
   AdminJenisFasilitasi,
   Lembaga,
   CreateLembagaDto,
@@ -287,6 +288,11 @@ export const authApi = {
 // ─── Fasilitasi API ──────────────────────────────────────────────────────────
 
 export const fasilitasiApi = {
+  /** Daftar master jenis lembaga */
+  getJenisLembaga(): Promise<JenisLembagaMaster[]> {
+    return apiFetch<JenisLembagaMaster[]>("/fasilitasi/jenis-lembaga");
+  },
+
   /** Daftar semua jenis fasilitasi beserta paket */
   getAll(): Promise<JenisFasilitasi[]> {
     return apiFetch<JenisFasilitasi[]>("/fasilitasi");
@@ -530,6 +536,73 @@ export const adminPengajuanApi = {
 export const adminFasilitasiApi = {
   getAll(): Promise<AdminJenisFasilitasi[]> {
     return apiFetch<AdminJenisFasilitasi[]>("/admin/fasilitasi");
+  },
+
+  getJenisLembaga(): Promise<{ jenis_lembaga_id: number; nama: string; created_at: string }[]> {
+    return apiFetch<{ jenis_lembaga_id: number; nama: string; created_at: string }[]>('/admin/fasilitasi/jenis-lembaga');
+  },
+
+  createJenisLembaga(dto: { nama: string }): Promise<{ jenis_lembaga_id: number; nama: string; created_at: string }> {
+    return apiFetch<{ jenis_lembaga_id: number; nama: string; created_at: string }>('/admin/fasilitasi/jenis-lembaga', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  updateJenisLembaga(
+    jenisLembagaId: number,
+    dto: { nama: string },
+  ): Promise<{ jenis_lembaga_id: number; nama: string; created_at: string }> {
+    return apiFetch<{ jenis_lembaga_id: number; nama: string; created_at: string }>(`/admin/fasilitasi/jenis-lembaga/${jenisLembagaId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  deleteJenisLembaga(jenisLembagaId: number): Promise<unknown> {
+    return apiFetch(`/admin/fasilitasi/jenis-lembaga/${jenisLembagaId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  getKuotaByJenis(jenisFasilitasiId: number): Promise<PaketFasilitasi[]> {
+    return apiFetch<PaketFasilitasi[]>(`/admin/fasilitasi/${jenisFasilitasiId}/kuota`);
+  },
+
+  createKuota(
+    jenisFasilitasiId: number,
+    dto: {
+      nama_paket: string;
+      kuota: number;
+      nilai_bantuan?: string;
+      catatan?: string;
+    },
+  ): Promise<PaketFasilitasi> {
+    return apiFetch<PaketFasilitasi>(`/admin/fasilitasi/${jenisFasilitasiId}/kuota`, {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  updateKuota(
+    paketId: string,
+    dto: {
+      nama_paket?: string;
+      kuota?: number;
+      nilai_bantuan?: string;
+      catatan?: string;
+    },
+  ): Promise<PaketFasilitasi> {
+    return apiFetch<PaketFasilitasi>(`/admin/fasilitasi/kuota/${paketId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  deleteKuota(paketId: string): Promise<unknown> {
+    return apiFetch(`/admin/fasilitasi/kuota/${paketId}`, {
+      method: 'DELETE',
+    });
   },
 
   createPaket(
