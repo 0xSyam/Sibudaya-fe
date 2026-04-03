@@ -10,10 +10,6 @@ import type { NextRequest } from "next/server";
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Halaman auth — jika sudah punya session valid, redirect ke dashboard
-  const authPages = ["/login", "/register", "/reset-password"];
-  const isAuthPage = authPages.some((p) => pathname === p);
-
   const isDashboardRoute = pathname.startsWith("/dashboard");
   const accessToken = request.cookies.get("access_token")?.value;
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
@@ -42,10 +38,6 @@ export async function proxy(request: NextRequest) {
 
   const validSession = await isSessionValid();
 
-  if (isAuthPage && validSession) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
   if (isDashboardRoute && !validSession) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
@@ -54,5 +46,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/register", "/reset-password"],
+  matcher: ["/dashboard/:path*"],
 };

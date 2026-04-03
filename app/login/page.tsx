@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { trim } from "lodash";
@@ -23,8 +24,9 @@ import { loginSchema, type LoginFormValues } from "@/app/lib/form-schemas";
 import { useUiFormStore } from "@/app/lib/ui-form-store";
 
 export default function LoginPage() {
-  const { login, loginWithGoogle, isAuthenticated } = useAuth();
+  const { login, loginWithGoogle, isAuthenticated, isLoading, user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
   const { authError, setAuthError, clearAuthError } = useUiFormStore();
 
   const {
@@ -47,6 +49,15 @@ export default function LoginPage() {
     return () => clearAuthError();
   }, [clearAuthError]);
 
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      const target = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"
+        ? "/dashboard/admin"
+        : "/dashboard";
+      router.replace(target);
+    }
+  }, [isAuthenticated, isLoading, router, user?.role]);
+
   const onSubmit = handleSubmit(async (values) => {
     clearAuthError();
     setLoading(true);
@@ -66,11 +77,11 @@ export default function LoginPage() {
 
   const combinedError = authError ?? errors.email?.message ?? errors.password?.message ?? null;
 
-  if (isAuthenticated) {
+  if (isLoading || isAuthenticated) {
     return (
       <AuthPageShell>
         <AuthCard>
-          <AuthRedirectingState />
+          <AuthRedirectingState text={isLoading ? "Memeriksa sesi..." : "Mengalihkan..."} />
         </AuthCard>
       </AuthPageShell>
     );
