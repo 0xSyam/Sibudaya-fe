@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { map } from "lodash";
 import { fasilitasiApi } from "@/app/lib/api";
 import type { JenisFasilitasi } from "@/app/lib/types";
 
@@ -74,7 +75,7 @@ function mapJenisToCard(j: JenisFasilitasi): FacilityCardProps {
     description: j.deskripsi ?? (isPentas
       ? "Bantuan untuk pelaksanaan kegiatan pentas seni dan pembinaan lembaga budaya."
       : "Bantuan pendukung kegiatan seni seperti gamelan, alat musik, atau pakaian pentas."),
-    items: j.paket_fasilitasi.map((p) => p.nama_paket),
+    items: map(j.paket_fasilitasi, (p) => p.nama_paket),
     href: `/dashboard/ajukan-fasilitasi/form?jenis=${j.jenis_fasilitasi_id}`,
   };
 }

@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { trim } from "lodash";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
 import {
   FormActionBar,
   PrimaryButton,
@@ -37,6 +41,23 @@ type StoredStepTwoFormData = Partial<{
   kodePos: string;
 }>;
 
+type StepTwoFormValues = {
+  namaKegiatan: string;
+  tujuanKegiatan: string;
+  tanggalMulai: string;
+  tanggalSelesai: string;
+  alamatLokasi: string;
+  namaPenerima: string;
+  email: string;
+  nomorHp: string;
+  alamatLengkap: string;
+  provinsi: string;
+  kabupatenKota: string;
+  kecamatan: string;
+  kelurahanDesa: string;
+  kodePos: string;
+};
+
 function getStoredStepTwoFormData(): StoredStepTwoFormData {
   if (typeof window === "undefined") return {};
 
@@ -46,6 +67,83 @@ function getStoredStepTwoFormData(): StoredStepTwoFormData {
   } catch {
     return {};
   }
+}
+
+const stepTwoBaseSchema = z.object({
+  namaKegiatan: z.string(),
+  tujuanKegiatan: z.string(),
+  tanggalMulai: z.string(),
+  tanggalSelesai: z.string(),
+  alamatLokasi: z.string(),
+  namaPenerima: z.string(),
+  email: z.string(),
+  nomorHp: z.string(),
+  alamatLengkap: z.string(),
+  provinsi: z.string(),
+  kabupatenKota: z.string(),
+  kecamatan: z.string(),
+  kelurahanDesa: z.string(),
+  kodePos: z.string(),
+});
+
+function createStepTwoSchema(jenisId: number) {
+  return stepTwoBaseSchema.superRefine((data, ctx) => {
+    if (jenisId === 1) {
+      if (!data.namaKegiatan.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["namaKegiatan"], message: "Nama kegiatan wajib diisi" });
+      }
+      if (!data.tujuanKegiatan.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tujuanKegiatan"], message: "Tujuan kegiatan wajib diisi" });
+      }
+      if (!data.tanggalMulai) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tanggalMulai"], message: "Tanggal mulai wajib diisi" });
+      }
+      if (!data.tanggalSelesai) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tanggalSelesai"], message: "Tanggal selesai wajib diisi" });
+      }
+      if (data.tanggalMulai && data.tanggalSelesai && data.tanggalSelesai < data.tanggalMulai) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tanggalSelesai"], message: "Tanggal selesai harus setelah tanggal mulai" });
+      }
+      if (!data.alamatLokasi.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["alamatLokasi"], message: "Alamat lokasi wajib diisi" });
+      }
+      return;
+    }
+
+    if (!data.namaPenerima.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["namaPenerima"], message: "Nama penerima wajib diisi" });
+    }
+    if (!data.email.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Email wajib diisi" });
+    } else if (!z.string().email().safeParse(data.email.trim()).success) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Format email tidak valid" });
+    }
+    if (!data.nomorHp.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["nomorHp"], message: "Nomor HP wajib diisi" });
+    } else if (!/^[0-9+\-\s]{8,15}$/.test(data.nomorHp.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["nomorHp"], message: "Format nomor HP tidak valid" });
+    }
+    if (!data.alamatLengkap.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["alamatLengkap"], message: "Alamat lengkap wajib diisi" });
+    }
+    if (!data.provinsi.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["provinsi"], message: "Provinsi wajib diisi" });
+    }
+    if (!data.kabupatenKota.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["kabupatenKota"], message: "Kabupaten/Kota wajib diisi" });
+    }
+    if (!data.kecamatan.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["kecamatan"], message: "Kecamatan wajib diisi" });
+    }
+    if (!data.kelurahanDesa.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["kelurahanDesa"], message: "Kelurahan/Desa wajib diisi" });
+    }
+    if (!data.kodePos.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["kodePos"], message: "Kode pos wajib diisi" });
+    } else if (!/^\d{5}$/.test(data.kodePos.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["kodePos"], message: "Format kode pos harus 5 digit angka" });
+    }
+  });
 }
 
 const stepTwoProgress: FormStep[] = [
@@ -75,78 +173,61 @@ export default function AjukanFasilitasiFormStep2Page() {
   const jenisId = Number(searchParams.get("jenis") ?? "1");
   const [initialFormData] = useState<StoredStepTwoFormData>(getStoredStepTwoFormData);
 
-  const [namaKegiatan, setNamaKegiatan] = useState(initialFormData.namaKegiatan ?? "");
-  const [tujuanKegiatan, setTujuanKegiatan] = useState(initialFormData.tujuanKegiatan ?? "");
-  const [tanggalMulai, setTanggalMulai] = useState(initialFormData.tanggalMulai ?? "");
-  const [tanggalSelesai, setTanggalSelesai] = useState(initialFormData.tanggalSelesai ?? "");
-  const [alamatLokasi, setAlamatLokasi] = useState(initialFormData.alamatLokasi ?? "");
-  const [namaPenerima, setNamaPenerima] = useState(initialFormData.namaPenerima ?? "");
-  const [email, setEmail] = useState(initialFormData.email ?? "");
-  const [nomorHp, setNomorHp] = useState(initialFormData.nomorHp ?? "");
-  const [alamatLengkap, setAlamatLengkap] = useState(initialFormData.alamatLengkap ?? "");
-  const [provinsi, setProvinsi] = useState(initialFormData.provinsi ?? "");
-  const [kabupatenKota, setKabupatenKota] = useState(initialFormData.kabupatenKota ?? "");
-  const [kecamatan, setKecamatan] = useState(initialFormData.kecamatan ?? "");
-  const [kelurahanDesa, setKelurahanDesa] = useState(initialFormData.kelurahanDesa ?? "");
-  const [kodePos, setKodePos] = useState(initialFormData.kodePos ?? "");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const stepTwoSchema = useMemo(() => createStepTwoSchema(jenisId), [jenisId]);
 
-  function validate() {
-    const newErrors: Record<string, string> = {};
-    if (jenisId === 1) {
-      if (!namaKegiatan.trim()) newErrors.namaKegiatan = "Nama kegiatan wajib diisi";
-      if (!tujuanKegiatan.trim()) newErrors.tujuanKegiatan = "Tujuan kegiatan wajib diisi";
-      if (!tanggalMulai) newErrors.tanggalMulai = "Tanggal mulai wajib diisi";
-      if (!tanggalSelesai) newErrors.tanggalSelesai = "Tanggal selesai wajib diisi";
-      else if (tanggalMulai && tanggalSelesai < tanggalMulai) newErrors.tanggalSelesai = "Tanggal selesai harus setelah tanggal mulai";
-      if (!alamatLokasi.trim()) newErrors.alamatLokasi = "Alamat lokasi wajib diisi";
-    } else {
-      if (!namaPenerima.trim()) newErrors.namaPenerima = "Nama penerima wajib diisi";
-      if (!email.trim()) newErrors.email = "Email wajib diisi";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) newErrors.email = "Format email tidak valid";
-      if (!nomorHp.trim()) newErrors.nomorHp = "Nomor HP wajib diisi";
-      else if (!/^[0-9+\-\s]{8,15}$/.test(nomorHp.trim())) newErrors.nomorHp = "Format nomor HP tidak valid";
-      if (!alamatLengkap.trim()) newErrors.alamatLengkap = "Alamat lengkap wajib diisi";
-      if (!provinsi.trim()) newErrors.provinsi = "Provinsi wajib diisi";
-      if (!kabupatenKota.trim()) newErrors.kabupatenKota = "Kabupaten/Kota wajib diisi";
-      if (!kecamatan.trim()) newErrors.kecamatan = "Kecamatan wajib diisi";
-      if (!kelurahanDesa.trim()) newErrors.kelurahanDesa = "Kelurahan/Desa wajib diisi";
-      if (!kodePos.trim()) newErrors.kodePos = "Kode pos wajib diisi";
-      else if (!/^\d{5}$/.test(kodePos.trim())) newErrors.kodePos = "Format kode pos harus 5 digit angka";
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<StepTwoFormValues>({
+    resolver: zodResolver(stepTwoSchema),
+    defaultValues: {
+      namaKegiatan: initialFormData.namaKegiatan ?? "",
+      tujuanKegiatan: initialFormData.tujuanKegiatan ?? "",
+      tanggalMulai: initialFormData.tanggalMulai ?? "",
+      tanggalSelesai: initialFormData.tanggalSelesai ?? "",
+      alamatLokasi: initialFormData.alamatLokasi ?? "",
+      namaPenerima: initialFormData.namaPenerima ?? "",
+      email: initialFormData.email ?? "",
+      nomorHp: initialFormData.nomorHp ?? "",
+      alamatLengkap: initialFormData.alamatLengkap ?? "",
+      provinsi: initialFormData.provinsi ?? "",
+      kabupatenKota: initialFormData.kabupatenKota ?? "",
+      kecamatan: initialFormData.kecamatan ?? "",
+      kelurahanDesa: initialFormData.kelurahanDesa ?? "",
+      kodePos: initialFormData.kodePos ?? "",
+    },
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+  });
 
-  function handleSave() {
-    if (!validate()) return;
-    const saved = localStorage.getItem(FORM_STORAGE_KEY);
-    const existing = saved ? JSON.parse(saved) : {};
+  const saveStep = handleSubmit((values) => {
+    const existing = getStoredStepTwoFormData();
     const formData = {
       ...existing,
       ...(jenisId === 1
         ? {
-            namaKegiatan,
-            tujuanKegiatan,
-            tanggalMulai,
-            tanggalSelesai,
-            alamatLokasi,
+            namaKegiatan: trim(values.namaKegiatan),
+            tujuanKegiatan: trim(values.tujuanKegiatan),
+            tanggalMulai: values.tanggalMulai,
+            tanggalSelesai: values.tanggalSelesai,
+            alamatLokasi: trim(values.alamatLokasi),
           }
         : {
-            namaPenerima,
-            email,
-            nomorHp,
-            alamatLengkap,
-            provinsi,
-            kabupatenKota,
-            kecamatan,
-            kelurahanDesa,
-            kodePos,
+            namaPenerima: trim(values.namaPenerima),
+            email: trim(values.email),
+            nomorHp: trim(values.nomorHp),
+            alamatLengkap: trim(values.alamatLengkap),
+            provinsi: trim(values.provinsi),
+            kabupatenKota: trim(values.kabupatenKota),
+            kecamatan: trim(values.kecamatan),
+            kelurahanDesa: trim(values.kelurahanDesa),
+            kodePos: trim(values.kodePos),
           }),
     };
     localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
     router.push(`/dashboard/ajukan-fasilitasi/form/step-3?jenis=${jenisId}`);
-  }
+  });
 
   return (
     <section className="h-full overflow-y-auto px-4 pb-10 pt-8 sm:px-6 lg:pt-21">
@@ -166,7 +247,7 @@ export default function AjukanFasilitasiFormStep2Page() {
           className="mt-6 rounded-[10px] bg-white px-5 pb-5 pt-6"
           onSubmit={(e) => {
             e.preventDefault();
-            handleSave();
+            void saveStep();
           }}
         >
           {jenisId === 1 ? (
@@ -174,186 +255,274 @@ export default function AjukanFasilitasiFormStep2Page() {
               <div className="grid gap-x-5 gap-y-6 md:grid-cols-2">
                 <div>
                   <FieldLabel htmlFor="namaKegiatan">Nama Kegiatan</FieldLabel>
-                  <TextInput
-                    id="namaKegiatan"
+                  <Controller
                     name="namaKegiatan"
-                    type="text"
-                    placeholder="Masukan judul kegiatan"
-                    value={namaKegiatan}
-                    isError={!!errors.namaKegiatan}
-                    onChange={(e) => { setNamaKegiatan(e.target.value); setErrors((p) => ({ ...p, namaKegiatan: "" })); }}
+                    control={control}
+                    render={({ field }) => (
+                      <TextInput
+                        id="namaKegiatan"
+                        name={field.name}
+                        type="text"
+                        placeholder="Masukan judul kegiatan"
+                        value={field.value}
+                        isError={!!errors.namaKegiatan}
+                        onChange={(e) => field.onChange(e.target.value)}
+                      />
+                    )}
                   />
-                  {errors.namaKegiatan && <ErrorText>{errors.namaKegiatan}</ErrorText>}
+                  {errors.namaKegiatan && <ErrorText>{String(errors.namaKegiatan.message)}</ErrorText>}
                 </div>
                 <div>
                   <FieldLabel htmlFor="tujuanKegiatan">Tujuan Kegiatan</FieldLabel>
-                  <TextInput
-                    id="tujuanKegiatan"
+                  <Controller
                     name="tujuanKegiatan"
-                    type="text"
-                    placeholder="Masukan tujuan kegiatan"
-                    value={tujuanKegiatan}
-                    isError={!!errors.tujuanKegiatan}
-                    onChange={(e) => { setTujuanKegiatan(e.target.value); setErrors((p) => ({ ...p, tujuanKegiatan: "" })); }}
+                    control={control}
+                    render={({ field }) => (
+                      <TextInput
+                        id="tujuanKegiatan"
+                        name={field.name}
+                        type="text"
+                        placeholder="Masukan tujuan kegiatan"
+                        value={field.value}
+                        isError={!!errors.tujuanKegiatan}
+                        onChange={(e) => field.onChange(e.target.value)}
+                      />
+                    )}
                   />
-                  {errors.tujuanKegiatan && <ErrorText>{errors.tujuanKegiatan}</ErrorText>}
+                  {errors.tujuanKegiatan && <ErrorText>{String(errors.tujuanKegiatan.message)}</ErrorText>}
                 </div>
                 <div>
                   <FieldLabel htmlFor="tanggalMulai">Tanggal Mulai</FieldLabel>
-                  <DateInput
-                    id="tanggalMulai"
+                  <Controller
                     name="tanggalMulai"
-                    value={tanggalMulai}
-                    isError={!!errors.tanggalMulai}
-                    onChange={(e) => { setTanggalMulai(e.target.value); setErrors((p) => ({ ...p, tanggalMulai: "", tanggalSelesai: "" })); }}
+                    control={control}
+                    render={({ field }) => (
+                      <DateInput
+                        id="tanggalMulai"
+                        name={field.name}
+                        value={field.value}
+                        isError={!!errors.tanggalMulai}
+                        onChange={(e) => field.onChange(e.target.value)}
+                      />
+                    )}
                   />
-                  {errors.tanggalMulai ? <ErrorText>{errors.tanggalMulai}</ErrorText> : <HelperText>Tanggal pelaksanaan harus sesuai dengan proposal</HelperText>}
+                  {errors.tanggalMulai ? (
+                    <ErrorText>{String(errors.tanggalMulai.message)}</ErrorText>
+                  ) : (
+                    <HelperText>Tanggal pelaksanaan harus sesuai dengan proposal</HelperText>
+                  )}
                 </div>
                 <div>
                   <FieldLabel htmlFor="tanggalSelesai">Tanggal Selesai</FieldLabel>
-                  <DateInput
-                    id="tanggalSelesai"
+                  <Controller
                     name="tanggalSelesai"
-                    value={tanggalSelesai}
-                    isError={!!errors.tanggalSelesai}
-                    onChange={(e) => { setTanggalSelesai(e.target.value); setErrors((p) => ({ ...p, tanggalSelesai: "" })); }}
+                    control={control}
+                    render={({ field }) => (
+                      <DateInput
+                        id="tanggalSelesai"
+                        name={field.name}
+                        value={field.value}
+                        isError={!!errors.tanggalSelesai}
+                        onChange={(e) => field.onChange(e.target.value)}
+                      />
+                    )}
                   />
-                  {errors.tanggalSelesai && <ErrorText>{errors.tanggalSelesai}</ErrorText>}
+                  {errors.tanggalSelesai && <ErrorText>{String(errors.tanggalSelesai.message)}</ErrorText>}
                 </div>
               </div>
 
               <div className="mt-6">
                 <FieldLabel htmlFor="alamatLokasiKegiatan">Alamat Lokasi Kegiatan</FieldLabel>
-                <TextAreaField
-                  id="alamatLokasiKegiatan"
-                  name="alamatLokasiKegiatan"
-                  placeholder="Masukan alamat kegiatan"
-                  className="h-17.5"
-                  value={alamatLokasi}
-                  isError={!!errors.alamatLokasi}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { setAlamatLokasi(e.target.value); setErrors((p) => ({ ...p, alamatLokasi: "" })); }}
+                <Controller
+                  name="alamatLokasi"
+                  control={control}
+                  render={({ field }) => (
+                    <TextAreaField
+                      id="alamatLokasiKegiatan"
+                      name={field.name}
+                      placeholder="Masukan alamat kegiatan"
+                      className="h-17.5"
+                      value={field.value}
+                      isError={!!errors.alamatLokasi}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
-                {errors.alamatLokasi && <ErrorText>{errors.alamatLokasi}</ErrorText>}
+                {errors.alamatLokasi && <ErrorText>{String(errors.alamatLokasi.message)}</ErrorText>}
               </div>
             </>
           ) : (
             <div className="grid gap-x-5 gap-y-6 md:grid-cols-2">
               <div>
                 <FieldLabel htmlFor="namaPenerima">Nama Penerima</FieldLabel>
-                <TextInput
-                  id="namaPenerima"
+                <Controller
                   name="namaPenerima"
-                  type="text"
-                  placeholder="Masukan nama penerima"
-                  value={namaPenerima}
-                  isError={!!errors.namaPenerima}
-                  onChange={(e) => { setNamaPenerima(e.target.value); setErrors((p) => ({ ...p, namaPenerima: "" })); }}
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="namaPenerima"
+                      name={field.name}
+                      type="text"
+                      placeholder="Masukan nama penerima"
+                      value={field.value}
+                      isError={!!errors.namaPenerima}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
-                {errors.namaPenerima && <ErrorText>{errors.namaPenerima}</ErrorText>}
+                {errors.namaPenerima && <ErrorText>{String(errors.namaPenerima.message)}</ErrorText>}
               </div>
               <div>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
-                <TextInput
-                  id="email"
+                <Controller
                   name="email"
-                  type="email"
-                  placeholder="Masukan email"
-                  value={email}
-                  isError={!!errors.email}
-                  onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: "" })); }}
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="email"
+                      name={field.name}
+                      type="email"
+                      placeholder="Masukan email"
+                      value={field.value}
+                      isError={!!errors.email}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
-                {errors.email && <ErrorText>{errors.email}</ErrorText>}
+                {errors.email && <ErrorText>{String(errors.email.message)}</ErrorText>}
               </div>
               <div>
                 <FieldLabel htmlFor="nomorHp">Nomor Hp.</FieldLabel>
-                <TextInput
-                  id="nomorHp"
+                <Controller
                   name="nomorHp"
-                  type="tel"
-                  placeholder="Masukan nomor Hp."
-                  value={nomorHp}
-                  isError={!!errors.nomorHp}
-                  onChange={(e) => { setNomorHp(e.target.value); setErrors((p) => ({ ...p, nomorHp: "" })); }}
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="nomorHp"
+                      name={field.name}
+                      type="tel"
+                      placeholder="Masukan nomor Hp."
+                      value={field.value}
+                      isError={!!errors.nomorHp}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
-                {errors.nomorHp && <ErrorText>{errors.nomorHp}</ErrorText>}
+                {errors.nomorHp && <ErrorText>{String(errors.nomorHp.message)}</ErrorText>}
               </div>
               <div>
                 <FieldLabel htmlFor="provinsi">Provinsi</FieldLabel>
-                <TextInput
-                  id="provinsi"
+                <Controller
                   name="provinsi"
-                  type="text"
-                  placeholder="Masukan provinsi"
-                  value={provinsi}
-                  isError={!!errors.provinsi}
-                  onChange={(e) => { setProvinsi(e.target.value); setErrors((p) => ({ ...p, provinsi: "" })); }}
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="provinsi"
+                      name={field.name}
+                      type="text"
+                      placeholder="Masukan provinsi"
+                      value={field.value}
+                      isError={!!errors.provinsi}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
-                {errors.provinsi && <ErrorText>{errors.provinsi}</ErrorText>}
+                {errors.provinsi && <ErrorText>{String(errors.provinsi.message)}</ErrorText>}
               </div>
               <div className="md:col-span-2">
                 <FieldLabel htmlFor="alamatLengkap">Alamat Lengkap</FieldLabel>
-                <TextAreaField
-                  id="alamatLengkap"
+                <Controller
                   name="alamatLengkap"
-                  placeholder="Contoh: Jl. Malioboro No. 10, RT 02 RW 05"
-                  className="h-17.5"
-                  value={alamatLengkap}
-                  isError={!!errors.alamatLengkap}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { setAlamatLengkap(e.target.value); setErrors((p) => ({ ...p, alamatLengkap: "" })); }}
+                  control={control}
+                  render={({ field }) => (
+                    <TextAreaField
+                      id="alamatLengkap"
+                      name={field.name}
+                      placeholder="Contoh: Jl. Malioboro No. 10, RT 02 RW 05"
+                      className="h-17.5"
+                      value={field.value}
+                      isError={!!errors.alamatLengkap}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
-                {errors.alamatLengkap && <ErrorText>{errors.alamatLengkap}</ErrorText>}
+                {errors.alamatLengkap && <ErrorText>{String(errors.alamatLengkap.message)}</ErrorText>}
               </div>
               <div>
                 <FieldLabel htmlFor="kabupatenKota">Kabupaten / Kota</FieldLabel>
-                <TextInput
-                  id="kabupatenKota"
+                <Controller
                   name="kabupatenKota"
-                  type="text"
-                  placeholder="Masukan kabupaten / kota"
-                  value={kabupatenKota}
-                  isError={!!errors.kabupatenKota}
-                  onChange={(e) => { setKabupatenKota(e.target.value); setErrors((p) => ({ ...p, kabupatenKota: "" })); }}
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="kabupatenKota"
+                      name={field.name}
+                      type="text"
+                      placeholder="Masukan kabupaten / kota"
+                      value={field.value}
+                      isError={!!errors.kabupatenKota}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
-                {errors.kabupatenKota && <ErrorText>{errors.kabupatenKota}</ErrorText>}
+                {errors.kabupatenKota && <ErrorText>{String(errors.kabupatenKota.message)}</ErrorText>}
               </div>
               <div>
                 <FieldLabel htmlFor="kecamatan">Kecamatan</FieldLabel>
-                <TextInput
-                  id="kecamatan"
+                <Controller
                   name="kecamatan"
-                  type="text"
-                  placeholder="Masukan kecamatan"
-                  value={kecamatan}
-                  isError={!!errors.kecamatan}
-                  onChange={(e) => { setKecamatan(e.target.value); setErrors((p) => ({ ...p, kecamatan: "" })); }}
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="kecamatan"
+                      name={field.name}
+                      type="text"
+                      placeholder="Masukan kecamatan"
+                      value={field.value}
+                      isError={!!errors.kecamatan}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
-                {errors.kecamatan && <ErrorText>{errors.kecamatan}</ErrorText>}
+                {errors.kecamatan && <ErrorText>{String(errors.kecamatan.message)}</ErrorText>}
               </div>
               <div>
                 <FieldLabel htmlFor="kelurahanDesa">Kelurahan / Desa</FieldLabel>
-                <TextInput
-                  id="kelurahanDesa"
+                <Controller
                   name="kelurahanDesa"
-                  type="text"
-                  placeholder="Masukan nama kelurahan/desa"
-                  value={kelurahanDesa}
-                  isError={!!errors.kelurahanDesa}
-                  onChange={(e) => { setKelurahanDesa(e.target.value); setErrors((p) => ({ ...p, kelurahanDesa: "" })); }}
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="kelurahanDesa"
+                      name={field.name}
+                      type="text"
+                      placeholder="Masukan nama kelurahan/desa"
+                      value={field.value}
+                      isError={!!errors.kelurahanDesa}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
-                {errors.kelurahanDesa && <ErrorText>{errors.kelurahanDesa}</ErrorText>}
+                {errors.kelurahanDesa && <ErrorText>{String(errors.kelurahanDesa.message)}</ErrorText>}
               </div>
               <div>
                 <FieldLabel htmlFor="kodePos">Kode Pos</FieldLabel>
-                <TextInput
-                  id="kodePos"
+                <Controller
                   name="kodePos"
-                  type="text"
-                  placeholder="Masukan kode pos"
-                  value={kodePos}
-                  isError={!!errors.kodePos}
-                  onChange={(e) => { setKodePos(e.target.value); setErrors((p) => ({ ...p, kodePos: "" })); }}
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="kodePos"
+                      name={field.name}
+                      type="text"
+                      placeholder="Masukan kode pos"
+                      value={field.value}
+                      isError={!!errors.kodePos}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
-                {errors.kodePos && <ErrorText>{errors.kodePos}</ErrorText>}
+                {errors.kodePos && <ErrorText>{String(errors.kodePos.message)}</ErrorText>}
               </div>
             </div>
           )}
@@ -363,7 +532,7 @@ export default function AjukanFasilitasiFormStep2Page() {
           <SecondaryLinkButton href={`/dashboard/ajukan-fasilitasi/form?jenis=${jenisId}`}>
             Kembali
           </SecondaryLinkButton>
-          <PrimaryButton onClick={handleSave}>
+          <PrimaryButton onClick={() => void saveStep()}>
             Simpan Dan Lanjutkan
           </PrimaryButton>
         </FormActionBar>

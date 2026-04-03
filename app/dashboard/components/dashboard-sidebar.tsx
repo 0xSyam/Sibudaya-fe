@@ -131,8 +131,9 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const { isOpen, close } = useSidebar();
   const { user } = useAuth();
+  const isAdminRole = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  const isAdminDashboard = pathname.startsWith("/dashboard/admin");
+  const isAdminDashboard = isAdminRole;
   const homeHref = isAdminDashboard ? "/dashboard/admin" : "/dashboard";
   const isBeranda = isAdminDashboard
     ? pathname === "/dashboard/admin" || pathname.startsWith("/dashboard/admin/status")

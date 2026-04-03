@@ -1,13 +1,25 @@
-let pendingSertifikatNikFile: File | null = null;
+import { create } from "zustand";
+
+type PengajuanDraftState = {
+  pendingSertifikatNikFile: File | null;
+  setPendingSertifikatNikFile: (file: File | null) => void;
+  clearPendingPengajuanDraftFiles: () => void;
+};
+
+const usePengajuanDraftStore = create<PengajuanDraftState>((set) => ({
+  pendingSertifikatNikFile: null,
+  setPendingSertifikatNikFile: (file) => set({ pendingSertifikatNikFile: file }),
+  clearPendingPengajuanDraftFiles: () => set({ pendingSertifikatNikFile: null }),
+}));
 
 export function setPendingSertifikatNikFile(file: File | null) {
-  pendingSertifikatNikFile = file;
+  usePengajuanDraftStore.getState().setPendingSertifikatNikFile(file);
 }
 
 export function getPendingSertifikatNikFile() {
-  return pendingSertifikatNikFile;
+  return usePengajuanDraftStore.getState().pendingSertifikatNikFile;
 }
 
 export function clearPendingPengajuanDraftFiles() {
-  pendingSertifikatNikFile = null;
+  usePengajuanDraftStore.getState().clearPendingPengajuanDraftFiles();
 }

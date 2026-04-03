@@ -94,15 +94,22 @@ export function DashboardTopbar() {
         ? "Admin"
         : "User";
 
-  const unreadCount = notifications.filter((n) => !n.status_baca).length;
+  const unreadCount = Array.isArray(notifications)
+    ? notifications.filter((n) => !n.status_baca).length
+    : 0;
 
   const fetchNotifications = useCallback(() => {
-    notifikasiApi
-      .getAll()
-      .then((data) => setNotifications(Array.isArray(data) ? data : []))
-      .catch(() => {
-        setNotifications([]);
-      });
+    notifikasiApi.getAll()
+      .then((res) => {
+        if (Array.isArray(res)) {
+          setNotifications(res);
+        } else if (res && typeof res === "object" && "data" in res && Array.isArray((res as any).data)) {
+          setNotifications((res as any).data);
+        } else {
+          setNotifications([]);
+        }
+      })
+      .catch(() => setNotifications([]));
   }, []);
 
   useEffect(() => {
@@ -140,7 +147,7 @@ export function DashboardTopbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-20 h-[64px] border-b border-[rgba(38,43,67,0.12)] bg-white px-4 sm:px-6">
+    <header className="sticky top-0 z-20 h-16 border-b border-[rgba(38,43,67,0.12)] bg-white px-4 sm:px-6">
       <div className="flex h-full items-center justify-between gap-3">
         {/* Hamburger menu - mobile only */}
         <button
@@ -163,17 +170,17 @@ export function DashboardTopbar() {
               setShowNotifications((v) => !v);
               setShowMenu(false);
             }}
-            className="relative flex h-10 w-[38px] items-center justify-center rounded-[48px] text-[rgba(38,43,67,0.9)]"
+            className="relative flex h-10 w-9.5 items-center justify-center rounded-[48px] text-[rgba(38,43,67,0.9)]"
             aria-label="Notifikasi"
           >
             <BellIcon />
             {unreadCount > 0 ? (
-              <span className="absolute right-[7px] top-[9px] size-[7px] rounded-full bg-[#cc3e15]" />
+              <span className="absolute right-1.75 top-2.25 size-1.75 rounded-full bg-[#cc3e15]" />
             ) : null}
           </button>
 
           {showNotifications ? (
-            <div className="fixed inset-x-4 top-16 z-30 overflow-hidden rounded-[14px] border border-[rgba(38,43,67,0.12)] bg-white shadow-[0_18px_48px_-20px_rgba(22,35,71,0.45)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[420px]">
+            <div className="fixed inset-x-4 top-16 z-30 flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden rounded-[14px] border border-[rgba(38,43,67,0.12)] bg-white shadow-[0_18px_48px_-20px_rgba(22,35,71,0.45)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-105 sm:max-h-120">
               <div className="flex items-center justify-between px-5 py-4">
                 <h3 className="text-[18px] font-semibold text-[#3c4358]">Notifications</h3>
                 <div className="flex items-center gap-3">
@@ -186,29 +193,31 @@ export function DashboardTopbar() {
                 </div>
               </div>
 
-              {notifications.length === 0 ? (
-                <div className="border-t border-[rgba(60,67,88,0.14)] px-5 py-8 text-center">
-                  <p className="text-[14px] text-[#646b7d]">Tidak ada notifikasi</p>
-                </div>
-              ) : notifications.map((item) => (
-                <button
-                  type="button"
-                  key={item.notifikasi_id}
-                  className="w-full border-t border-[rgba(60,67,88,0.14)] px-5 py-4 text-left"
-                  onClick={() => handleMarkAsRead(item.notifikasi_id)}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <h4 className="text-[16px] font-semibold leading-7 text-[#3c4358]">{item.judul}</h4>
-                    {!item.status_baca ? <span className="mt-2 size-3 rounded-full bg-[#cc3e15]" /> : null}
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                {notifications.length === 0 ? (
+                  <div className="border-t border-[rgba(60,67,88,0.14)] px-5 py-8 text-center">
+                    <p className="text-[14px] text-[#646b7d]">Tidak ada notifikasi</p>
                   </div>
-                  <p className="mt-1 max-w-[340px] text-[14px] leading-6 text-[#646b7d]">
-                    {item.pesan}
-                  </p>
-                  <p className="mt-2 text-[14px] text-[#a0a6b5]">
-                    {new Date(item.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-                  </p>
-                </button>
-              ))}
+                ) : notifications.map((item) => (
+                  <button
+                    type="button"
+                    key={item.notifikasi_id}
+                    className="w-full border-t border-[rgba(60,67,88,0.14)] px-5 py-4 text-left"
+                    onClick={() => handleMarkAsRead(item.notifikasi_id)}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <h4 className="text-[16px] font-semibold leading-7 text-[#3c4358]">{item.judul}</h4>
+                      {!item.status_baca ? <span className="mt-2 size-3 rounded-full bg-[#cc3e15]" /> : null}
+                    </div>
+                    <p className="mt-1 max-w-85 text-[14px] leading-6 text-[#646b7d]">
+                      {item.pesan}
+                    </p>
+                    <p className="mt-2 text-[14px] text-[#a0a6b5]">
+                      {new Date(item.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+                    </p>
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
         </div>
@@ -238,7 +247,7 @@ export function DashboardTopbar() {
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[270px] overflow-hidden rounded-[14px] border border-[rgba(38,43,67,0.12)] bg-[#f9f9fb] p-3 shadow-[0_18px_48px_-20px_rgba(22,35,71,0.45)]">
+            <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-67.5 overflow-hidden rounded-[14px] border border-[rgba(38,43,67,0.12)] bg-[#f9f9fb] p-3 shadow-[0_18px_48px_-20px_rgba(22,35,71,0.45)]">
               <div className="rounded-[10px] bg-white">
                 <div className="flex items-center gap-3 px-4 py-4">
                   {user ? (
@@ -253,7 +262,7 @@ export function DashboardTopbar() {
                     />
                   )}
                   <div className="min-w-0">
-                    <p className="truncate text-[15px] font-semibold leading-[22px] text-[#3c4358]">
+                    <p className="truncate text-[15px] font-semibold leading-5.5 text-[#3c4358]">
                       {displayName}
                     </p>
                     <p className="text-[12px] leading-5 text-[#8a90a5]">{roleLabel}</p>
@@ -283,7 +292,7 @@ export function DashboardTopbar() {
                       setShowMenu(false);
                       logout();
                     }}
-                    className="flex h-[46px] w-full items-center justify-center gap-2 rounded-[10px] bg-[#ff4d4f] px-4 text-[15px] font-medium leading-6 text-white transition-colors hover:bg-[#ee4346]"
+                    className="flex h-11.5 w-full items-center justify-center gap-2 rounded-[10px] bg-[#ff4d4f] px-4 text-[15px] font-medium leading-6 text-white transition-colors hover:bg-[#ee4346]"
                   >
                     <span>Logout</span>
                     <LogoutIcon />

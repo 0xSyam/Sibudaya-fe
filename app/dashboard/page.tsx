@@ -19,6 +19,10 @@ type Submission = {
   actionHref: string;
 };
 
+function pickActivityName(p: Pengajuan): string {
+  return p.lembaga_budaya?.nama_lembaga || p.judul_kegiatan || p.jenis_kegiatan || "Pengajuan";
+}
+
 function mapPengajuanToSubmission(p: Pengajuan): Submission {
   const category: SubmissionCategory = p.jenis_fasilitasi_id === 1 ? "Pentas" : "Hibah";
   const date = new Date(p.tanggal_pengajuan);
@@ -41,7 +45,7 @@ function mapPengajuanToSubmission(p: Pengajuan): Submission {
 
   return {
     id: p.pengajuan_id,
-    activityName: p.judul_kegiatan || p.jenis_kegiatan || "Pengajuan",
+    activityName: pickActivityName(p),
     category,
     submittedAt,
     status,

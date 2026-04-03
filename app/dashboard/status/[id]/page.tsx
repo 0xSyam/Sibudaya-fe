@@ -392,6 +392,7 @@ export default function UserStatusDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [selectedLaporanFile, setSelectedLaporanFile] = useState<File | null>(null);
   const [templateLaporanUrl, setTemplateLaporanUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -421,8 +422,11 @@ export default function UserStatusDetailPage() {
     fetchData();
   }, [fetchData]);
 
-  async function handleUploadLaporan(file: File) {
-    if (!data) return;
+  function handleSelectLaporanFile(file: File | null) {
+    if (!file) {
+      setSelectedLaporanFile(null);
+      return;
+    }
 
     const validationMessage = validateUploadFile(file, {
       ...pdfUploadValidation,
@@ -430,14 +434,28 @@ export default function UserStatusDetailPage() {
     });
 
     if (validationMessage) {
-      setUploadError(validationMessage);
+      setSelectedLaporanFile(null);
+      setUploadError("Laporan kegiatan wajib dalam format PDF");
+      return;
+    }
+
+    setSelectedLaporanFile(file);
+    setUploadError(null);
+  }
+
+  async function handleUploadLaporan() {
+    if (!data) return;
+
+    if (!selectedLaporanFile) {
+      setUploadError("Laporan kegiatan wajib diunggah");
       return;
     }
 
     try {
       setUploading(true);
       setUploadError(null);
-      await pengajuanApi.uploadLaporan(data.pengajuan_id, file);
+      await pengajuanApi.uploadLaporan(data.pengajuan_id, selectedLaporanFile);
+      setSelectedLaporanFile(null);
       await fetchData();
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Gagal mengunggah laporan";
@@ -617,20 +635,33 @@ export default function UserStatusDetailPage() {
                                     accept=".pdf,application/pdf"
                                     className="hidden"
                                     onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) handleUploadLaporan(file);
+                                      const file = e.target.files?.[0] ?? null;
+                                      handleSelectLaporanFile(file);
                                       e.currentTarget.value = "";
                                     }}
                                   />
-                                  <button
-                                    type="button"
-                                    disabled={uploading}
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium capitalize leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-50"
-                                  >
-                                    {uploading ? "Mengunggah..." : "Unggah Laporan"}
-                                    <UploadCloudIcon />
-                                  </button>
+                                  {selectedLaporanFile ? (
+                                    <p className="text-[14px] text-[rgba(38,43,67,0.7)]">File dipilih: {selectedLaporanFile.name}</p>
+                                  ) : null}
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={uploading}
+                                      onClick={() => fileInputRef.current?.click()}
+                                      className="inline-flex w-fit items-center justify-center gap-2 rounded-lg border border-[rgba(38,43,67,0.22)] px-[20px] py-2 text-[15px] font-medium capitalize leading-[22px] text-[rgba(38,43,67,0.78)] transition-colors hover:bg-[rgba(38,43,67,0.04)] disabled:opacity-50"
+                                    >
+                                      Pilih File
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={uploading}
+                                      onClick={() => handleUploadLaporan()}
+                                      className="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium capitalize leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-50"
+                                    >
+                                      {uploading ? "Mengunggah..." : "Submit Laporan"}
+                                      <UploadCloudIcon />
+                                    </button>
+                                  </div>
                                 </div>
                               ) : null}
                             </div>

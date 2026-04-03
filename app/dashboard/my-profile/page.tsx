@@ -127,10 +127,7 @@ export default function MyProfilePage() {
   return (
     <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto flex w-full max-w-225 flex-col gap-4">
-        <section className="rounded-xl border border-[rgba(38,43,67,0.12)] bg-white p-4 shadow-[0_4px_18px_rgba(38,43,67,0.08)] sm:p-5">
-          <h1 className="text-[26px] font-semibold leading-8 text-[#c23513] sm:text-[30px] sm:leading-9.5">My Profile</h1>
-          <p className="mt-1 text-[14px] text-[#6d788d]">Detail akun Anda</p>
-        </section>
+
 
         {error && (
           <div className="rounded-lg border border-[#f5b3a5] bg-[#fff3f0] px-4 py-3 text-[13px] text-[#9b2f15]">

@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { get, trim } from "lodash";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
 import {
   FormActionBar,
   PrimaryButton,
@@ -24,6 +28,29 @@ import { setPendingSertifikatNikFile } from "@/app/lib/pengajuan-draft-store";
 import type { Lembaga, PaketFasilitasi } from "@/app/lib/types";
 
 const FORM_STORAGE_KEY = "pengajuan_form_data";
+
+type StepOneFormValues = {
+  namaLembaga: string;
+  jenisKesenian: string;
+  nik: string;
+  nikTanggalTerbit: string;
+  nikTanggalBerlakuSampai: string;
+  selectedPaket: string;
+};
+
+const stepOneSchema = z
+  .object({
+    namaLembaga: z.string().trim().min(1, "Nama lembaga wajib diisi"),
+    jenisKesenian: z.string().trim().min(1, "Jenis kesenian wajib dipilih"),
+    nik: z.string().trim().regex(/^\d{16}$/, "Format NIK harus 16 digit angka"),
+    nikTanggalTerbit: z.string().min(1, "Tanggal terbit sertifikat wajib diisi"),
+    nikTanggalBerlakuSampai: z.string().min(1, "Tanggal berlaku sertifikat wajib diisi"),
+    selectedPaket: z.string().min(1, "Jenis paket fasilitasi wajib dipilih"),
+  })
+  .refine((data) => data.nikTanggalBerlakuSampai >= data.nikTanggalTerbit, {
+    message: "Tanggal berlaku harus setelah tanggal terbit",
+    path: ["nikTanggalBerlakuSampai"],
+  });
 
 const stepOneProgress: FormStep[] = [
   {
@@ -54,16 +81,32 @@ export default function AjukanFasilitasiFormPage() {
   const [lembaga, setLembaga] = useState<Lembaga | null>(null);
   const [paketList, setPaketList] = useState<PaketFasilitasi[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Form fields
-  const [namaLembaga, setNamaLembaga] = useState("");
-  const [jenisKesenian, setJenisKesenian] = useState("");
-  const [nik, setNik] = useState("");
-  const [nikTanggalTerbit, setNikTanggalTerbit] = useState("");
-  const [nikTanggalBerlakuSampai, setNikTanggalBerlakuSampai] = useState("");
-  const [selectedPaket, setSelectedPaket] = useState("");
   const [sertifikatFile, setSertifikatFile] = useState<File | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [sertifikatError, setSertifikatError] = useState<string | null>(null);
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<StepOneFormValues>({
+    resolver: zodResolver(stepOneSchema),
+    defaultValues: {
+      namaLembaga: "",
+      jenisKesenian: "",
+      nik: "",
+      nikTanggalTerbit: "",
+      nikTanggalBerlakuSampai: "",
+      selectedPaket: "",
+    },
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+  });
+
+  const placeholderPaketOptions = useMemo(
+    () => ["Pembinaan Sanggar", "Pentas Seni", "Workshop", "Festival Budaya"],
+    [],
+  );
 
   useEffect(() => {
     async function load() {
@@ -73,91 +116,74 @@ export default function AjukanFasilitasiFormPage() {
           fasilitasiApi.getPaketByJenis(jenisId).catch(() => []),
         ]);
 
+        const draftRaw = localStorage.getItem(FORM_STORAGE_KEY);
+        const draft = draftRaw ? (JSON.parse(draftRaw) as Partial<StepOneFormValues>) : {};
+
+        const nextValues: StepOneFormValues = {
+          namaLembaga: String(get(draft, "namaLembaga", "")),
+          jenisKesenian: String(get(draft, "jenisKesenian", "")),
+          nik: String(get(draft, "nik", "")),
+          nikTanggalTerbit: String(get(draft, "nikTanggalTerbit", "")),
+          nikTanggalBerlakuSampai: String(get(draft, "nikTanggalBerlakuSampai", "")),
+          selectedPaket: String(get(draft, "selectedPaket", "")),
+        };
+
         if (lem) {
           setLembaga(lem);
-          setNamaLembaga(lem.nama_lembaga);
-          setJenisKesenian(lem.jenis_kesenian);
+          nextValues.namaLembaga = nextValues.namaLembaga || lem.nama_lembaga;
+          nextValues.jenisKesenian = nextValues.jenisKesenian || lem.jenis_kesenian;
           if (lem.sertifikat_nik) {
-            setNik(lem.sertifikat_nik.nomor_nik);
-            setNikTanggalTerbit(lem.sertifikat_nik.tanggal_terbit.split("T")[0] ?? "");
-            setNikTanggalBerlakuSampai(lem.sertifikat_nik.tanggal_berlaku_sampai.split("T")[0] ?? "");
+            nextValues.nik = nextValues.nik || lem.sertifikat_nik.nomor_nik;
+            nextValues.nikTanggalTerbit = nextValues.nikTanggalTerbit || (lem.sertifikat_nik.tanggal_terbit.split("T")[0] ?? "");
+            nextValues.nikTanggalBerlakuSampai = nextValues.nikTanggalBerlakuSampai || (lem.sertifikat_nik.tanggal_berlaku_sampai.split("T")[0] ?? "");
           }
         }
-        setPaketList(paket);
 
-        // Restore from localStorage
-        const saved = localStorage.getItem(FORM_STORAGE_KEY);
-        if (saved) {
-          const data = JSON.parse(saved);
-          if (data.namaLembaga) setNamaLembaga(data.namaLembaga);
-          if (data.jenisKesenian) setJenisKesenian(data.jenisKesenian);
-          if (data.nik) setNik(data.nik);
-          if (data.nikTanggalTerbit) setNikTanggalTerbit(data.nikTanggalTerbit);
-          if (data.nikTanggalBerlakuSampai) setNikTanggalBerlakuSampai(data.nikTanggalBerlakuSampai);
-          if (data.selectedPaket) setSelectedPaket(data.selectedPaket);
-        }
+        reset(nextValues);
+        setPaketList(paket);
       } finally {
         setLoading(false);
       }
     }
-    load();
-  }, [jenisId]);
 
-  function validate() {
-    const newErrors: Record<string, string> = {};
+    void load();
+  }, [jenisId, reset]);
+
+  const saveStep = handleSubmit((values) => {
     const existingSertifikat = lembaga?.sertifikat_nik;
     const isUpdatingExistingCertificate = Boolean(sertifikatFile);
 
-    if (!namaLembaga.trim()) newErrors.namaLembaga = "Nama lembaga wajib diisi";
-    if (!jenisKesenian) newErrors.jenisKesenian = "Jenis kesenian wajib dipilih";
-    if (!nik.trim()) newErrors.nik = "NIK wajib diisi";
-    else if (!/^\d{16}$/.test(nik.trim())) newErrors.nik = "Format NIK harus 16 digit angka";
     if (!existingSertifikat && !sertifikatFile) {
-      newErrors.sertifikatFile = "Sertifikat NIK wajib diunggah";
+      setSertifikatError("Sertifikat NIK wajib diunggah");
+      return;
     }
-    if (sertifikatFile) {
-      const sertifikatError = validateUploadFile(sertifikatFile, {
-        ...pdfUploadValidation,
-        label: "Sertifikat NIK",
-      });
-      if (sertifikatError) newErrors.sertifikatFile = sertifikatError;
-    }
-    if ((isUpdatingExistingCertificate || !existingSertifikat) && !nikTanggalTerbit) {
-      newErrors.nikTanggalTerbit = "Tanggal terbit sertifikat wajib diisi";
-    }
-    if ((isUpdatingExistingCertificate || !existingSertifikat) && !nikTanggalBerlakuSampai) {
-      newErrors.nikTanggalBerlakuSampai = "Tanggal berlaku sertifikat wajib diisi";
-    }
-    if (nikTanggalTerbit && nikTanggalBerlakuSampai && nikTanggalBerlakuSampai < nikTanggalTerbit) {
-      newErrors.nikTanggalBerlakuSampai = "Tanggal berlaku harus setelah tanggal terbit";
-    }
+
     if (
       existingSertifikat &&
       !sertifikatFile &&
-      (nik.trim() !== existingSertifikat.nomor_nik ||
-        nikTanggalTerbit !== (existingSertifikat.tanggal_terbit.split("T")[0] ?? "") ||
-        nikTanggalBerlakuSampai !== (existingSertifikat.tanggal_berlaku_sampai.split("T")[0] ?? ""))
+      (trim(values.nik) !== existingSertifikat.nomor_nik ||
+        values.nikTanggalTerbit !== (existingSertifikat.tanggal_terbit.split("T")[0] ?? "") ||
+        values.nikTanggalBerlakuSampai !== (existingSertifikat.tanggal_berlaku_sampai.split("T")[0] ?? ""))
     ) {
-      newErrors.sertifikatFile = "Unggah sertifikat baru untuk memperbarui data NIK";
+      setSertifikatError("Unggah sertifikat baru untuk memperbarui data NIK");
+      return;
     }
-    if (!selectedPaket) newErrors.selectedPaket = "Jenis paket fasilitasi wajib dipilih";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }
 
-  function handleSave() {
-    if (!validate()) return;
+    if (!(isUpdatingExistingCertificate || !existingSertifikat) && sertifikatError) {
+      setSertifikatError(null);
+    }
+
     const saved = localStorage.getItem(FORM_STORAGE_KEY);
     const existing = saved ? JSON.parse(saved) : {};
     const formData = {
       ...existing,
       jenisId,
-      namaLembaga,
-      jenisKesenian,
-      nik,
-      nikTanggalTerbit,
-      nikTanggalBerlakuSampai,
-      selectedPaket,
+      namaLembaga: trim(values.namaLembaga),
+      jenisKesenian: trim(values.jenisKesenian),
+      nik: trim(values.nik),
+      nikTanggalTerbit: values.nikTanggalTerbit,
+      nikTanggalBerlakuSampai: values.nikTanggalBerlakuSampai,
+      selectedPaket: values.selectedPaket,
       lembagaId: lembaga?.lembaga_id ?? existing.lembagaId,
       hasExistingSertifikat: Boolean(lembaga?.sertifikat_nik),
     };
@@ -172,7 +198,7 @@ export default function AjukanFasilitasiFormPage() {
     }
 
     router.push(`/dashboard/ajukan-fasilitasi/form/step-2?jenis=${jenisId}`);
-  }
+  });
 
   if (loading) {
     return (
@@ -196,49 +222,76 @@ export default function AjukanFasilitasiFormPage() {
           className="mt-6 rounded-[10px] bg-white px-5 pb-5 pt-6"
           onSubmit={(e) => {
             e.preventDefault();
-            handleSave();
+            void saveStep();
           }}
         >
           <div className="grid gap-x-[10px] gap-y-6 md:grid-cols-2">
             <div>
               <FieldLabel htmlFor="namaLembaga">Nama Lembaga Budaya</FieldLabel>
-              <TextInput
-                id="namaLembaga"
+              <Controller
                 name="namaLembaga"
-                type="text"
-                placeholder="Masukan nama lembaga"
-                value={namaLembaga}
-                isError={!!errors.namaLembaga}
-                onChange={(e) => { setNamaLembaga(e.target.value); setErrors((p) => ({ ...p, namaLembaga: "" })); }}
+                control={control}
+                render={({ field }) => (
+                  <TextInput
+                    id="namaLembaga"
+                    name={field.name}
+                    type="text"
+                    placeholder="Masukan nama lembaga"
+                    value={field.value}
+                    isError={!!errors.namaLembaga}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      setSertifikatError(null);
+                    }}
+                  />
+                )}
               />
-              {errors.namaLembaga && <ErrorText>{errors.namaLembaga}</ErrorText>}
+              {errors.namaLembaga && <ErrorText>{String(errors.namaLembaga.message)}</ErrorText>}
             </div>
             <div>
               <FieldLabel htmlFor="jenisKesenian">Jenis Kesenian</FieldLabel>
-              <SelectField
-                id="jenisKesenian"
+              <Controller
                 name="jenisKesenian"
-                placeholder="Pilih jenis kesenian lembaga"
-                options={["Tari", "Musik", "Teater", "Seni Rupa", "Sastra", "Lainnya"]}
-                value={jenisKesenian}
-                isError={!!errors.jenisKesenian}
-                onChange={(e) => { setJenisKesenian(e.target.value); setErrors((p) => ({ ...p, jenisKesenian: "" })); }}
+                control={control}
+                render={({ field }) => (
+                  <SelectField
+                    id="jenisKesenian"
+                    name={field.name}
+                    placeholder="Pilih jenis kesenian lembaga"
+                    options={["Tari", "Musik", "Teater", "Seni Rupa", "Sastra", "Lainnya"]}
+                    value={field.value}
+                    isError={!!errors.jenisKesenian}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      setSertifikatError(null);
+                    }}
+                  />
+                )}
               />
-              {errors.jenisKesenian && <ErrorText>{errors.jenisKesenian}</ErrorText>}
+              {errors.jenisKesenian && <ErrorText>{String(errors.jenisKesenian.message)}</ErrorText>}
             </div>
 
             <div>
               <FieldLabel htmlFor="nik">Nomor Induk Kebudayaan(NIK)</FieldLabel>
-              <TextInput
-                id="nik"
+              <Controller
                 name="nik"
-                type="text"
-                placeholder="Masukan NIK"
-                value={nik}
-                isError={!!errors.nik}
-                onChange={(e) => { setNik(e.target.value); setErrors((p) => ({ ...p, nik: "" })); }}
+                control={control}
+                render={({ field }) => (
+                  <TextInput
+                    id="nik"
+                    name={field.name}
+                    type="text"
+                    placeholder="Masukan NIK"
+                    value={field.value}
+                    isError={!!errors.nik}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      setSertifikatError(null);
+                    }}
+                  />
+                )}
               />
-              {errors.nik ? <ErrorText>{errors.nik}</ErrorText> : <HelperText>NIK yang diinput harus masih berlaku dan telah terdaftar</HelperText>}
+              {errors.nik ? <ErrorText>{String(errors.nik.message)}</ErrorText> : <HelperText>NIK yang diinput harus masih berlaku dan telah terdaftar</HelperText>}
             </div>
             <div>
               <FieldLabel htmlFor="sertifikatNik">Sertifikat NIK</FieldLabel>
@@ -246,7 +299,7 @@ export default function AjukanFasilitasiFormPage() {
                 id="sertifikatNik"
                 name="sertifikatNik"
                 accept=".pdf,application/pdf"
-                isError={!!errors.sertifikatFile}
+                isError={!!sertifikatError}
                 onChange={(e) => {
                   const f = (e.target as HTMLInputElement).files?.[0] ?? null;
                   if (f) {
@@ -256,46 +309,58 @@ export default function AjukanFasilitasiFormPage() {
                     });
                     if (validationMessage) {
                       setSertifikatFile(null);
-                      setErrors((p) => ({ ...p, sertifikatFile: validationMessage }));
+                      setSertifikatError(validationMessage);
                       e.currentTarget.value = "";
                       return;
                     }
                   }
                   setSertifikatFile(f);
-                  setErrors((p) => ({ ...p, sertifikatFile: "" }));
+                  setSertifikatError(null);
                 }}
               />
-              {errors.sertifikatFile ? <ErrorText>{errors.sertifikatFile}</ErrorText> : <HelperText>{lembaga?.sertifikat_nik ? "Biarkan kosong jika tidak mengganti sertifikat yang sudah terdaftar" : "Format file PDF dengan ukuran maksimal 10mb"}</HelperText>}
+              {sertifikatError ? <ErrorText>{sertifikatError}</ErrorText> : <HelperText>{lembaga?.sertifikat_nik ? "Biarkan kosong jika tidak mengganti sertifikat yang sudah terdaftar" : "Format file PDF dengan ukuran maksimal 10mb"}</HelperText>}
             </div>
 
             <div>
               <FieldLabel htmlFor="nikTanggalTerbit">Tanggal Terbit Sertifikat NIK</FieldLabel>
-              <DateInput
-                id="nikTanggalTerbit"
+              <Controller
                 name="nikTanggalTerbit"
-                value={nikTanggalTerbit}
-                isError={!!errors.nikTanggalTerbit}
-                onChange={(e) => {
-                  setNikTanggalTerbit(e.target.value);
-                  setErrors((p) => ({ ...p, nikTanggalTerbit: "", nikTanggalBerlakuSampai: "" }));
-                }}
+                control={control}
+                render={({ field }) => (
+                  <DateInput
+                    id="nikTanggalTerbit"
+                    name={field.name}
+                    value={field.value}
+                    isError={!!errors.nikTanggalTerbit}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      setSertifikatError(null);
+                    }}
+                  />
+                )}
               />
-              {errors.nikTanggalTerbit ? <ErrorText>{errors.nikTanggalTerbit}</ErrorText> : <HelperText>Isi sesuai tanggal terbit pada sertifikat</HelperText>}
+              {errors.nikTanggalTerbit ? <ErrorText>{String(errors.nikTanggalTerbit.message)}</ErrorText> : <HelperText>Isi sesuai tanggal terbit pada sertifikat</HelperText>}
             </div>
 
             <div>
               <FieldLabel htmlFor="nikTanggalBerlakuSampai">Tanggal Berlaku Sertifikat NIK</FieldLabel>
-              <DateInput
-                id="nikTanggalBerlakuSampai"
+              <Controller
                 name="nikTanggalBerlakuSampai"
-                value={nikTanggalBerlakuSampai}
-                isError={!!errors.nikTanggalBerlakuSampai}
-                onChange={(e) => {
-                  setNikTanggalBerlakuSampai(e.target.value);
-                  setErrors((p) => ({ ...p, nikTanggalBerlakuSampai: "" }));
-                }}
+                control={control}
+                render={({ field }) => (
+                  <DateInput
+                    id="nikTanggalBerlakuSampai"
+                    name={field.name}
+                    value={field.value}
+                    isError={!!errors.nikTanggalBerlakuSampai}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      setSertifikatError(null);
+                    }}
+                  />
+                )}
               />
-              {errors.nikTanggalBerlakuSampai ? <ErrorText>{errors.nikTanggalBerlakuSampai}</ErrorText> : <HelperText>Isi sesuai masa berlaku pada sertifikat</HelperText>}
+              {errors.nikTanggalBerlakuSampai ? <ErrorText>{String(errors.nikTanggalBerlakuSampai.message)}</ErrorText> : <HelperText>Isi sesuai masa berlaku pada sertifikat</HelperText>}
             </div>
           </div>
 
@@ -303,16 +368,25 @@ export default function AjukanFasilitasiFormPage() {
             <FieldLabel htmlFor="jenisPaketFasilitasi">
               {jenisId === 1 ? "Jenis Paket Fasilitasi Pentas" : "Jenis Paket Fasilitasi Hibah"}
             </FieldLabel>
-            <SelectField
-              id="jenisPaketFasilitasi"
-              name="jenisPaketFasilitasi"
-              placeholder="Pilih jenis fasilitasi"
-              options={paketList.length > 0 ? paketList.map((p) => p.nama_paket) : ["Pembinaan Sanggar", "Pentas Seni", "Workshop", "Festival Budaya"]}
-              value={selectedPaket}
-              isError={!!errors.selectedPaket}
-              onChange={(e) => { setSelectedPaket(e.target.value); setErrors((p) => ({ ...p, selectedPaket: "" })); }}
+            <Controller
+              name="selectedPaket"
+              control={control}
+              render={({ field }) => (
+                <SelectField
+                  id="jenisPaketFasilitasi"
+                  name={field.name}
+                  placeholder="Pilih jenis fasilitasi"
+                  options={paketList.length > 0 ? paketList.map((p) => p.nama_paket) : placeholderPaketOptions}
+                  value={field.value}
+                  isError={!!errors.selectedPaket}
+                  onChange={(e) => {
+                    field.onChange(e.target.value);
+                    setSertifikatError(null);
+                  }}
+                />
+              )}
             />
-            {errors.selectedPaket && <ErrorText>{errors.selectedPaket}</ErrorText>}
+            {errors.selectedPaket && <ErrorText>{String(errors.selectedPaket.message)}</ErrorText>}
             <HelperText>
               Setiap lembaga budaya hanya dapat mengajukan satu paket fasilitasi dalam satu tahun
             </HelperText>
@@ -321,7 +395,7 @@ export default function AjukanFasilitasiFormPage() {
 
         <FormActionBar>
           <SecondaryLinkButton href="/dashboard/ajukan-fasilitasi">Kembali</SecondaryLinkButton>
-          <PrimaryButton onClick={handleSave}>
+          <PrimaryButton onClick={() => void saveStep()}>
             Simpan Dan Lanjutkan
           </PrimaryButton>
         </FormActionBar>

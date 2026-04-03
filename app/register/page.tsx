@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { trim } from "lodash";
 import {
   AuthCard,
   AuthDivider,
@@ -12,110 +15,90 @@ import {
   AuthPageShell,
   AuthPasswordInput,
   AuthPrimaryButton,
+  AuthRedirectingState,
   GoogleButton,
 } from "@/app/components/auth/auth-ui";
 import { useAuth } from "@/app/lib/auth-context";
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^\d+$/;
-const PASSWORD_8_4_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+import { registerSchema, type RegisterFormValues } from "@/app/lib/form-schemas";
+import { useUiFormStore } from "@/app/lib/ui-form-store";
 
 export default function RegisterPage() {
   const { register, loginWithGoogle, isAuthenticated } = useAuth();
-
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [address, setAddress] = useState("");
-  const [email, setEmail] = useState("");
-  const [noTelp, setNoTelp] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { authError, setAuthError, clearAuthError } = useUiFormStore();
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
+  const {
+    register: registerField,
+    handleSubmit,
+    formState: { errors },
+    watch,
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      address: "",
+      email: "",
+      noTelp: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
 
-    if (!firstName.trim() || !lastName.trim()) {
-      setError("Nama depan dan nama belakang wajib diisi");
-      return;
-    }
+  const firstName = watch("firstName");
+  const lastName = watch("lastName");
+  const address = watch("address");
+  const email = watch("email");
+  const noTelp = watch("noTelp");
+  const password = watch("password");
+  const confirmPassword = watch("confirmPassword");
 
-    if (!address.trim()) {
-      setError("Alamat wajib diisi");
-      return;
-    }
+  useEffect(() => {
+    return () => clearAuthError();
+  }, [clearAuthError]);
 
-    if (!email.trim()) {
-      setError("Email wajib diisi");
-      return;
-    }
-
-    if (!EMAIL_REGEX.test(email.trim())) {
-      setError("Format email tidak valid");
-      return;
-    }
-
-    if (!noTelp.trim()) {
-      setError("Nomor telepon wajib diisi");
-      return;
-    }
-
-    if (!PHONE_REGEX.test(noTelp.trim())) {
-      setError("Nomor telepon hanya boleh berisi angka");
-      return;
-    }
-
-    if (password.length < 8) {
-      setError("Password minimal 8 karakter");
-      return;
-    }
-
-    if (!PASSWORD_8_4_REGEX.test(password)) {
-      setError("Password harus mengandung huruf kecil, huruf besar, angka, dan karakter khusus");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("Password dan konfirmasi password tidak cocok");
-      return;
-    }
+  const onSubmit = handleSubmit(async (values) => {
+    clearAuthError();
 
     setLoading(true);
     try {
       await register({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        address: address.trim(),
-        email: email.trim(),
-        no_telp: noTelp.trim(),
-        password,
-        confirm_password: confirmPassword,
+        first_name: trim(values.firstName),
+        last_name: trim(values.lastName),
+        address: trim(values.address),
+        email: trim(values.email),
+        no_telp: trim(values.noTelp),
+        password: values.password,
+        confirm_password: values.confirmPassword,
       });
     } catch (err: unknown) {
       const apiErr = err as { message?: string | string[]; statusCode?: number };
       if (Array.isArray(apiErr.message)) {
-        setError(apiErr.message.join(". "));
+        setAuthError(apiErr.message.join(". "));
       } else {
-        setError(apiErr.message ?? "Registrasi gagal. Silakan coba lagi.");
+        setAuthError(apiErr.message ?? "Registrasi gagal. Silakan coba lagi.");
       }
     } finally {
       setLoading(false);
     }
-  }
+  });
+
+  const combinedError =
+    authError ??
+    errors.firstName?.message ??
+    errors.lastName?.message ??
+    errors.address?.message ??
+    errors.email?.message ??
+    errors.noTelp?.message ??
+    errors.password?.message ??
+    errors.confirmPassword?.message ??
+    null;
 
   if (isAuthenticated) {
     return (
       <AuthPageShell>
         <AuthCard>
-          <div className="flex items-center justify-center py-8">
-            <svg className="h-6 w-6 animate-spin text-[#c23513]" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <span className="ml-2 text-[15px] text-[rgba(38,43,67,0.7)]">Mengalihkan...</span>
-          </div>
+          <AuthRedirectingState />
         </AuthCard>
       </AuthPageShell>
     );
@@ -132,23 +115,31 @@ export default function RegisterPage() {
           titleClassName="font-semibold"
         />
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          <AuthErrorAlert message={error} />
+        <form onSubmit={onSubmit} className="mt-5 space-y-4">
+          <AuthErrorAlert message={combinedError} />
 
           <div className="grid grid-cols-2 gap-3">
             <AuthInput
               type="text"
               placeholder="Nama Depan"
+              {...registerField("firstName")}
               value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
+              onChange={(e) => {
+                clearAuthError();
+                registerField("firstName").onChange(e);
+              }}
               autoComplete="given-name"
               required
             />
             <AuthInput
               type="text"
               placeholder="Nama Belakang"
+              {...registerField("lastName")}
               value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
+              onChange={(e) => {
+                clearAuthError();
+                registerField("lastName").onChange(e);
+              }}
               autoComplete="family-name"
               required
             />
@@ -157,8 +148,12 @@ export default function RegisterPage() {
           <AuthInput
             type="text"
             placeholder="Alamat Lengkap"
+            {...registerField("address")}
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={(e) => {
+              clearAuthError();
+              registerField("address").onChange(e);
+            }}
             autoComplete="street-address"
             required
           />
@@ -166,8 +161,12 @@ export default function RegisterPage() {
           <AuthInput
             type="email"
             placeholder="Email"
+            {...registerField("email")}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              clearAuthError();
+              registerField("email").onChange(e);
+            }}
             autoComplete="email"
             required
           />
@@ -175,8 +174,12 @@ export default function RegisterPage() {
           <AuthInput
             type="tel"
             placeholder="Nomor Telepon"
+            {...registerField("noTelp")}
             value={noTelp}
-            onChange={(e) => setNoTelp(e.target.value)}
+            onChange={(e) => {
+              clearAuthError();
+              registerField("noTelp").onChange(e);
+            }}
             autoComplete="tel"
             inputMode="numeric"
             pattern="[0-9]+"
@@ -185,16 +188,24 @@ export default function RegisterPage() {
 
           <AuthPasswordInput
             placeholder="Password (Aturan 8-4)"
+            {...registerField("password")}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              clearAuthError();
+              registerField("password").onChange(e);
+            }}
             autoComplete="new-password"
             required
           />
 
           <AuthPasswordInput
             placeholder="Konfirmasi password"
+            {...registerField("confirmPassword")}
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={(e) => {
+              clearAuthError();
+              registerField("confirmPassword").onChange(e);
+            }}
             autoComplete="new-password"
             required
           />

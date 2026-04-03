@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { get, trim } from "lodash";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
 import {
   FormActionBar,
   PrimaryButton,
@@ -22,7 +26,7 @@ import {
   FormStepper,
   type FormStep,
 } from "@/app/dashboard/components/forms/stepper";
-import { pengajuanApi, lembagaApi } from "@/app/lib/api";
+import { pengajuanApi, lembagaApi, fasilitasiApi } from "@/app/lib/api";
 import {
   pdfUploadValidation,
   validateUploadFile,
@@ -38,6 +42,62 @@ import type {
 import bankList from "@/list_banks.json";
 
 const FORM_STORAGE_KEY = "pengajuan_form_data";
+
+const stepThreeBaseSchema = z.object({
+  nomorHp: z
+    .string()
+    .trim(),
+  email: z.string().trim(),
+  namaBank: z.string().trim(),
+  nomorRekening: z.string().trim(),
+  namaPemegangRekening: z.string().trim(),
+  totalDana: z.string(),
+  alamatLembaga: z.string().trim(),
+});
+
+function createStepThreeSchema(jenisId: number) {
+  return stepThreeBaseSchema.superRefine((data, ctx) => {
+    if (jenisId !== 1) {
+      return;
+    }
+
+    if (!data.nomorHp.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["nomorHp"], message: "Nomor HP wajib diisi" });
+    } else if (!/^[0-9+\-\s]{8,15}$/.test(data.nomorHp.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["nomorHp"], message: "Format nomor HP tidak valid" });
+    }
+
+    if (!data.email.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Email wajib diisi" });
+    } else if (!z.string().email().safeParse(data.email.trim()).success) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["email"], message: "Format email tidak valid" });
+    }
+
+    if (!data.namaBank.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["namaBank"], message: "Nama bank wajib diisi" });
+    }
+
+    if (!data.nomorRekening.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["nomorRekening"], message: "Nomor rekening wajib diisi" });
+    } else if (!/^\d{8,30}$/.test(data.nomorRekening.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["nomorRekening"], message: "Format nomor rekening tidak valid" });
+    }
+
+    if (!data.namaPemegangRekening.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["namaPemegangRekening"], message: "Nama pemegang rekening wajib diisi" });
+    }
+
+    if (!data.totalDana.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["totalDana"], message: "Total dana harus lebih dari 0" });
+    } else if (Number(data.totalDana) <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["totalDana"], message: "Total dana harus lebih dari 0" });
+    }
+
+    if (!data.alamatLembaga.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["alamatLembaga"], message: "Alamat lembaga wajib diisi" });
+    }
+  });
+}
 
 const stepThreeProgress: FormStep[] = [
   {
@@ -60,23 +120,47 @@ const stepThreeProgress: FormStep[] = [
   },
 ];
 
+type StepThreeFormValues = {
+  nomorHp: string;
+  email: string;
+  namaBank: string;
+  nomorRekening: string;
+  namaPemegangRekening: string;
+  totalDana: string;
+  alamatLembaga: string;
+};
+
 export default function AjukanFasilitasiFormStep3Page() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const jenisId = Number(searchParams.get("jenis") ?? "1");
+  const stepThreeSchema = useMemo(() => createStepThreeSchema(jenisId), [jenisId]);
 
-  const [nomorHp, setNomorHp] = useState("");
-  const [email, setEmail] = useState("");
-  const [namaBank, setNamaBank] = useState("");
-  const [nomorRekening, setNomorRekening] = useState("");
-  const [namaPemegangRekening, setNamaPemegangRekening] = useState("");
-  const [totalDana, setTotalDana] = useState("");
   const [proposalFile, setProposalFile] = useState<File | null>(null);
-  const [alamatLembaga, setAlamatLembaga] = useState("");
+  const [templateProposalUrl, setTemplateProposalUrl] = useState<string | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const {
+    control,
+    handleSubmit: handleRHFSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<StepThreeFormValues>({
+    resolver: zodResolver(stepThreeSchema),
+    defaultValues: {
+      nomorHp: "",
+      email: "",
+      namaBank: "",
+      nomorRekening: "",
+      namaPemegangRekening: "",
+      totalDana: "",
+      alamatLembaga: "",
+    },
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+  });
 
   const bankOptions = useMemo(
     () =>
@@ -90,56 +174,88 @@ export default function AjukanFasilitasiFormStep3Page() {
     [],
   );
 
-  function validate() {
-    const newErrors: Record<string, string> = {};
+  function buildUploadUrl(path: string): string {
+    if (/^https?:\/\//i.test(path)) return path;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ?? "http://localhost:3000";
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    return `${baseUrl}${normalizedPath}`;
+  }
+
+  function validate(values: StepThreeFormValues) {
     if (jenisId === 1) {
-      if (!nomorHp.trim()) newErrors.nomorHp = "Nomor HP wajib diisi";
-      else if (!/^[0-9+\-\s]{8,15}$/.test(nomorHp.trim()))
-        newErrors.nomorHp = "Format nomor HP tidak valid";
-      if (!email.trim()) newErrors.email = "Email wajib diisi";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
-        newErrors.email = "Format email tidak valid";
-      if (!namaBank.trim()) newErrors.namaBank = "Nama bank wajib diisi";
-      if (!nomorRekening.trim())
-        newErrors.nomorRekening = "Nomor rekening wajib diisi";
-      else if (!/^\d{8,30}$/.test(nomorRekening.trim()))
-        newErrors.nomorRekening = "Format nomor rekening tidak valid";
-      if (!totalDana || Number(totalDana) <= 0)
-        newErrors.totalDana = "Total dana harus lebih dari 0";
-      if (!namaPemegangRekening.trim())
-        newErrors.namaPemegangRekening = "Nama pemegang rekening wajib diisi";
-      if (!alamatLembaga.trim())
-        newErrors.alamatLembaga = "Alamat lembaga wajib diisi";
-    }
-    if (!proposalFile) newErrors.proposalFile = "File proposal wajib diunggah";
-    else {
-      const proposalError = validateUploadFile(proposalFile, {
-        ...pdfUploadValidation,
-        label: "Proposal",
+      const parsed = stepThreeSchema.safeParse({
+        nomorHp: values.nomorHp,
+        email: values.email,
+        namaBank: values.namaBank,
+        nomorRekening: values.nomorRekening,
+        namaPemegangRekening: values.namaPemegangRekening,
+        totalDana: values.totalDana,
+        alamatLembaga: values.alamatLembaga,
       });
-      if (proposalError) newErrors.proposalFile = proposalError;
+
+      if (!parsed.success) {
+        setSubmitError(parsed.error.issues[0]?.message ?? "Data administrasi belum valid");
+        return false;
+      }
     }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    if (!proposalFile) {
+      setSubmitError("File proposal wajib diunggah");
+      return false;
+    }
+
+    const proposalError = validateUploadFile(proposalFile, {
+      ...pdfUploadValidation,
+      label: "Proposal",
+    });
+
+    if (proposalError) {
+      setSubmitError(proposalError);
+      return false;
+    }
+
+    return true;
   }
 
   useEffect(() => {
     const saved = localStorage.getItem(FORM_STORAGE_KEY);
-    if (saved) {
-      const data = JSON.parse(saved);
-      if (data.nomorHp) setNomorHp(data.nomorHp);
-      if (data.email) setEmail(data.email);
-      if (data.namaBank) setNamaBank(data.namaBank);
-      if (data.nomorRekening) setNomorRekening(data.nomorRekening);
-      if (data.namaPemegangRekening)
-        setNamaPemegangRekening(data.namaPemegangRekening);
-      if (data.totalDana) setTotalDana(data.totalDana);
-      if (data.alamatLembaga) setAlamatLembaga(data.alamatLembaga);
+      if (saved) {
+        const data = JSON.parse(saved);
+      const defaults = {
+        nomorHp: String(get(data, "nomorHp", "")),
+        email: String(get(data, "email", "")),
+        namaBank: String(get(data, "namaBank", "")),
+        nomorRekening: String(get(data, "nomorRekening", "")),
+        namaPemegangRekening: String(get(data, "namaPemegangRekening", "")),
+        totalDana: String(get(data, "totalDana", "")),
+        alamatLembaga: String(get(data, "alamatLembaga", "")),
+      };
+      reset(defaults);
     }
-  }, []);
+  }, [reset]);
 
-  async function handleSubmit() {
-    if (!validate()) return;
+  useEffect(() => {
+    let mounted = true;
+
+    fasilitasiApi
+      .getAll()
+      .then((list) => {
+        if (!mounted) return;
+        const currentJenis = list.find((j) => j.jenis_fasilitasi_id === jenisId);
+        setTemplateProposalUrl(currentJenis?.template_proposal_file ?? null);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setTemplateProposalUrl(null);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [jenisId]);
+
+  const onSubmit = handleRHFSubmit(async (values) => {
+    if (!validate(values)) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -148,11 +264,11 @@ export default function AjukanFasilitasiFormStep3Page() {
       const saved = localStorage.getItem(FORM_STORAGE_KEY);
       const formData = saved ? JSON.parse(saved) : {};
       const lembagaPayload = {
-        nama_lembaga: formData.namaLembaga || "",
-        jenis_kesenian: formData.jenisKesenian || "",
-        alamat: jenisId === 1 ? alamatLembaga : formData.alamatLengkap || "",
-        no_hp: jenisId === 1 ? nomorHp : formData.nomorHp || "",
-        email: jenisId === 1 ? email : formData.email || "",
+        nama_lembaga: get(formData, "namaLembaga", ""),
+        jenis_kesenian: get(formData, "jenisKesenian", ""),
+        alamat: jenisId === 1 ? values.alamatLembaga : get(formData, "alamatLengkap", ""),
+        no_hp: jenisId === 1 ? values.nomorHp : get(formData, "nomorHp", ""),
+        email: jenisId === 1 ? values.email : get(formData, "email", ""),
       };
       const pendingSertifikatNikFile = getPendingSertifikatNikFile();
 
@@ -176,13 +292,13 @@ export default function AjukanFasilitasiFormStep3Page() {
       }
 
       if (pendingSertifikatNikFile) {
-        if (!formData.nik?.trim()) {
+        if (!trim(get(formData, "nik", ""))) {
           throw {
             message:
               "Nomor NIK belum lengkap. Kembali ke langkah identitas lembaga.",
           };
         }
-        if (!formData.nikTanggalTerbit || !formData.nikTanggalBerlakuSampai) {
+        if (!get(formData, "nikTanggalTerbit") || !get(formData, "nikTanggalBerlakuSampai")) {
           throw {
             message:
               "Tanggal sertifikat NIK belum lengkap. Kembali ke langkah identitas lembaga.",
@@ -191,9 +307,9 @@ export default function AjukanFasilitasiFormStep3Page() {
 
         await lembagaApi.uploadSertifikatNik(
           {
-            nomor_nik: formData.nik,
-            tanggal_terbit: formData.nikTanggalTerbit,
-            tanggal_berlaku_sampai: formData.nikTanggalBerlakuSampai,
+            nomor_nik: get(formData, "nik", ""),
+            tanggal_terbit: get(formData, "nikTanggalTerbit", ""),
+            tanggal_berlaku_sampai: get(formData, "nikTanggalBerlakuSampai", ""),
           },
           pendingSertifikatNikFile,
         );
@@ -208,7 +324,7 @@ export default function AjukanFasilitasiFormStep3Page() {
         FORM_STORAGE_KEY,
         JSON.stringify({
           ...formData,
-          namaBank: jenisId === 1 ? namaBank : formData.namaBank,
+          namaBank: jenisId === 1 ? values.namaBank : get(formData, "namaBank"),
         }),
       );
 
@@ -221,11 +337,11 @@ export default function AjukanFasilitasiFormStep3Page() {
           lokasi_kegiatan: formData.alamatLokasi || "",
           tanggal_mulai: formData.tanggalMulai || "",
           tanggal_selesai: formData.tanggalSelesai || "",
-          total_pengajuan_dana: Number(totalDana) || 0,
-          nama_bank: namaBank,
-          nomor_rekening: nomorRekening,
-          nama_pemegang_rekening: namaPemegangRekening,
-          alamat_lembaga: alamatLembaga,
+          total_pengajuan_dana: Number(values.totalDana) || 0,
+          nama_bank: values.namaBank,
+          nomor_rekening: values.nomorRekening,
+          nama_pemegang_rekening: values.namaPemegangRekening,
+          alamat_lembaga: values.alamatLembaga,
         };
         await pengajuanApi.submitPentas(dto, proposalFile!);
       } else {
@@ -263,11 +379,11 @@ export default function AjukanFasilitasiFormStep3Page() {
     } finally {
       setSubmitting(false);
     }
-  }
+  });
 
   return (
-    <section className="h-full overflow-y-auto px-4 pb-10 pt-8 sm:px-6 lg:pt-[84px]">
-      <div className="mx-auto w-full max-w-[920px]">
+    <section className="h-full overflow-y-auto px-4 pb-10 pt-8 sm:px-6 lg:pt-21">
+      <div className="mx-auto w-full max-w-230">
         <FormPageHeader
           title={
             jenisId === 1
@@ -293,7 +409,7 @@ export default function AjukanFasilitasiFormStep3Page() {
           className="mt-6 rounded-[10px] bg-white px-7 pb-8 pt-11"
           onSubmit={(e) => {
             e.preventDefault();
-            handleSubmit();
+            void onSubmit();
           }}
         >
           {jenisId === 1 && (
@@ -301,92 +417,118 @@ export default function AjukanFasilitasiFormStep3Page() {
               <div className="grid gap-x-5 gap-y-6 md:grid-cols-2">
                 <div>
                   <FieldLabel htmlFor="nomorHp">Nomor Hp.</FieldLabel>
-                  <TextInput
-                    id="nomorHp"
+                  <Controller
                     name="nomorHp"
-                    type="tel"
-                    placeholder="Masukan nomor Hp."
-                    value={nomorHp}
-                    isError={!!errors.nomorHp}
-                    onChange={(e) => {
-                      setNomorHp(e.target.value);
-                      setErrors((p) => ({ ...p, nomorHp: "" }));
-                    }}
+                    control={control}
+                    render={({ field }) => (
+                      <TextInput
+                        id="nomorHp"
+                        name={field.name}
+                        type="tel"
+                        placeholder="Masukan nomor Hp."
+                        value={field.value}
+                        isError={!!errors.nomorHp}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                          setSubmitError(null);
+                        }}
+                      />
+                    )}
                   />
-                  {errors.nomorHp && <ErrorText>{errors.nomorHp}</ErrorText>}
+                  {errors.nomorHp && <ErrorText>{String(errors.nomorHp.message)}</ErrorText>}
                 </div>
                 <div>
                   <FieldLabel htmlFor="email">Email</FieldLabel>
-                  <TextInput
-                    id="email"
+                  <Controller
                     name="email"
-                    type="email"
-                    placeholder="Masukan email"
-                    value={email}
-                    isError={!!errors.email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setErrors((p) => ({ ...p, email: "" }));
-                    }}
+                    control={control}
+                    render={({ field }) => (
+                      <TextInput
+                        id="email"
+                        name={field.name}
+                        type="email"
+                        placeholder="Masukan email"
+                        value={field.value}
+                        isError={!!errors.email}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                          setSubmitError(null);
+                        }}
+                      />
+                    )}
                   />
-                  {errors.email && <ErrorText>{errors.email}</ErrorText>}
+                  {errors.email && <ErrorText>{String(errors.email.message)}</ErrorText>}
                 </div>
                 <div>
                   <FieldLabel htmlFor="namaBank">Nama Bank</FieldLabel>
-                  <SearchableBankSelectField
-                    id="namaBank"
+                  <Controller
                     name="namaBank"
-                    banks={bankOptions}
-                    value={namaBank}
-                    isError={!!errors.namaBank}
-                    searchPlaceholder="Cari nama bank"
-                    selectPlaceholder="Pilih bank"
-                    onValueChange={(value) => {
-                      setNamaBank(value);
-                      setErrors((p) => ({ ...p, namaBank: "" }));
-                    }}
+                    control={control}
+                    render={({ field }) => (
+                      <SearchableBankSelectField
+                        id="namaBank"
+                        name={field.name}
+                        banks={bankOptions}
+                        value={field.value}
+                        isError={!!errors.namaBank}
+                        searchPlaceholder="Cari nama bank"
+                        selectPlaceholder="Pilih bank"
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSubmitError(null);
+                        }}
+                      />
+                    )}
                   />
-                  {errors.namaBank && <ErrorText>{errors.namaBank}</ErrorText>}
+                  {errors.namaBank && <ErrorText>{String(errors.namaBank.message)}</ErrorText>}
                 </div>
                 <div>
                   <FieldLabel htmlFor="nomorRekening">
                     Nomor Rekening
                   </FieldLabel>
-                  <TextInput
-                    id="nomorRekening"
+                  <Controller
                     name="nomorRekening"
-                    type="text"
-                    placeholder="Masukan nomor rekening"
-                    value={nomorRekening}
-                    isError={!!errors.nomorRekening}
-                    onChange={(e) => {
-                      setNomorRekening(e.target.value);
-                      setErrors((p) => ({ ...p, nomorRekening: "" }));
-                    }}
+                    control={control}
+                    render={({ field }) => (
+                      <TextInput
+                        id="nomorRekening"
+                        name={field.name}
+                        type="text"
+                        placeholder="Masukan nomor rekening"
+                        value={field.value}
+                        isError={!!errors.nomorRekening}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                          setSubmitError(null);
+                        }}
+                      />
+                    )}
                   />
-                  {errors.nomorRekening && (
-                    <ErrorText>{errors.nomorRekening}</ErrorText>
-                  )}
+                  {errors.nomorRekening && <ErrorText>{String(errors.nomorRekening.message)}</ErrorText>}
                 </div>
                 <div>
                   <FieldLabel htmlFor="namaPemegangRekening">
                     Nama Pemegang Rekening
                   </FieldLabel>
-                  <TextInput
-                    id="namaPemegangRekening"
+                  <Controller
                     name="namaPemegangRekening"
-                    type="text"
-                    placeholder="Masukan nama pemegang rekening"
-                    value={namaPemegangRekening}
-                    isError={!!errors.namaPemegangRekening}
-                    onChange={(e) => {
-                      setNamaPemegangRekening(e.target.value);
-                      setErrors((p) => ({ ...p, namaPemegangRekening: "" }));
-                    }}
+                    control={control}
+                    render={({ field }) => (
+                      <TextInput
+                        id="namaPemegangRekening"
+                        name={field.name}
+                        type="text"
+                        placeholder="Masukan nama pemegang rekening"
+                        value={field.value}
+                        isError={!!errors.namaPemegangRekening}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                          setSubmitError(null);
+                        }}
+                      />
+                    )}
                   />
-                  {errors.namaPemegangRekening && (
-                    <ErrorText>{errors.namaPemegangRekening}</ErrorText>
-                  )}
+                  {errors.namaPemegangRekening && <ErrorText>{String(errors.namaPemegangRekening.message)}</ErrorText>}
                 </div>
               </div>
 
@@ -394,20 +536,26 @@ export default function AjukanFasilitasiFormStep3Page() {
                 <FieldLabel htmlFor="totalDanaDiajukan">
                   Total Dana yang Diajukan
                 </FieldLabel>
-                <TextInput
-                  id="totalDanaDiajukan"
-                  name="totalDanaDiajukan"
-                  type="number"
-                  placeholder="Rp. xx.xxx.xxx"
-                  italicPlaceholder
-                  value={totalDana}
-                  isError={!!errors.totalDana}
-                  onChange={(e) => {
-                    setTotalDana(e.target.value);
-                    setErrors((p) => ({ ...p, totalDana: "" }));
-                  }}
+                <Controller
+                  name="totalDana"
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="totalDanaDiajukan"
+                      name={field.name}
+                      type="number"
+                      placeholder="Rp. xx.xxx.xxx"
+                      italicPlaceholder
+                      value={field.value}
+                      isError={!!errors.totalDana}
+                      onChange={(e) => {
+                        field.onChange(e.target.value);
+                        setSubmitError(null);
+                      }}
+                    />
+                  )}
                 />
-                {errors.totalDana && <ErrorText>{errors.totalDana}</ErrorText>}
+                {errors.totalDana && <ErrorText>{String(errors.totalDana.message)}</ErrorText>}
               </div>
             </>
           )}
@@ -415,7 +563,20 @@ export default function AjukanFasilitasiFormStep3Page() {
           <div className="mt-6 grid gap-x-5 gap-y-6 md:grid-cols-2">
             <div>
               <FieldLabel htmlFor="contohProposal">Contoh Proposal</FieldLabel>
-              <SamplePdfChip filename="Contoh Proposal.pdf" />
+              {templateProposalUrl ? (
+                <a
+                  href={buildUploadUrl(templateProposalUrl)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex"
+                >
+                  <SamplePdfChip
+                    filename={templateProposalUrl.split("/").pop() ?? "Contoh Proposal.pdf"}
+                  />
+                </a>
+              ) : (
+                <SamplePdfChip filename="Contoh Proposal.pdf" />
+              )}
             </div>
             <div>
               <FieldLabel htmlFor="proposal">Proposal</FieldLabel>
@@ -423,7 +584,7 @@ export default function AjukanFasilitasiFormStep3Page() {
                 id="proposal"
                 name="proposal"
                 accept=".pdf,application/pdf"
-                isError={!!errors.proposalFile}
+                isError={submitError?.toLowerCase().includes("proposal")}
                 onChange={(e) => {
                   const f = (e.target as HTMLInputElement).files?.[0] ?? null;
                   if (f) {
@@ -433,20 +594,17 @@ export default function AjukanFasilitasiFormStep3Page() {
                     });
                     if (validationMessage) {
                       setProposalFile(null);
-                      setErrors((p) => ({
-                        ...p,
-                        proposalFile: validationMessage,
-                      }));
+                      setSubmitError(validationMessage);
                       e.currentTarget.value = "";
                       return;
                     }
                   }
                   setProposalFile(f);
-                  setErrors((p) => ({ ...p, proposalFile: "" }));
+                  setSubmitError(null);
                 }}
               />
-              {errors.proposalFile ? (
-                <ErrorText>{errors.proposalFile}</ErrorText>
+              {submitError?.toLowerCase().includes("proposal") ? (
+                <ErrorText>{submitError}</ErrorText>
               ) : (
                 <HelperText>
                   Format file PDF dengan ukuran maksimal 10mb
@@ -458,21 +616,25 @@ export default function AjukanFasilitasiFormStep3Page() {
           {jenisId === 1 && (
             <div className="mt-6">
               <FieldLabel htmlFor="alamatLembaga">Alamat Lembaga</FieldLabel>
-              <TextAreaField
-                id="alamatLembaga"
+              <Controller
                 name="alamatLembaga"
-                placeholder="Masukan alamat lembaga"
-                className="h-[68px]"
-                value={alamatLembaga}
-                isError={!!errors.alamatLembaga}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
-                  setAlamatLembaga(e.target.value);
-                  setErrors((p) => ({ ...p, alamatLembaga: "" }));
-                }}
+                control={control}
+                render={({ field }) => (
+                  <TextAreaField
+                    id="alamatLembaga"
+                    name={field.name}
+                    placeholder="Masukan alamat lembaga"
+                    className="h-17"
+                    value={field.value}
+                    isError={!!errors.alamatLembaga}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      setSubmitError(null);
+                    }}
+                  />
+                )}
               />
-              {errors.alamatLembaga && (
-                <ErrorText>{errors.alamatLembaga}</ErrorText>
-              )}
+              {errors.alamatLembaga && <ErrorText>{String(errors.alamatLembaga.message)}</ErrorText>}
             </div>
           )}
         </form>
@@ -483,7 +645,7 @@ export default function AjukanFasilitasiFormStep3Page() {
           >
             Kembali
           </SecondaryLinkButton>
-          <PrimaryButton onClick={handleSubmit} disabled={submitting}>
+          <PrimaryButton onClick={() => void onSubmit()} disabled={submitting}>
             {submitting ? "Mengirim..." : "Kirim Pengajuan"}
           </PrimaryButton>
         </FormActionBar>

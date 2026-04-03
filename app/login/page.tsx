@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { trim } from "lodash";
 import {
   AuthCard,
   AuthDivider,
@@ -12,56 +15,62 @@ import {
   AuthPageShell,
   AuthPasswordInput,
   AuthPrimaryButton,
+  AuthRedirectingState,
   GoogleButton,
 } from "@/app/components/auth/auth-ui";
 import { useAuth } from "@/app/lib/auth-context";
+import { loginSchema, type LoginFormValues } from "@/app/lib/form-schemas";
+import { useUiFormStore } from "@/app/lib/ui-form-store";
 
 export default function LoginPage() {
   const { login, loginWithGoogle, isAuthenticated } = useAuth();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { authError, setAuthError, clearAuthError } = useUiFormStore();
 
-  // Jika sudah login, redirect (optional guard)
-  // useEffect di auth-context sudah handle ini
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch,
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
+  const emailValue = watch("email");
+  const passwordValue = watch("password");
 
-    if (!email.trim() || !password.trim()) {
-      setError("Email dan password wajib diisi");
-      return;
-    }
+  useEffect(() => {
+    return () => clearAuthError();
+  }, [clearAuthError]);
 
+  const onSubmit = handleSubmit(async (values) => {
+    clearAuthError();
     setLoading(true);
     try {
-      await login({ email: email.trim(), password });
+      await login({ email: trim(values.email), password: values.password });
     } catch (err: unknown) {
       const apiErr = err as { message?: string | string[]; statusCode?: number };
       if (Array.isArray(apiErr.message)) {
-        setError(apiErr.message.join(". "));
+        setAuthError(apiErr.message.join(". "));
       } else {
-        setError(apiErr.message ?? "Login gagal. Silakan coba lagi.");
+        setAuthError(apiErr.message ?? "Login gagal. Silakan coba lagi.");
       }
     } finally {
       setLoading(false);
     }
-  }
+  });
+
+  const combinedError = authError ?? errors.email?.message ?? errors.password?.message ?? null;
 
   if (isAuthenticated) {
     return (
       <AuthPageShell>
         <AuthCard>
-          <div className="flex items-center justify-center py-8">
-            <svg className="h-6 w-6 animate-spin text-[#c23513]" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <span className="ml-2 text-[15px] text-[rgba(38,43,67,0.7)]">Mengalihkan...</span>
-          </div>
+          <AuthRedirectingState />
         </AuthCard>
       </AuthPageShell>
     );
@@ -77,22 +86,30 @@ export default function LoginPage() {
           description="Masuk ke akun terdaftar untuk melanjutkan pengajuan"
         />
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          <AuthErrorAlert message={error} />
+        <form onSubmit={onSubmit} className="mt-5 space-y-4">
+          <AuthErrorAlert message={combinedError} />
 
           <AuthInput
             type="email"
             placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            {...register("email")}
+            value={emailValue}
+            onChange={(e) => {
+              clearAuthError();
+              register("email").onChange(e);
+            }}
             autoComplete="email"
             required
           />
 
           <AuthPasswordInput
             placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            {...register("password")}
+            value={passwordValue}
+            onChange={(e) => {
+              clearAuthError();
+              register("password").onChange(e);
+            }}
             autoComplete="current-password"
             required
           />

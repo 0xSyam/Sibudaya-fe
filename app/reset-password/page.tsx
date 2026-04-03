@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { trim } from "lodash";
 import {
   ArrowLeftIcon,
   AuthCard,
@@ -15,6 +18,12 @@ import {
   AuthSuccessAlert,
 } from "@/app/components/auth/auth-ui";
 import { authApi, isApiAuthEnabled } from "@/app/lib/api";
+import {
+  requestResetSchema,
+  resetPasswordSchema,
+  type RequestResetFormValues,
+  type ResetPasswordFormValues,
+} from "@/app/lib/form-schemas";
 
 type Step = "request" | "reset";
 
@@ -22,12 +31,32 @@ export default function ResetPasswordPage() {
   const [step, setStep] = useState<Step>("request");
 
   // Step 1 — request reset token
-  const [email, setEmail] = useState("");
   const [resetToken, setResetToken] = useState("");
 
-  // Step 2 — set new password
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const {
+    register: requestRegister,
+    handleSubmit: handleRequestSubmit,
+    formState: { errors: requestErrors },
+    watch: watchRequest,
+  } = useForm<RequestResetFormValues>({
+    resolver: zodResolver(requestResetSchema),
+    defaultValues: { email: "" },
+  });
+
+  const {
+    register: resetRegister,
+    handleSubmit: handleResetSubmit,
+    formState: { errors: resetErrors },
+    watch: watchReset,
+    reset: resetForm,
+  } = useForm<ResetPasswordFormValues>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: { newPassword: "", confirmPassword: "" },
+  });
+
+  const email = watchRequest("email");
+  const newPassword = watchReset("newPassword");
+  const confirmPassword = watchReset("confirmPassword");
 
   // Shared
   const [error, setError] = useState<string | null>(null);
@@ -36,15 +65,9 @@ export default function ResetPasswordPage() {
 
   // ─── Step 1: Request reset token ─────────────────────────────────────────
 
-  async function handleRequestReset(e: FormEvent) {
-    e.preventDefault();
+  const onRequestReset = handleRequestSubmit(async (values) => {
     setError(null);
     setSuccess(null);
-
-    if (!email.trim()) {
-      setError("Email wajib diisi");
-      return;
-    }
 
     setLoading(true);
     try {
@@ -55,7 +78,7 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      const data = await authApi.forgotPassword({ email: email.trim() });
+      const data = await authApi.forgotPassword({ email: trim(values.email) });
       setResetToken(data.reset_token);
       setSuccess("Token reset password berhasil dibuat. Silakan masukkan password baru.");
       setStep("reset");
@@ -82,42 +105,28 @@ export default function ResetPasswordPage() {
     } finally {
       setLoading(false);
     }
-  }
+  });
 
   // ─── Step 2: Reset password ──────────────────────────────────────────────
 
-  async function handleResetPassword(e: FormEvent) {
-    e.preventDefault();
+  const onResetPassword = handleResetSubmit(async (values) => {
     setError(null);
     setSuccess(null);
-
-    if (newPassword.length < 8) {
-      setError("Password minimal 8 karakter");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError("Password dan konfirmasi password tidak cocok");
-      return;
-    }
 
     setLoading(true);
     try {
       if (!isApiAuthEnabled()) {
         setSuccess("Password lokal berhasil diperbarui. Silakan login kembali.");
-        setNewPassword("");
-        setConfirmPassword("");
+        resetForm({ newPassword: "", confirmPassword: "" });
         return;
       }
 
       const data = await authApi.resetPassword({
         token: resetToken,
-        new_password: newPassword,
+        new_password: values.newPassword,
       });
       setSuccess(data.message + " Silakan login dengan password baru.");
-      // Reset fields
-      setNewPassword("");
-      setConfirmPassword("");
+      resetForm({ newPassword: "", confirmPassword: "" });
     } catch (err: unknown) {
       const apiErr = err as { message?: string | string[]; statusCode?: number };
       if (Array.isArray(apiErr.message)) {
@@ -128,7 +137,10 @@ export default function ResetPasswordPage() {
     } finally {
       setLoading(false);
     }
-  }
+  });
+
+  const requestErrorMessage = error ?? requestErrors.email?.message ?? null;
+  const resetErrorMessage = error ?? resetErrors.newPassword?.message ?? resetErrors.confirmPassword?.message ?? null;
 
   return (
     <AuthPageShell>
@@ -143,15 +155,16 @@ export default function ResetPasswordPage() {
               descriptionClassName="mx-auto max-w-[320px] text-[16px] font-normal leading-6 text-[rgba(38,43,67,0.7)]"
             />
 
-            <form onSubmit={handleRequestReset} className="mt-5 space-y-4">
-              <AuthErrorAlert message={error} />
+            <form onSubmit={onRequestReset} className="mt-5 space-y-4">
+              <AuthErrorAlert message={requestErrorMessage} />
               <AuthSuccessAlert message={success} />
 
               <AuthInput
                 type="email"
                 placeholder="Email"
+                {...requestRegister("email")}
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => requestRegister("email").onChange(e)}
                 autoComplete="email"
                 required
               />
@@ -169,22 +182,24 @@ export default function ResetPasswordPage() {
               descriptionClassName="mx-auto max-w-[320px] text-[16px] font-normal leading-6 text-[rgba(38,43,67,0.7)]"
             />
 
-            <form onSubmit={handleResetPassword} className="mt-5 space-y-4">
-              <AuthErrorAlert message={error} />
+            <form onSubmit={onResetPassword} className="mt-5 space-y-4">
+              <AuthErrorAlert message={resetErrorMessage} />
               <AuthSuccessAlert message={success} />
 
               <AuthPasswordInput
                 placeholder="Password baru (min. 8 karakter)"
+                {...resetRegister("newPassword")}
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                onChange={(e) => resetRegister("newPassword").onChange(e)}
                 autoComplete="new-password"
                 required
               />
 
               <AuthPasswordInput
                 placeholder="Konfirmasi password"
+                {...resetRegister("confirmPassword")}
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => resetRegister("confirmPassword").onChange(e)}
                 autoComplete="new-password"
                 required
               />
