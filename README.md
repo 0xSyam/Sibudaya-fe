@@ -12,7 +12,7 @@ Proyek ini mencakup:
 - Dashboard admin untuk monitoring status dan pengaturan fasilitasi.
 - Komponen UI berbasis Tailwind CSS dengan desain sesuai mockup Figma.
 
-Sebagian besar data di halaman dashboard saat ini masih menggunakan data statis/mock di sisi frontend (belum terhubung penuh ke backend domain pengajuan).
+Sebagian besar alur dashboard sudah terhubung ke backend. Jika backend tidak tersedia, beberapa halaman menampilkan state error/fallback terkontrol.
 
 ## Tech Stack
 
@@ -96,14 +96,14 @@ app/
     ajukan-fasilitasi/     # wizard pengajuan 3 langkah
     status/                # status pengajuan user
 public/figma/              # aset gambar/icon dari desain
-middleware.ts              # security headers + matcher route
+proxy.ts                   # security headers + matcher route
 ```
 
 ## Arsitektur Singkat
 
 1. `RootLayout` membungkus aplikasi dengan `AuthProvider`.
-2. Token disimpan di `localStorage` (`access_token`, `refresh_token`).
-3. Route dashboard diproteksi `AuthGuard` (client-side redirect ke `/login`).
+2. Session auth utama menggunakan HttpOnly cookie (`access_token`, `refresh_token`) dari backend.
+3. Route dashboard divalidasi server-side di `proxy.ts` melalui pengecekan `/auth/me`.
 4. `apiFetch` otomatis:
 - menambahkan header `Authorization` jika access token tersedia
 - mencoba refresh token sekali saat respons `401`
@@ -117,7 +117,6 @@ middleware.ts              # security headers + matcher route
 - Validasi dasar di client (field wajib diisi)
 - Memanggil `authApi.login`
 - Jika sukses:
-- simpan token ke `localStorage`
 - set user ke context
 - redirect berdasarkan role:
   - `ADMIN` / `SUPER_ADMIN` -> `/dashboard/admin`
@@ -136,8 +135,8 @@ middleware.ts              # security headers + matcher route
 
 - Tombol login Google redirect ke `${NEXT_PUBLIC_API_URL}/auth/google`
 - Callback halaman: `/auth/google/callback`
-- Token diambil dari query param `access_token` dan `refresh_token`
-- Setelah token tersimpan, frontend memanggil `refreshUser()` lalu redirect ke `/dashboard`
+- Backend callback akan set HttpOnly cookie lalu redirect ke callback frontend
+- Frontend memanggil `refreshUser()` lalu redirect ke `/dashboard`
 
 ### Reset Password
 
@@ -156,6 +155,7 @@ Endpoint yang digunakan frontend:
 - `GET /auth/google` (redirect OAuth)
 - `GET /auth/me`
 - `POST /auth/refresh`
+- `POST /auth/logout`
 - `POST /auth/forgot-password`
 - `POST /auth/reset-password`
 
@@ -255,7 +255,7 @@ Kontrak token:
 - `/register`
 - `/reset-password`
 
-Catatan: proteksi autentikasi utama tetap dilakukan client-side melalui `AuthGuard`.
+Catatan: proteksi route kini menggunakan kombinasi validasi server-side di `middleware.ts` dan guard role di sisi client untuk UX redirect.
 
 ## Konvensi Kode
 
@@ -266,8 +266,7 @@ Catatan: proteksi autentikasi utama tetap dilakukan client-side melalui `AuthGua
 
 ## Known Limitations
 
-- Auth session tidak menggunakan cookie HttpOnly; token disimpan di `localStorage`.
-- Middleware belum melakukan validasi token server-side.
+- Endpoint file sekarang diproteksi lewat route backend `/files/:category/:filename`; akses langsung `/uploads/...` tidak lagi digunakan oleh frontend.
 
 ## Troubleshooting
 
@@ -289,16 +288,7 @@ NEXT_PUBLIC_AUTH_USE_API=true
 
 ### Callback Google gagal
 
-Pastikan backend mengembalikan query param:
-
-- `access_token`
-- `refresh_token`
-
-ke URL callback frontend:
-
-```text
-/auth/google/callback
-```
+Periksa nilai `FRONTEND_URL` di backend agar mengarah ke domain frontend yang benar.
 
 ## Build & Deploy
 
@@ -321,7 +311,5 @@ npm run start
 
 ## Rekomendasi Pengembangan Lanjutan
 
-- Integrasikan seluruh data dashboard dengan backend real.
-- Pindahkan autentikasi ke model yang lebih aman (cookie HttpOnly + server-side guard).
 - Tambah test otomatis (unit/integration/e2e) untuk alur auth dan form pengajuan.
 - Terapkan validasi schema form (misalnya Zod) agar validasi konsisten.

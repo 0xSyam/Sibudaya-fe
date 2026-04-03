@@ -59,8 +59,10 @@ export function getRefreshToken(): string | null {
 }
 
 export function setTokens(access: string, refresh: string) {
-  localStorage.setItem("access_token", access);
-  localStorage.setItem("refresh_token", refresh);
+  // Prefer HttpOnly cookies managed by backend. Keep localStorage empty.
+  void access;
+  void refresh;
+  clearTokens();
 }
 
 export function clearTokens() {
@@ -112,10 +114,15 @@ async function apiFetch<T>(
   });
 
   // Jika 401 & ada refresh token → coba refresh sekali
-  if (res.status === 401 && getRefreshToken()) {
+  if (res.status === 401) {
     const refreshed = await tryRefreshToken();
     if (refreshed) {
-      headers["Authorization"] = `Bearer ${getAccessToken()}`;
+      const nextToken = getAccessToken();
+      if (nextToken) {
+        headers["Authorization"] = `Bearer ${nextToken}`;
+      } else {
+        delete headers["Authorization"];
+      }
       const retryRes = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
         headers,
@@ -149,13 +156,15 @@ async function apiFetch<T>(
 
 async function tryRefreshToken(): Promise<boolean> {
   const refreshToken = getRefreshToken();
-  if (!refreshToken) return false;
 
   try {
     const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      credentials: "include",
+      body: JSON.stringify(
+        refreshToken ? { refresh_token: refreshToken } : {},
+      ),
     });
 
     if (!res.ok) return false;
@@ -189,10 +198,15 @@ async function apiMultipartFetch<T>(
     credentials: "include",
   });
 
-  if (res.status === 401 && getRefreshToken()) {
+  if (res.status === 401) {
     const refreshed = await tryRefreshToken();
     if (refreshed) {
-      headers["Authorization"] = `Bearer ${getAccessToken()}`;
+      const nextToken = getAccessToken();
+      if (nextToken) {
+        headers["Authorization"] = `Bearer ${nextToken}`;
+      } else {
+        delete headers["Authorization"];
+      }
       const retryRes = await fetch(`${API_BASE}${endpoint}`, {
         method,
         headers,
@@ -262,10 +276,16 @@ export const authApi = {
   },
 
   /** Refresh access token */
-  refresh(refreshToken: string): Promise<{ access_token: string }> {
+  refresh(refreshToken?: string): Promise<{ access_token: string }> {
     return apiFetch<{ access_token: string }>("/auth/refresh", {
       method: "POST",
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
+    });
+  },
+
+  logout(): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>("/auth/logout", {
+      method: "POST",
     });
   },
 

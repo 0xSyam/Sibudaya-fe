@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { adminPengajuanApi, fasilitasiApi } from "@/app/lib/api";
+import { buildProtectedFileUrl } from "@/app/lib/file-url";
 import { documentUploadValidation, pdfUploadValidation, validateUploadFile } from "@/app/lib/file-validation";
 import { StatusBackButton, StatusChip, TimelineDot } from "@/app/dashboard/components/status/timeline-ui";
 import type { PaketFasilitasi, Pengajuan } from "@/app/lib/types";
@@ -294,10 +295,7 @@ function extractFilename(path: string): string {
 }
 
 function buildUploadUrl(path: string): string {
-  if (/^https?:\/\//i.test(path)) return path;
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ?? "http://localhost:3000";
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${baseUrl}${normalizedPath}`;
+  return buildProtectedFileUrl(path);
 }
 
 function formatDate(dateStr: string): string {

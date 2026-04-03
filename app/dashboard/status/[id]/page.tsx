@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { pengajuanApi, fasilitasiApi } from "@/app/lib/api";
+import { buildProtectedFileUrl } from "@/app/lib/file-url";
 import { pdfUploadValidation, validateUploadFile } from "@/app/lib/file-validation";
 import type { Pengajuan } from "@/app/lib/types";
 
@@ -28,10 +29,7 @@ type TimelineStep = {
 };
 
 function buildUploadUrl(path: string): string {
-  if (/^https?:\/\//i.test(path)) return path;
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ?? "http://localhost:3000";
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${baseUrl}${normalizedPath}`;
+  return buildProtectedFileUrl(path);
 }
 
 /* ------------------------------------------------------------------ */

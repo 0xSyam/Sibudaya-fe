@@ -35,6 +35,7 @@ import {
   clearPendingPengajuanDraftFiles,
   getPendingSertifikatNikFile,
 } from "@/app/lib/pengajuan-draft-store";
+import { buildProtectedFileUrl } from "@/app/lib/file-url";
 import type {
   CreatePengajuanPentasDto,
   CreatePengajuanHibahDto,
@@ -175,10 +176,7 @@ export default function AjukanFasilitasiFormStep3Page() {
   );
 
   function buildUploadUrl(path: string): string {
-    if (/^https?:\/\//i.test(path)) return path;
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ?? "http://localhost:3000";
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    return `${baseUrl}${normalizedPath}`;
+    return buildProtectedFileUrl(path);
   }
 
   function validate(values: StepThreeFormValues) {

@@ -14,8 +14,6 @@ import {
   authApi,
   setTokens,
   clearTokens,
-  getAccessToken,
-  getRefreshToken,
 } from "./api";
 
 // ─── Context shape ───────────────────────────────────────────────────────────
@@ -42,30 +40,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Cek session saat pertama kali mount
   const refreshUser = useCallback(async () => {
-    const token = getAccessToken();
-    if (!token) {
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
-
     try {
       const me = await authApi.getMe();
       setUser(me);
     } catch {
-      // Token invalid → coba refresh
-      const rt = getRefreshToken();
-      if (rt) {
-        try {
-          const { access_token } = await authApi.refresh(rt);
-          localStorage.setItem("access_token", access_token);
-          const me = await authApi.getMe();
-          setUser(me);
-        } catch {
-          clearTokens();
-          setUser(null);
-        }
-      } else {
+      try {
+        await authApi.refresh();
+        const me = await authApi.getMe();
+        setUser(me);
+      } catch {
         clearTokens();
         setUser(null);
       }
@@ -113,9 +96,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Logout
   const logout = useCallback(() => {
-    clearTokens();
-    setUser(null);
-    router.push("/login");
+    void authApi.logout().catch(() => undefined).finally(() => {
+      clearTokens();
+      setUser(null);
+      router.push("/login");
+    });
   }, [router]);
 
   return (
