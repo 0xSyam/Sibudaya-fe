@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { adminPengajuanApi } from "@/app/lib/api";
-import type { FilterPengajuanDto, Pengajuan } from "@/app/lib/types";
+import type { AdminDashboardSummary, FilterPengajuanDto, Pengajuan } from "@/app/lib/types";
 
 type SubmissionStatus = "selesai" | "disetujui" | "perlu_tindakan" | "dalam_proses" | "ditolak";
 
@@ -646,6 +646,7 @@ function SubmissionStatusTable({ submissions }: { submissions: Submission[] }) {
 
 export default function AdminDashboardPage() {
   const [allSubmissions, setAllSubmissions] = useState<Submission[]>([]);
+  const [dashboardSummary, setDashboardSummary] = useState<AdminDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
@@ -676,10 +677,15 @@ export default function AdminDashboardPage() {
               : "DALAM_PROSES",
     };
 
-    adminPengajuanApi
-      .getAll(filter)
-      .then((data) => setAllSubmissions(data.map(mapPengajuanToSubmission)))
-      .catch(() => setAllSubmissions([]))
+    Promise.all([adminPengajuanApi.getAll(filter), adminPengajuanApi.getDashboard(filter)])
+      .then(([listData, dashboardData]) => {
+        setAllSubmissions(listData.map(mapPengajuanToSubmission));
+        setDashboardSummary(dashboardData);
+      })
+      .catch(() => {
+        setAllSubmissions([]);
+        setDashboardSummary(null);
+      })
       .finally(() => setLoading(false));
   }, [deferredSearchQuery, endDate, jenisFilter, sortOrder, startDate, statusFilter]);
 
@@ -714,10 +720,10 @@ export default function AdminDashboardPage() {
     });
   }, [allSubmissions, searchQuery, sortOrder, statusFilter, jenisFilter, startDate, endDate]);
 
-  const totalPengajuan = submissions.length;
-  const dalamProses = submissions.filter((s) => s.status === "dalam_proses").length;
-  const perluTindakan = submissions.filter((s) => s.status === "perlu_tindakan").length;
-  const selesai = submissions.filter((s) => s.status === "selesai" || s.status === "disetujui").length;
+  const totalPengajuan = dashboardSummary?.statistik.total_pengajuan ?? submissions.length;
+  const dalamProses = dashboardSummary?.statistik.dalam_proses ?? submissions.filter((s) => s.status === "dalam_proses").length;
+  const perluTindakan = dashboardSummary?.statistik.perlu_tindakan ?? submissions.filter((s) => s.status === "perlu_tindakan").length;
+  const selesai = dashboardSummary?.statistik.selesai ?? submissions.filter((s) => s.status === "selesai" || s.status === "disetujui").length;
 
   return (
     <section className="h-full overflow-y-auto px-4 py-6 sm:px-6">

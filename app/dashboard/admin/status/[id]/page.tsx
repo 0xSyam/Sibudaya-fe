@@ -803,6 +803,8 @@ export default function AdminStatusDetailPage() {
             { catatan: reason },
             timelineRejectSuratFile ?? undefined,
           );
+        } else if (timelineRejectStep.key === "SURVEY") {
+          await adminPengajuanApi.tolakSurvey(data.pengajuan_id, reason);
         } else {
           const apiStep = mapStepKeyToApi(timelineRejectStep.key);
           if (!apiStep) return;
@@ -1171,7 +1173,7 @@ export default function AdminStatusDetailPage() {
                 <div className="space-y-2">
                   {data.proposal_file && (
                     <a
-                      href={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ?? "http://localhost:3000"}/uploads/proposal/${data.proposal_file.split("/").pop()}`}
+                      href={buildUploadUrl(data.proposal_file)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px] hover:bg-[rgba(38,43,67,0.10)]"
@@ -1182,7 +1184,7 @@ export default function AdminStatusDetailPage() {
                   )}
                   {data.sertifikat_nik_file && (
                     <a
-                      href={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ?? "http://localhost:3000"}/uploads/sertifikat/${data.sertifikat_nik_file.split("/").pop()}`}
+                      href={buildUploadUrl(data.sertifikat_nik_file)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px] hover:bg-[rgba(38,43,67,0.10)]"

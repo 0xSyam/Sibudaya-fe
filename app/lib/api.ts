@@ -29,6 +29,7 @@ import type {
   SuratPersetujuan,
   PencairanDana,
   PengirimanSarana,
+  AdminDashboardSummary,
   AdminAccount,
   CreateAdminAccountDto,
   UpdateAdminAccountDto,
@@ -37,7 +38,7 @@ import type {
 
 // ─── Base URL ────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 const AUTH_USE_API = process.env.NEXT_PUBLIC_AUTH_USE_API ?? "true";
 const LOCAL_AUTH_USER_KEY = "local_auth_user";
 
@@ -408,6 +409,18 @@ export const notifikasiApi = {
 // ─── Admin Pengajuan API ─────────────────────────────────────────────────────
 
 export const adminPengajuanApi = {
+  /** Ringkasan dashboard admin (dengan filter) */
+  getDashboard(filter?: FilterPengajuanDto): Promise<AdminDashboardSummary> {
+    const params = new URLSearchParams();
+    if (filter) {
+      Object.entries(filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== "") params.append(key, String(value));
+      });
+    }
+    const qs = params.toString();
+    return apiFetch<AdminDashboardSummary>(`/admin/pengajuan/dashboard${qs ? `?${qs}` : ""}`);
+  },
+
   /** Daftar semua pengajuan (dengan filter) */
   getAll(filter?: FilterPengajuanDto): Promise<Pengajuan[]> {
     const params = new URLSearchParams();
@@ -453,6 +466,14 @@ export const adminPengajuanApi = {
   selesaikanSurvey(pengajuanId: string): Promise<SurveyLapangan> {
     return apiFetch<SurveyLapangan>(`/admin/pengajuan/${pengajuanId}/survey/selesai`, {
       method: "PATCH",
+    });
+  },
+
+  /** Tolak survey lapangan (Hibah) */
+  tolakSurvey(pengajuanId: string, catatan: string): Promise<SurveyLapangan> {
+    return apiFetch<SurveyLapangan>(`/admin/pengajuan/${pengajuanId}/survey/tolak`, {
+      method: "PATCH",
+      body: JSON.stringify({ catatan }),
     });
   },
 

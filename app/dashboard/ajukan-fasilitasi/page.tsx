@@ -80,30 +80,10 @@ function mapJenisToCard(j: JenisFasilitasi): FacilityCardProps {
   };
 }
 
-const fallbackCards: FacilityCardProps[] = [
-  {
-    icon: "/figma/icon-bag.svg",
-    iconWidth: 84,
-    iconHeight: 84,
-    title: "Fasilitasi Pentas",
-    description: "Bantuan untuk pelaksanaan kegiatan pentas seni dan pembinaan lembaga budaya.",
-    items: ["Pembinaan Sanggar", "Pentas Seni"],
-    href: "/dashboard/ajukan-fasilitasi/form?jenis=1",
-  },
-  {
-    icon: "/figma/icon-ticket.svg",
-    iconWidth: 96,
-    iconHeight: 86,
-    title: "Fasilitasi Hibah",
-    description: "Bantuan pendukung kegiatan seni seperti gamelan, alat musik, atau pakaian pentas.",
-    items: ["Gamelan Besi Slendro Pelog", "Alat Kesenian", "Pakaian Kesenian"],
-    href: "/dashboard/ajukan-fasilitasi/form?jenis=2",
-  },
-];
-
 export default function AjukanFasilitasiPage() {
-  const [cards, setCards] = useState<FacilityCardProps[]>(fallbackCards);
+  const [cards, setCards] = useState<FacilityCardProps[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fasilitasiApi
@@ -111,10 +91,16 @@ export default function AjukanFasilitasiPage() {
       .then((data) => {
         if (data.length > 0) {
           setCards(data.map(mapJenisToCard));
+          setError(null);
+          return;
         }
+
+        setCards([]);
+        setError("Jenis fasilitasi belum tersedia saat ini.");
       })
       .catch(() => {
-        // keep fallback cards
+        setCards([]);
+        setError("Gagal memuat data fasilitasi. Coba beberapa saat lagi.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -134,6 +120,10 @@ export default function AjukanFasilitasiPage() {
         {loading ? (
           <div className="mt-16 flex justify-center">
             <div className="size-8 animate-spin rounded-full border-4 border-[#c23513] border-t-transparent" />
+          </div>
+        ) : error ? (
+          <div className="mt-10 rounded-lg border border-[rgba(194,53,19,0.2)] bg-[rgba(194,53,19,0.06)] px-4 py-3 text-[14px] text-[#a62c10]">
+            {error}
           </div>
         ) : (
           <div className="mt-10 grid gap-7 md:grid-cols-2 lg:mt-16">

@@ -70,12 +70,8 @@ http://localhost:3000
 
 ### Catatan penting fallback URL
 
-Ada perbedaan fallback `NEXT_PUBLIC_API_URL` di kode:
-
-- `app/lib/api.ts` fallback ke `http://localhost:3001/api/v1`
-- `next.config.ts` fallback ke `http://localhost:3000/api/v1`
-
-Untuk mencegah perilaku tidak konsisten, selalu set `NEXT_PUBLIC_API_URL` secara eksplisit di `.env.local`.
+Fallback `NEXT_PUBLIC_API_URL` di frontend saat ini adalah `http://localhost:3001/api/v1`.
+Untuk mencegah perilaku tidak konsisten antar environment, tetap disarankan set `NEXT_PUBLIC_API_URL` secara eksplisit di `.env.local`.
 
 ## Struktur Direktori
 
@@ -206,14 +202,14 @@ Kontrak token:
 
 - Menampilkan 2 kartu utama: panduan dan ajukan fasilitasi.
 - Menampilkan tabel status pengajuan.
-- Data saat ini menggunakan array statis di frontend.
+- Data status pengajuan diambil dari backend.
 
 ### Form Pengajuan (3 langkah)
 
 - Langkah 1: identitas lembaga + NIK + paket fasilitasi.
 - Langkah 2: detail kegiatan (nama, tujuan, tanggal, alamat kegiatan).
 - Langkah 3: administrasi & dokumen (rekening, dana, proposal, alamat).
-- Navigasi antar langkah saat ini berbasis link; belum tersambung ke API submit final.
+- Data draft antarlangkah disimpan sementara di browser, lalu submit final dikirim ke backend pada langkah 3.
 
 ### Dashboard Admin
 
@@ -223,7 +219,7 @@ Kontrak token:
 - jenis (`sapras` / `pentas`)
 - status (`all`, `selesai`, `dalam_proses`, `perlu_tindakan`, `ditolak`)
 - rentang tanggal (`startDate`, `endDate`)
-- Statistik ringkas: total, dalam proses, perlu tindakan, selesai.
+- Statistik ringkas menggunakan endpoint dashboard backend.
 
 ### Status Admin (Dalam Proses / Survey Lapangan)
 
@@ -232,8 +228,7 @@ Kontrak token:
 - `in_progress`
 - `locked`
 - Setiap tahap memiliki dropdown status.
-- Mengubah status memajukan/memundurkan `activeStep` secara lokal.
-- Beberapa tahap menampilkan komponen tambahan (date picker placeholder / tombol unggah).
+- Perubahan status, penolakan, dan upload berkas dipersist ke backend.
 
 ### Pengaturan Fasilitasi Admin
 
@@ -241,11 +236,11 @@ Kontrak token:
 - `General` (jenis lembaga)
 - `Pentas` (jenis fasilitasi, kuota, dokumen contoh)
 - `Sarana Prasarana` (jenis, kuota, dokumen contoh)
-- Fitur CRUD lokal via dialog:
+- Fitur CRUD via dialog:
 - tambah/edit/hapus item
-- unggah file contoh (UI only)
+- unggah file contoh
 - konfirmasi simpan / batal
-- Perubahan saat ini belum dipersist ke backend (`TODO: persist changes`).
+- Seluruh perubahan dipersist ke backend.
 
 ## Middleware & Keamanan
 
@@ -271,11 +266,6 @@ Catatan: proteksi autentikasi utama tetap dilakukan client-side melalui `AuthGua
 
 ## Known Limitations
 
-- Banyak data dashboard masih hardcoded/mock.
-- Fitur pengajuan 3 langkah belum mengirim payload final ke backend.
-- Beberapa fitur admin masih TODO:
-- persist perubahan pengaturan fasilitasi
-- proses upload file nyata ke backend/storage
 - Auth session tidak menggunakan cookie HttpOnly; token disimpan di `localStorage`.
 - Middleware belum melakukan validasi token server-side.
 

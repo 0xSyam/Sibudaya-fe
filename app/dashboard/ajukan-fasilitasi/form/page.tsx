@@ -82,6 +82,7 @@ export default function AjukanFasilitasiFormPage() {
   const [paketList, setPaketList] = useState<PaketFasilitasi[]>([]);
   const [jenisKesenianOptions, setJenisKesenianOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sertifikatFile, setSertifikatFile] = useState<File | null>(null);
   const [sertifikatError, setSertifikatError] = useState<string | null>(null);
 
@@ -104,25 +105,15 @@ export default function AjukanFasilitasiFormPage() {
     reValidateMode: "onChange",
   });
 
-  const placeholderPaketOptions = useMemo(
-    () => ["Pembinaan Sanggar", "Pentas Seni", "Workshop", "Festival Budaya"],
-    [],
-  );
-
-  const fallbackJenisKesenianOptions = useMemo(
-    () => ["Tari", "Musik", "Teater", "Seni Rupa", "Sastra", "Lainnya"],
-    [],
-  );
-
   useEffect(() => {
     async function load() {
       try {
-        const [lem, paket] = await Promise.all([
+        const [lem, paket, jenisLembaga] = await Promise.all([
           lembagaApi.getMe().catch(() => null),
-          fasilitasiApi.getPaketByJenis(jenisId).catch(() => []),
+          fasilitasiApi.getPaketByJenis(jenisId),
+          fasilitasiApi.getJenisLembaga(),
         ]);
 
-        const jenisLembaga = await fasilitasiApi.getJenisLembaga().catch(() => []);
         const dynamicOptions = jenisLembaga
           .map((item) => trim(item.nama))
           .filter((name) => name.length > 0);
@@ -153,6 +144,11 @@ export default function AjukanFasilitasiFormPage() {
         reset(nextValues);
         setPaketList(paket);
         setJenisKesenianOptions(dynamicOptions);
+        setLoadError(null);
+      } catch {
+        setPaketList([]);
+        setJenisKesenianOptions([]);
+        setLoadError("Gagal memuat data master fasilitasi. Coba beberapa saat lagi.");
       } finally {
         setLoading(false);
       }
@@ -230,6 +226,12 @@ export default function AjukanFasilitasiFormPage() {
 
         <FormStepper steps={stepOneProgress} />
 
+        {loadError ? (
+          <div className="mt-4 rounded-lg border border-[rgba(194,53,19,0.2)] bg-[rgba(194,53,19,0.06)] px-4 py-3 text-[14px] text-[#a62c10]">
+            {loadError}
+          </div>
+        ) : null}
+
         <form
           className="mt-6 rounded-[10px] bg-white px-5 pb-5 pt-6"
           onSubmit={(e) => {
@@ -270,7 +272,7 @@ export default function AjukanFasilitasiFormPage() {
                     id="jenisKesenian"
                     name={field.name}
                     placeholder="Pilih jenis kesenian lembaga"
-                    options={jenisKesenianOptions.length > 0 ? jenisKesenianOptions : fallbackJenisKesenianOptions}
+                    options={jenisKesenianOptions}
                     value={field.value}
                     isError={!!errors.jenisKesenian}
                     onChange={(e) => {
@@ -388,7 +390,7 @@ export default function AjukanFasilitasiFormPage() {
                   id="jenisPaketFasilitasi"
                   name={field.name}
                   placeholder="Pilih jenis fasilitasi"
-                  options={paketList.length > 0 ? paketList.map((p) => p.nama_paket) : placeholderPaketOptions}
+                  options={paketList.map((p) => p.nama_paket)}
                   value={field.value}
                   isError={!!errors.selectedPaket}
                   onChange={(e) => {
@@ -407,7 +409,7 @@ export default function AjukanFasilitasiFormPage() {
 
         <FormActionBar>
           <SecondaryLinkButton href="/dashboard/ajukan-fasilitasi">Kembali</SecondaryLinkButton>
-          <PrimaryButton onClick={() => void saveStep()}>
+          <PrimaryButton onClick={() => void saveStep()} disabled={Boolean(loadError) || paketList.length === 0 || jenisKesenianOptions.length === 0}>
             Simpan Dan Lanjutkan
           </PrimaryButton>
         </FormActionBar>

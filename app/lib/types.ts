@@ -309,6 +309,29 @@ export interface UpdateTimelineStatusDto {
   note?: string;
 }
 
+export interface AdminDashboardSummary {
+  statistik: {
+    total_pengajuan: number;
+    dalam_proses: number;
+    perlu_tindakan: number;
+    selesai: number;
+    ditolak: number;
+  };
+  daftar_terbaru: Array<{
+    pengajuan_id: string;
+    judul_kegiatan: string | null;
+    tanggal_pengajuan: string;
+    status: string;
+    status_pemeriksaan: string;
+    lembaga_budaya: {
+      nama_lembaga: string;
+    } | null;
+    jenis_fasilitasi: {
+      nama: string;
+    } | null;
+  }>;
+}
+
 export interface AdminAccount {
   user_id: string;
   first_name: string | null;
