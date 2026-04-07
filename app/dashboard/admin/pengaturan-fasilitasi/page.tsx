@@ -879,7 +879,7 @@ function KuotaPengajuanDialog({
 
 // ─── Tab types ───────────────────────────────────────────
 
-type TabId = "general" | "pentas" | "sarana-prasarana";
+type TabId = "general" | "pentas" | "hibah";
 
 type TabItem = {
   id: TabId;
@@ -890,7 +890,7 @@ type TabItem = {
 const tabs: TabItem[] = [
   { id: "general", label: "General", icon: <AppsIcon /> },
   { id: "pentas", label: "Pentas", icon: <CouponIcon /> },
-  { id: "sarana-prasarana", label: "Sarana Prasarana", icon: <ShoppingBagIcon /> },
+  { id: "hibah", label: "Hibah", icon: <ShoppingBagIcon /> },
 ];
 
 type JenisLembagaItem = {
@@ -1605,6 +1605,8 @@ function SaranaPrasaranaTabContent({
   const { showToast } = useToast();
   const JENIS_ID = 2;
 
+  const [showAddJenisDialog, setShowAddJenisDialog] = useState(false);
+  const [editingJenisIndex, setEditingJenisIndex] = useState<number | null>(null);
   const [showAddKuotaDialog, setShowAddKuotaDialog] = useState(false);
   const [editingKuotaIndex, setEditingKuotaIndex] = useState<number | null>(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -1612,6 +1614,11 @@ function SaranaPrasaranaTabContent({
   const [saving, setSaving] = useState(false);
 
   const pakets = data?.paket_fasilitasi ?? [];
+
+  const jenisFasilitasiItems: JenisFasilitasi[] = pakets.map((p) => ({
+    jenis: p.nama_paket,
+    danaPembinaan: "-",
+  }));
 
   const kuotaItems: KuotaPengajuan[] = pakets.map((p) => ({
     jenis: p.nama_paket,
@@ -1655,6 +1662,46 @@ function SaranaPrasaranaTabContent({
       }),
       "Paket sarana prasarana berhasil ditambahkan.",
     );
+  };
+
+  const handleAddJenis = (payload: { jenis: string; danaPembinaan?: string }) => {
+    if (isDuplicatePaket(payload.jenis)) {
+      showToast("Paket Fasilitasi sudah ada", "error");
+      return;
+    }
+
+    withSave(() =>
+      adminFasilitasiApi.createKuota(JENIS_ID, {
+        nama_paket: payload.jenis,
+        kuota: 0,
+      }),
+      "Jenis fasilitasi hibah berhasil ditambahkan.",
+    );
+  };
+
+  const handleEditJenis = (jenis: string) => {
+    if (editingJenisIndex === null) return;
+    const paket = pakets[editingJenisIndex];
+    if (!paket) return;
+
+    if (isDuplicatePaket(jenis, paket.paket_id)) {
+      showToast("Paket Fasilitasi sudah ada", "error");
+      return;
+    }
+
+    withSave(() =>
+      adminFasilitasiApi.updateKuota(paket.paket_id, {
+        nama_paket: jenis,
+      }),
+      "Jenis fasilitasi hibah berhasil diperbarui.",
+    );
+    setEditingJenisIndex(null);
+  };
+
+  const handleDeleteJenis = (index: number) => {
+    const paket = pakets[index];
+    if (!paket) return;
+    withSave(() => adminFasilitasiApi.deleteKuota(paket.paket_id), "Jenis fasilitasi hibah berhasil dihapus.");
   };
 
   const handleEditKuota = (payload: KuotaPengajuan) => {
@@ -1704,7 +1751,15 @@ function SaranaPrasaranaTabContent({
 
   return (
     <>
-      {/* 1. Kuota Pengajuan table */}
+      {/* 1. Jenis Fasilitasi table */}
+      <JenisFasilitasiTable
+        items={jenisFasilitasiItems}
+        onAdd={() => setShowAddJenisDialog(true)}
+        onEdit={(index) => setEditingJenisIndex(index)}
+        onDelete={handleDeleteJenis}
+      />
+
+      {/* 2. Kuota Pengajuan table */}
       <KuotaPengajuanTable
         items={kuotaItems}
         onAdd={() => setShowAddKuotaDialog(true)}
@@ -1712,7 +1767,7 @@ function SaranaPrasaranaTabContent({
         onDelete={handleDeleteKuota}
       />
 
-      {/* 2. Contoh Proposal */}
+      {/* 3. Contoh Proposal */}
       <DocumentCard
         title="Contoh Proposal"
         filename={proposalFilename}
@@ -1722,7 +1777,7 @@ function SaranaPrasaranaTabContent({
         }}
       />
 
-      {/* 3. Contoh Laporan */}
+      {/* 4. Contoh Laporan */}
       <DocumentCard
         title="Contoh Laporan"
         filename={laporanFilename}
@@ -1737,6 +1792,22 @@ function SaranaPrasaranaTabContent({
         onClose={() => setShowUploadDialog(false)}
         onFileSelected={handleUpload}
       />
+      <AddJenisDialog
+        open={showAddJenisDialog}
+        onClose={() => setShowAddJenisDialog(false)}
+        title="Tambah Jenis Fasilitasi Hibah"
+        onSubmit={handleAddJenis}
+      />
+      {editingJenisIndex !== null && pakets[editingJenisIndex] ? (
+        <JenisLembagaDialog
+          open
+          onClose={() => setEditingJenisIndex(null)}
+          title="Edit Jenis Fasilitasi Hibah"
+          submitLabel="Simpan Jenis"
+          initialValue={pakets[editingJenisIndex].nama_paket}
+          onSubmit={handleEditJenis}
+        />
+      ) : null}
       <KuotaPengajuanDialog
         open={showAddKuotaDialog}
         onClose={() => setShowAddKuotaDialog(false)}
@@ -1788,7 +1859,7 @@ export default function PengaturanFasilitasiPage() {
         return <GeneralTabContent />;
       case "pentas":
         return <PentasTabContent data={pentas} onRefetch={loadData} />;
-      case "sarana-prasarana":
+      case "hibah":
         return <SaranaPrasaranaTabContent data={hibah} onRefetch={loadData} />;
     }
   };
@@ -1799,7 +1870,7 @@ export default function PengaturanFasilitasiPage() {
         return "General";
       case "pentas":
         return "Fasilitasi Pentas";
-      case "sarana-prasarana":
+      case "hibah":
         return "Fasilitasi Hibah";
     }
   })();
@@ -1813,7 +1884,7 @@ export default function PengaturanFasilitasiPage() {
             Pengaturan Fasilitasi
           </h1>
           <p className="mt-4 max-w-[631px] text-[13px] leading-5 text-[rgba(38,43,67,0.9)]">
-            Pantau perkembangan pengajuan fasilitasi pentas dan sarana prasarana yang telah diajukan.
+            Pantau perkembangan pengajuan fasilitasi pentas dan hibah yang telah diajukan.
           </p>
         </div>
 

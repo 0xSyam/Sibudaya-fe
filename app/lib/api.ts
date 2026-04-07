@@ -524,12 +524,19 @@ export const adminPengajuanApi = {
     });
   },
 
-  /** Tolak laporan kegiatan */
-  tolakLaporan(pengajuanId: string, dto: TolakLaporanDto): Promise<LaporanKegiatan> {
-    return apiFetch<LaporanKegiatan>(`/admin/pengajuan/${pengajuanId}/laporan/tolak`, {
-      method: "PATCH",
-      body: JSON.stringify(dto),
-    });
+  /** Tolak laporan kegiatan (opsional lampiran surat penolakan) */
+  tolakLaporan(pengajuanId: string, dto: TolakLaporanDto, suratFile?: File): Promise<LaporanKegiatan> {
+    if (!suratFile) {
+      return apiFetch<LaporanKegiatan>(`/admin/pengajuan/${pengajuanId}/laporan/tolak`, {
+        method: "PATCH",
+        body: JSON.stringify(dto),
+      });
+    }
+
+    const formData = new FormData();
+    formData.append("catatan_admin", dto.catatan_admin);
+    formData.append("surat_penolakan", suratFile);
+    return apiMultipartFetch<LaporanKegiatan>(`/admin/pengajuan/${pengajuanId}/laporan/tolak`, formData, "PATCH");
   },
 
   /** Ubah status step timeline secara fleksibel */

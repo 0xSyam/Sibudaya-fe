@@ -513,6 +513,7 @@ export default function AdminStatusDetailPage() {
   const [tolakCatatan, setTolakCatatan] = useState("");
   const [tolakMode, setTolakMode] = useState<"pemeriksaan" | "laporan" | null>(null);
   const [tolakSuratFile, setTolakSuratFile] = useState<File | null>(null);
+  const [tolakLaporanSuratFile, setTolakLaporanSuratFile] = useState<File | null>(null);
   const [paketId, setPaketId] = useState("");
   const [showPaketPicker, setShowPaketPicker] = useState(false);
   const [paketOptions, setPaketOptions] = useState<PaketFasilitasi[]>([]);
@@ -653,12 +654,24 @@ export default function AdminStatusDetailPage() {
             setActionLoading(false);
             return;
           }
-          await adminPengajuanApi.tolakLaporan(data.pengajuan_id, { catatan_admin: tolakCatatan.trim() });
+          await adminPengajuanApi.tolakLaporan(
+            data.pengajuan_id,
+            { catatan_admin: tolakCatatan.trim() },
+            tolakLaporanSuratFile ?? undefined,
+          );
           setTolakMode(null);
           setTolakCatatan("");
+          setTolakLaporanSuratFile(null);
           setRejectReasonError(null);
           break;
         case "selesaikan_pencairan":
+          if (!data.pencairan_dana?.bukti_transfer) {
+            const message = "Bukti transfer wajib diunggah";
+            setPencairanFormError(message);
+            showToast(message, "error");
+            setActionLoading(false);
+            return;
+          }
           await adminPengajuanApi.selesaikanPencairan(data.pengajuan_id);
           break;
         // File upload actions are handled in handleFileUpload
@@ -831,6 +844,13 @@ export default function AdminStatusDetailPage() {
     if (!data) return;
     const apiStep = mapStepKeyToApi(step.key);
     if (!apiStep) return;
+
+    if (step.key === "PENCAIRAN" && nextStatus === "completed" && !data.pencairan_dana?.bukti_transfer) {
+      const message = "Bukti transfer wajib diunggah";
+      setPencairanFormError(message);
+      showToast(message, "error");
+      return;
+    }
 
     if (nextStatus === "rejected") {
       setTimelineRejectStep(step);
@@ -1036,31 +1056,82 @@ export default function AdminStatusDetailPage() {
 
       case "setujui_laporan":
         return tolakMode === "laporan" ? (
-          <div className="mt-4 flex items-end gap-2">
-            <input
-              type="text"
-              value={tolakCatatan}
-              onChange={(e) => {
-                setTolakCatatan(e.target.value);
-                setRejectReasonError(null);
-              }}
-              placeholder="Alasan penolakan"
-              className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
-            />
-            {rejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{rejectReasonError}</p> : null}
-            <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_laporan")} disabled={actionLoading} />
+          <div className="mt-4 space-y-2">
+            <div className="flex flex-wrap items-end gap-2">
+              <div>
+                <input
+                  type="text"
+                  value={tolakCatatan}
+                  onChange={(e) => {
+                    setTolakCatatan(e.target.value);
+                    setRejectReasonError(null);
+                  }}
+                  placeholder="Alasan penolakan"
+                  className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
+                />
+                {rejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{rejectReasonError}</p> : null}
+              </div>
+              <label className="flex h-[42px] cursor-pointer items-center rounded-lg border border-[rgba(38,43,67,0.22)] px-3 text-[14px] text-[rgba(38,43,67,0.72)]">
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const selectedFile = e.target.files?.[0] ?? null;
+                    if (!selectedFile) {
+                      setTolakLaporanSuratFile(null);
+                      return;
+                    }
+
+                    const validationMessage = validateUploadFile(selectedFile, {
+                      ...pdfUploadValidation,
+                      label: "Surat penolakan",
+                    });
+
+                    if (validationMessage) {
+                      setTolakLaporanSuratFile(null);
+                      showToast(validationMessage, "error");
+                      e.currentTarget.value = "";
+                      return;
+                    }
+
+                    setTolakLaporanSuratFile(selectedFile);
+                  }}
+                />
+                {tolakLaporanSuratFile
+                  ? `Surat: ${tolakLaporanSuratFile.name}`
+                  : "Lampiran surat penolakan (opsional)"}
+              </label>
+              <ActionButton label="Konfirmasi Tolak" variant="danger" onClick={() => handleAction("tolak_laporan")} disabled={actionLoading} />
+              <ActionButton
+                label="Batal"
+                variant="secondary"
+                onClick={() => {
+                  setTolakMode(null);
+                  setTolakCatatan("");
+                  setTolakLaporanSuratFile(null);
+                  setRejectReasonError(null);
+                }}
+                disabled={actionLoading}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <ActionButton label="Setujui Laporan" onClick={() => handleAction("setujui_laporan")} disabled={actionLoading} />
             <ActionButton
-              label="Batal"
-              variant="secondary"
+              label="Tolak Laporan"
+              variant="danger"
               onClick={() => {
-                setTolakMode(null);
-                setTolakCatatan("");
+                setTolakMode("laporan");
                 setRejectReasonError(null);
+                setTolakCatatan("");
+                setTolakLaporanSuratFile(null);
               }}
               disabled={actionLoading}
             />
           </div>
-        ) : null;
+        );
 
       case "upload_pencairan":
         return (
