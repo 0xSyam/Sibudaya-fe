@@ -93,7 +93,8 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
           ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin?.trim() || "Tidak ada alasan penolakan."}`
           : "Silakan unggah laporan dan dokumentasi kegiatan setelah pelaksanaan kegiatan selesai.",
     status: laporanStatus,
-    canUploadLaporan: laporanStatus === "in_progress" || laporanStatus === "rejected",
+    canUploadLaporan:
+      laporanStatus === "rejected" || (laporanStatus === "in_progress" && !p.laporan_kegiatan?.file_laporan),
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "Hasil Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
     attachmentPath: p.laporan_kegiatan?.file_laporan ?? undefined,
@@ -222,7 +223,8 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
           ? `Laporan ditolak. ${p.laporan_kegiatan?.catatan_admin?.trim() || "Tidak ada alasan penolakan."}`
           : "Silakan unggah laporan dan dokumentasi kegiatan setelah pelaksanaan kegiatan selesai.",
     status: laporanStatus,
-    canUploadLaporan: laporanStatus === "in_progress" || laporanStatus === "rejected",
+    canUploadLaporan:
+      laporanStatus === "rejected" || (laporanStatus === "in_progress" && !p.laporan_kegiatan?.file_laporan),
     attachmentLabel: p.laporan_kegiatan?.file_laporan ? "Hasil Laporan:" : undefined,
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
     attachmentPath: p.laporan_kegiatan?.file_laporan ?? undefined,
@@ -635,7 +637,14 @@ export default function UserStatusDetailPage() {
                                     }}
                                   />
                                   {selectedLaporanFile ? (
-                                    <p className="text-[14px] text-[rgba(38,43,67,0.7)]">File dipilih: {selectedLaporanFile.name}</p>
+                                    <div className="inline-flex max-w-full items-center gap-2 rounded-[8px] border border-[rgba(38,43,67,0.14)] bg-[rgba(38,43,67,0.04)] px-3 py-2">
+                                      <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-[2px] text-[8px] font-bold leading-none text-white">
+                                        FILE
+                                      </span>
+                                      <p className="truncate text-[14px] leading-5 text-[rgba(38,43,67,0.72)]" title={selectedLaporanFile.name}>
+                                        File dipilih: <span className="font-medium text-[rgba(38,43,67,0.9)]">{selectedLaporanFile.name}</span>
+                                      </p>
+                                    </div>
                                   ) : null}
                                   <div className="flex flex-wrap gap-2">
                                     <button

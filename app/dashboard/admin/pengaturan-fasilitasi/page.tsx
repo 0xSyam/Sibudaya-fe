@@ -899,6 +899,31 @@ type JenisLembagaItem = {
   created_at: string;
 };
 
+function extractApiErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === "object") {
+    if ("statusCode" in error && Number((error as { statusCode?: unknown }).statusCode) === 409) {
+      return "Paket Fasilitasi sudah ada";
+    }
+
+    if ("message" in error) {
+      const message = (error as { message: unknown }).message;
+      if (typeof message === "string" && message.trim()) {
+        return message;
+      }
+    }
+  }
+
+  return fallback;
+}
+
+function normalizeDuplicatePaketMessage(message: string): string {
+  const normalized = message.toLocaleLowerCase("id-ID");
+  if (normalized.includes("paket") && normalized.includes("sudah ada")) {
+    return "Paket Fasilitasi sudah ada";
+  }
+  return message;
+}
+
 // ─── Sub-components ─────────────────────────────────────
 
 function SettingsStepper({
@@ -1391,7 +1416,7 @@ function PentasTabContent({
         onRefetch();
         showToast(successMessage, "success");
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "Terjadi kesalahan";
+        const msg = normalizeDuplicatePaketMessage(extractApiErrorMessage(e, "Terjadi kesalahan"));
         showToast(msg, "error");
       } finally {
         setSaving(false);
@@ -1610,7 +1635,7 @@ function SaranaPrasaranaTabContent({
       onRefetch();
       showToast(successMessage, "success");
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Terjadi kesalahan";
+      const msg = normalizeDuplicatePaketMessage(extractApiErrorMessage(e, "Terjadi kesalahan"));
       showToast(msg, "error");
     } finally {
       setSaving(false);
