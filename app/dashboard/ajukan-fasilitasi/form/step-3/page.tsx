@@ -43,6 +43,7 @@ import type {
 import bankList from "@/list_banks.json";
 
 const FORM_STORAGE_KEY = "pengajuan_form_data";
+const SUBMIT_SUCCESS_NOTICE_KEY = "pengajuan_submit_notice";
 
 const stepThreeBaseSchema = z.object({
   nomorHp: z
@@ -364,6 +365,7 @@ export default function AjukanFasilitasiFormStep3Page() {
       localStorage.removeItem(FORM_STORAGE_KEY);
       clearPendingPengajuanDraftFiles();
       sessionStorage.removeItem("sertifikat_file_name");
+      sessionStorage.setItem(SUBMIT_SUCCESS_NOTICE_KEY, "Pengajuan berhasil dikirim.");
       router.push("/dashboard");
     } catch (err: unknown) {
       const apiError = err as {

@@ -389,7 +389,7 @@ export default function UserStatusDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadNotice, setUploadNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [selectedLaporanFile, setSelectedLaporanFile] = useState<File | null>(null);
   const [templateLaporanUrl, setTemplateLaporanUrl] = useState<string | null>(null);
 
@@ -433,31 +433,44 @@ export default function UserStatusDetailPage() {
 
     if (validationMessage) {
       setSelectedLaporanFile(null);
-      setUploadError("Laporan kegiatan wajib dalam format PDF");
+      setUploadNotice({
+        type: "error",
+        message: "Laporan kegiatan wajib dalam format PDF",
+      });
       return;
     }
 
     setSelectedLaporanFile(file);
-    setUploadError(null);
+    setUploadNotice(null);
   }
 
   async function handleUploadLaporan() {
     if (!data) return;
 
     if (!selectedLaporanFile) {
-      setUploadError("Laporan kegiatan wajib diunggah");
+      setUploadNotice({
+        type: "error",
+        message: "Laporan kegiatan wajib diunggah",
+      });
       return;
     }
 
     try {
       setUploading(true);
-      setUploadError(null);
+      setUploadNotice(null);
       await pengajuanApi.uploadLaporan(data.pengajuan_id, selectedLaporanFile);
       setSelectedLaporanFile(null);
+      setUploadNotice({
+        type: "success",
+        message: "Laporan kegiatan berhasil diunggah.",
+      });
       await fetchData();
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Gagal mengunggah laporan";
-      setUploadError(msg);
+      setUploadNotice({
+        type: "error",
+        message: msg,
+      });
     } finally {
       setUploading(false);
     }
@@ -511,9 +524,15 @@ export default function UserStatusDetailPage() {
             Pantau perkembangan pengajuan fasilitas pentas dan sarana prasarana yang telah Anda ajukan.
           </p>
 
-          {uploadError ? (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-700">
-              {uploadError}
+          {uploadNotice ? (
+            <div
+              className={`mt-4 rounded-lg px-4 py-3 text-[14px] ${
+                uploadNotice.type === "success"
+                  ? "border border-green-200 bg-green-50 text-green-700"
+                  : "border border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              {uploadNotice.message}
             </div>
           ) : null}
 

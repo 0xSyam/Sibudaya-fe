@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { adminAkunApi } from "@/app/lib/api";
+import { useToast } from "@/app/lib/toast-context";
 import type {
   AdminAccount,
   CreateAdminAccountDto,
@@ -81,6 +82,7 @@ function getApiErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function PengaturanAkunPage() {
+  const { showToast } = useToast();
   const [accounts, setAccounts] = useState<UiAdminAccount[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [showDetailView, setShowDetailView] = useState(false);
@@ -96,8 +98,6 @@ export default function PengaturanAkunPage() {
   const [error, setError] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
-  const [pageError, setPageError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [submittingCreate, setSubmittingCreate] = useState(false);
@@ -127,7 +127,6 @@ export default function PengaturanAkunPage() {
 
   const loadAdmins = async () => {
     setLoading(true);
-    setPageError(null);
     try {
       const data = await adminAkunApi.getAllAdmins();
       const mapped = data.map(toUiAdminAccount);
@@ -139,7 +138,7 @@ export default function PengaturanAkunPage() {
         return mapped[0]?.id ?? "";
       });
     } catch (err) {
-      setPageError(getApiErrorMessage(err, "Gagal memuat daftar akun admin."));
+      showToast(getApiErrorMessage(err, "Gagal memuat daftar akun admin."), "error");
     } finally {
       setLoading(false);
     }
@@ -152,7 +151,6 @@ export default function PengaturanAkunPage() {
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
-    setSuccessMessage(null);
 
     if (!createForm.firstName || !createForm.lastName || !createForm.email || !createForm.phone || !createForm.password) {
       setError("Nama, email, nomor HP, dan password wajib diisi.");
@@ -182,7 +180,7 @@ export default function PengaturanAkunPage() {
       setSelectedId(newAccount.id);
       setShowCreateModal(false);
       resetCreateForm();
-      setSuccessMessage("Akun admin baru berhasil dibuat.");
+      showToast("Akun admin baru berhasil dibuat.", "success");
     } catch (err) {
       setError(getApiErrorMessage(err, "Gagal membuat akun admin."));
     } finally {
@@ -211,7 +209,6 @@ export default function PengaturanAkunPage() {
     if (!selectedAccount) return;
 
     setEditError(null);
-    setSuccessMessage(null);
 
     if (!editForm.firstName || !editForm.lastName || !editForm.email || !editForm.phone) {
       setEditError("Nama, email, dan nomor HP wajib diisi.");
@@ -245,7 +242,7 @@ export default function PengaturanAkunPage() {
       setAccounts((prev) => prev.map((item) => (item.id === selectedAccount.id ? nextAccount : item)));
       setShowEditModal(false);
       resetEditForm();
-      setSuccessMessage("Akun admin berhasil diperbarui.");
+      showToast("Akun admin berhasil diperbarui.", "success");
     } catch (err) {
       setEditError(getApiErrorMessage(err, "Gagal memperbarui akun admin."));
     } finally {
@@ -257,7 +254,6 @@ export default function PengaturanAkunPage() {
     if (!selectedAccount) return;
 
     setSubmittingDelete(true);
-    setSuccessMessage(null);
     try {
       await adminAkunApi.deleteAdmin(selectedAccount.id);
       setAccounts((prev) => {
@@ -267,9 +263,9 @@ export default function PengaturanAkunPage() {
       });
       setShowDetailView(false);
       setShowDeleteModal(false);
-      setSuccessMessage("Akun admin berhasil dihapus.");
+      showToast("Akun admin berhasil dihapus.", "success");
     } catch (err) {
-      setPageError(getApiErrorMessage(err, "Gagal menghapus akun admin."));
+      showToast(getApiErrorMessage(err, "Gagal menghapus akun admin."), "error");
     } finally {
       setSubmittingDelete(false);
     }
@@ -280,7 +276,6 @@ export default function PengaturanAkunPage() {
     if (!selectedAccount) return;
 
     setResetError(null);
-    setSuccessMessage(null);
 
     if (!resetForm.newPassword || !resetForm.confirmNewPassword) {
       setResetError("Password baru dan konfirmasi password wajib diisi.");
@@ -307,7 +302,7 @@ export default function PengaturanAkunPage() {
       await adminAkunApi.resetPassword(selectedAccount.id, payload);
       setShowResetModal(false);
       resetPasswordForm();
-      setSuccessMessage("Password admin berhasil direset.");
+      showToast("Password admin berhasil direset.", "success");
     } catch (err) {
       setResetError(getApiErrorMessage(err, "Gagal mereset password admin."));
     } finally {
@@ -318,18 +313,6 @@ export default function PengaturanAkunPage() {
   return (
     <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto flex w-full max-w-225 flex-col gap-4">
-        {pageError && (
-          <div className="rounded-lg border border-[#f5b3a5] bg-[#fff3f0] px-4 py-3 text-[13px] text-[#9b2f15]">
-            {pageError}
-          </div>
-        )}
-
-        {successMessage && (
-          <div className="rounded-lg border border-[#b8dfc4] bg-[#edf9f1] px-4 py-3 text-[13px] text-[#1f6b36]">
-            {successMessage}
-          </div>
-        )}
-
         {!showDetailView && (
           <section className="rounded-xl border border-[rgba(38,43,67,0.12)] bg-white p-4 shadow-[0_4px_18px_rgba(38,43,67,0.08)] sm:p-5">
             <div className="flex items-center justify-between gap-3">

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { authApi } from "@/app/lib/api";
 import { useAuth } from "@/app/lib/auth-context";
+import { useToast } from "@/app/lib/toast-context";
 import type { SafeUser, UpdateMyProfileDto } from "@/app/lib/types";
 
 type ProfileForm = {
@@ -40,6 +41,7 @@ function toProfileForm(user: SafeUser): ProfileForm {
 }
 
 export default function MyProfilePage() {
+  const { showToast } = useToast();
   const { user, refreshUser } = useAuth();
   const [profile, setProfile] = useState<SafeUser | null>(null);
   const [editForm, setEditForm] = useState<ProfileForm>(EMPTY_FORM);
@@ -48,19 +50,16 @@ export default function MyProfilePage() {
   const [submittingEdit, setSubmittingEdit] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const [error, setError] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const loadProfile = async () => {
     setLoading(true);
-    setError(null);
     try {
       const me = await authApi.getMe();
       setProfile(me);
       setEditForm(toProfileForm(me));
     } catch (err) {
-      setError(getApiErrorMessage(err, "Gagal memuat data profil."));
+      showToast(getApiErrorMessage(err, "Gagal memuat data profil."), "error");
     } finally {
       setLoading(false);
     }
@@ -95,7 +94,6 @@ export default function MyProfilePage() {
     if (!profile) return;
 
     setEditError(null);
-    setSuccess(null);
 
     if (!editForm.email.trim()) {
       setEditError("Email wajib diisi.");
@@ -116,7 +114,7 @@ export default function MyProfilePage() {
       setProfile(updated);
       await refreshUser();
       setShowEditModal(false);
-      setSuccess("Profil berhasil diperbarui.");
+      showToast("Profil berhasil diperbarui.", "success");
     } catch (err) {
       setEditError(getApiErrorMessage(err, "Gagal memperbarui profil."));
     } finally {
@@ -127,20 +125,6 @@ export default function MyProfilePage() {
   return (
     <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto flex w-full max-w-225 flex-col gap-4">
-
-
-        {error && (
-          <div className="rounded-lg border border-[#f5b3a5] bg-[#fff3f0] px-4 py-3 text-[13px] text-[#9b2f15]">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="rounded-lg border border-[#b8dfc4] bg-[#edf9f1] px-4 py-3 text-[13px] text-[#1f6b36]">
-            {success}
-          </div>
-        )}
-
         {loading ? (
           <section className="rounded-xl border border-[rgba(38,43,67,0.12)] bg-white p-6 text-[14px] text-[#7a8398] shadow-[0_4px_18px_rgba(38,43,67,0.08)]">
             Memuat data profil...

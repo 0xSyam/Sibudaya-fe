@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adminFasilitasiApi } from "../../../lib/api";
 import type { AdminJenisFasilitasi as ApiFasilitasi } from "../../../lib/types";
+import { useToast } from "@/app/lib/toast-context";
 
 // ─── Icons ───────────────────────────────────────────────
 
@@ -1012,10 +1013,10 @@ function JenisLembagaTable({
 // ─── General Tab Content ────────────────────────────────
 
 function GeneralTabContent() {
+  const { showToast } = useToast();
   const [jenisLembaga, setJenisLembaga] = useState<JenisLembagaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showAddJenisDialog, setShowAddJenisDialog] = useState(false);
   const [editingJenisIndex, setEditingJenisIndex] = useState<number | null>(null);
 
@@ -1024,34 +1025,33 @@ function GeneralTabContent() {
     try {
       const data = await adminFasilitasiApi.getJenisLembaga();
       setJenisLembaga(data);
-      setError(null);
     } catch (e: unknown) {
       const message =
         typeof e === "object" && e !== null && "message" in e
           ? String((e as { message: unknown }).message)
           : "Gagal memuat jenis lembaga";
-      setError(message);
+      showToast(message, "error");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     loadJenisLembaga();
   }, [loadJenisLembaga]);
 
-  const withSave = async (fn: () => Promise<unknown>) => {
+  const withSave = async (fn: () => Promise<unknown>, successMessage: string) => {
     setSaving(true);
     try {
       await fn();
       await loadJenisLembaga();
-      setError(null);
+      showToast(successMessage, "success");
     } catch (e: unknown) {
       const message =
         typeof e === "object" && e !== null && "message" in e
           ? String((e as { message: unknown }).message)
           : "Terjadi kesalahan";
-      setError(message);
+      showToast(message, "error");
     } finally {
       setSaving(false);
     }
@@ -1061,27 +1061,13 @@ function GeneralTabContent() {
     const target = jenisLembaga[index];
     if (!target) return;
 
-    withSave(() => adminFasilitasiApi.deleteJenisLembaga(target.jenis_lembaga_id));
+    withSave(() => adminFasilitasiApi.deleteJenisLembaga(target.jenis_lembaga_id), "Jenis lembaga berhasil dihapus.");
   };
 
   const editingItem = editingJenisIndex !== null ? jenisLembaga[editingJenisIndex] : null;
 
   return (
     <>
-      {error && (
-        <div className="rounded-lg bg-[#fff0ed] px-4 py-3 text-[14px] text-[#c23513]">
-          {error}{" "}
-          <button type="button" onClick={() => setError(null)} className="underline">
-            Tutup
-          </button>
-        </div>
-      )}
-      {(loading || saving) && (
-        <div className="rounded-lg bg-[#f5f5f7] px-4 py-2 text-[14px] text-[rgba(38,43,67,0.6)]">
-          {loading ? "Memuat..." : "Menyimpan..."}
-        </div>
-      )}
-
       <JenisLembagaTable
         items={jenisLembaga}
         onEdit={(index) => setEditingJenisIndex(index)}
@@ -1095,7 +1081,7 @@ function GeneralTabContent() {
         title="Tambah Jenis Lembaga"
         submitLabel="Tambah Jenis"
         onSubmit={(jenis) => {
-          withSave(() => adminFasilitasiApi.createJenisLembaga({ nama: jenis }));
+          withSave(() => adminFasilitasiApi.createJenisLembaga({ nama: jenis }), "Jenis lembaga berhasil ditambahkan.");
         }}
       />
       {editingItem ? (
@@ -1109,7 +1095,8 @@ function GeneralTabContent() {
             withSave(() =>
               adminFasilitasiApi.updateJenisLembaga(editingItem.jenis_lembaga_id, {
                 nama: jenis,
-              })
+              }),
+              "Jenis lembaga berhasil diperbarui.",
             );
           }}
         />
@@ -1356,6 +1343,7 @@ function PentasTabContent({
   data: ApiFasilitasi | null;
   onRefetch: () => void;
 }) {
+  const { showToast } = useToast();
   const JENIS_ID = 1;
 
   const [showAddJenisDialog, setShowAddJenisDialog] = useState(false);
@@ -1365,7 +1353,6 @@ function PentasTabContent({
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<"proposal" | "laporan">("proposal");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const pakets = data?.paket_fasilitasi ?? [];
 
@@ -1386,29 +1373,44 @@ function PentasTabContent({
     kuotaPengajuan: `${p.kuota}`,
   }));
 
+  const isDuplicatePaket = (namaPaket: string, excludePaketId?: string) => {
+    const normalizedNewPaket = namaPaket.trim().toLocaleLowerCase("id-ID");
+    return pakets.some(
+      (paket) =>
+        paket.paket_id !== excludePaketId &&
+        paket.nama_paket.trim().toLocaleLowerCase("id-ID") === normalizedNewPaket,
+    );
+  };
+
   const parseNilai = (display: string) => display.replace(/[^\d]/g, "") || "0";
 
-  const withSave = async (fn: () => Promise<unknown>) => {
+  const withSave = async (fn: () => Promise<unknown>, successMessage: string) => {
       setSaving(true);
-      setError(null);
       try {
         await fn();
         onRefetch();
+        showToast(successMessage, "success");
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Terjadi kesalahan";
-        setError(msg);
+        showToast(msg, "error");
       } finally {
         setSaving(false);
       }
     };
 
   const handleAddJenis = (payload: { jenis: string; danaPembinaan?: string }) => {
+    if (isDuplicatePaket(payload.jenis)) {
+      showToast("Paket Fasilitasi sudah ada", "error");
+      return;
+    }
+
     withSave(() =>
       adminFasilitasiApi.createKuota(JENIS_ID, {
         nama_paket: payload.jenis,
         kuota: 0,
         nilai_bantuan: parseNilai(payload.danaPembinaan ?? "0"),
-      })
+      }),
+      "Jenis fasilitasi berhasil ditambahkan.",
     );
   };
 
@@ -1416,11 +1418,18 @@ function PentasTabContent({
     if (editingJenisIndex === null) return;
     const paket = pakets[editingJenisIndex];
     if (!paket) return;
+
+    if (isDuplicatePaket(payload.jenis, paket.paket_id)) {
+      showToast("Paket Fasilitasi sudah ada", "error");
+      return;
+    }
+
     withSave(() =>
       adminFasilitasiApi.updateKuota(paket.paket_id, {
         nama_paket: payload.jenis,
         nilai_bantuan: parseNilai(payload.danaPembinaan),
-      })
+      }),
+      "Jenis fasilitasi berhasil diperbarui.",
     );
     setEditingJenisIndex(null);
   };
@@ -1428,15 +1437,21 @@ function PentasTabContent({
   const handleDeleteJenis = (index: number) => {
     const paket = pakets[index];
     if (!paket) return;
-    withSave(() => adminFasilitasiApi.deleteKuota(paket.paket_id));
+    withSave(() => adminFasilitasiApi.deleteKuota(paket.paket_id), "Jenis fasilitasi berhasil dihapus.");
   };
 
   const handleAddKuota = (payload: KuotaPengajuan) => {
+    if (isDuplicatePaket(payload.jenis)) {
+      showToast("Paket Fasilitasi sudah ada", "error");
+      return;
+    }
+
     withSave(() =>
       adminFasilitasiApi.createKuota(JENIS_ID, {
         nama_paket: payload.jenis,
         kuota: parseInt(payload.kuotaPengajuan) || 0,
-      })
+      }),
+      "Kuota pengajuan berhasil ditambahkan.",
     );
   };
 
@@ -1447,7 +1462,8 @@ function PentasTabContent({
     withSave(() =>
       adminFasilitasiApi.updateKuota(paket.paket_id, {
         kuota: parseInt(payload.kuotaPengajuan) || 0,
-      })
+      }),
+      "Kuota pengajuan berhasil diperbarui.",
     );
     setEditingKuotaIndex(null);
   };
@@ -1459,6 +1475,10 @@ function PentasTabContent({
       uploadTarget === "proposal"
         ? adminFasilitasiApi.uploadTemplateProposal(JENIS_ID, file)
         : adminFasilitasiApi.uploadTemplateLaporan(JENIS_ID, file)
+      ,
+      uploadTarget === "proposal"
+        ? "Template proposal berhasil diunggah."
+        : "Template laporan berhasil diunggah."
     );
   };
 
@@ -1471,20 +1491,6 @@ function PentasTabContent({
 
   return (
     <>
-      {error && (
-        <div className="rounded-lg bg-[#fff0ed] px-4 py-3 text-[14px] text-[#c23513]">
-          {error}{" "}
-          <button type="button" onClick={() => setError(null)} className="underline">
-            Tutup
-          </button>
-        </div>
-      )}
-      {saving && (
-        <div className="rounded-lg bg-[#f5f5f7] px-4 py-2 text-[14px] text-[rgba(38,43,67,0.6)]">
-          Menyimpan...
-        </div>
-      )}
-
       {/* 1. Jenis Fasilitasi table */}
       <JenisFasilitasiTable
         items={jenisFasilitasiItems}
@@ -1571,6 +1577,7 @@ function SaranaPrasaranaTabContent({
   data: ApiFasilitasi | null;
   onRefetch: () => void;
 }) {
+  const { showToast } = useToast();
   const JENIS_ID = 2;
 
   const [showAddKuotaDialog, setShowAddKuotaDialog] = useState(false);
@@ -1578,7 +1585,6 @@ function SaranaPrasaranaTabContent({
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<"proposal" | "laporan">("proposal");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const pakets = data?.paket_fasilitasi ?? [];
 
@@ -1588,26 +1594,41 @@ function SaranaPrasaranaTabContent({
     kuotaPengajuan: `${p.kuota}`,
   }));
 
-  const withSave = async (fn: () => Promise<unknown>) => {
+  const isDuplicatePaket = (namaPaket: string, excludePaketId?: string) => {
+    const normalizedNewPaket = namaPaket.trim().toLocaleLowerCase("id-ID");
+    return pakets.some(
+      (paket) =>
+        paket.paket_id !== excludePaketId &&
+        paket.nama_paket.trim().toLocaleLowerCase("id-ID") === normalizedNewPaket,
+    );
+  };
+
+  const withSave = async (fn: () => Promise<unknown>, successMessage: string) => {
     setSaving(true);
-    setError(null);
     try {
       await fn();
       onRefetch();
+      showToast(successMessage, "success");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Terjadi kesalahan";
-      setError(msg);
+      showToast(msg, "error");
     } finally {
       setSaving(false);
     }
   };
 
   const handleAddKuota = (payload: KuotaPengajuan) => {
+    if (isDuplicatePaket(payload.jenis)) {
+      showToast("Paket Fasilitasi sudah ada", "error");
+      return;
+    }
+
     withSave(() =>
       adminFasilitasiApi.createKuota(JENIS_ID, {
         nama_paket: payload.jenis,
         kuota: parseInt(payload.kuotaPengajuan) || 0,
-      })
+      }),
+      "Paket sarana prasarana berhasil ditambahkan.",
     );
   };
 
@@ -1615,11 +1636,18 @@ function SaranaPrasaranaTabContent({
     if (editingKuotaIndex === null) return;
     const paket = pakets[editingKuotaIndex];
     if (!paket) return;
+
+    if (isDuplicatePaket(payload.jenis, paket.paket_id)) {
+      showToast("Paket Fasilitasi sudah ada", "error");
+      return;
+    }
+
     withSave(() =>
       adminFasilitasiApi.updateKuota(paket.paket_id, {
         nama_paket: payload.jenis,
         kuota: parseInt(payload.kuotaPengajuan) || 0,
-      })
+      }),
+      "Paket sarana prasarana berhasil diperbarui.",
     );
     setEditingKuotaIndex(null);
   };
@@ -1627,7 +1655,7 @@ function SaranaPrasaranaTabContent({
   const handleDeleteKuota = (index: number) => {
     const paket = pakets[index];
     if (!paket) return;
-    withSave(() => adminFasilitasiApi.deleteKuota(paket.paket_id));
+    withSave(() => adminFasilitasiApi.deleteKuota(paket.paket_id), "Paket sarana prasarana berhasil dihapus.");
   };
 
   const handleUpload = (file: File) => {
@@ -1635,6 +1663,10 @@ function SaranaPrasaranaTabContent({
       uploadTarget === "proposal"
         ? adminFasilitasiApi.uploadTemplateProposal(JENIS_ID, file)
         : adminFasilitasiApi.uploadTemplateLaporan(JENIS_ID, file)
+      ,
+      uploadTarget === "proposal"
+        ? "Template proposal berhasil diunggah."
+        : "Template laporan berhasil diunggah."
     );
   };
 
@@ -1647,20 +1679,6 @@ function SaranaPrasaranaTabContent({
 
   return (
     <>
-      {error && (
-        <div className="rounded-lg bg-[#fff0ed] px-4 py-3 text-[14px] text-[#c23513]">
-          {error}{" "}
-          <button type="button" onClick={() => setError(null)} className="underline">
-            Tutup
-          </button>
-        </div>
-      )}
-      {saving && (
-        <div className="rounded-lg bg-[#f5f5f7] px-4 py-2 text-[14px] text-[rgba(38,43,67,0.6)]">
-          Menyimpan...
-        </div>
-      )}
-
       {/* 1. Kuota Pengajuan table */}
       <KuotaPengajuanTable
         items={kuotaItems}
