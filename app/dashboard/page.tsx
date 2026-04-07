@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { pengajuanApi } from "@/app/lib/api";
+import { useToast } from "@/app/lib/toast-context";
 import type { Pengajuan } from "@/app/lib/types";
 
 const SUBMIT_SUCCESS_NOTICE_KEY = "pengajuan_submit_notice";
@@ -291,17 +292,17 @@ function SubmissionStatusTable({ submissions }: { submissions: Submission[] }) {
 }
 
 export default function DashboardPage() {
+  const { showToast } = useToast();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitNotice, setSubmitNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const notice = sessionStorage.getItem(SUBMIT_SUCCESS_NOTICE_KEY);
     if (!notice) return;
 
-    setSubmitNotice(notice);
+    showToast(notice, "success");
     sessionStorage.removeItem(SUBMIT_SUCCESS_NOTICE_KEY);
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     pengajuanApi
@@ -314,12 +315,6 @@ export default function DashboardPage() {
   return (
     <section className="h-full overflow-y-auto px-4 py-6 sm:px-6">
       <div className="mx-auto w-full max-w-[950px] pb-10 pt-6 lg:pt-[28px]">
-        {submitNotice ? (
-          <div className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-[14px] text-green-700">
-            {submitNotice}
-          </div>
-        ) : null}
-
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-[33px]">
           <OverviewCard
             title="Panduan Pengajuan Fasilitasi"

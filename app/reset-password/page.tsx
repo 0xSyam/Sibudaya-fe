@@ -8,16 +8,15 @@ import { trim } from "lodash";
 import {
   ArrowLeftIcon,
   AuthCard,
-  AuthErrorAlert,
   AuthHeading,
   AuthInput,
   AuthLogo,
   AuthPageShell,
   AuthPasswordInput,
   AuthPrimaryButton,
-  AuthSuccessAlert,
 } from "@/app/components/auth/auth-ui";
 import { authApi, isApiAuthEnabled } from "@/app/lib/api";
+import { useToast } from "@/app/lib/toast-context";
 import {
   requestResetSchema,
   resetPasswordSchema,
@@ -28,6 +27,7 @@ import {
 type Step = "request" | "reset";
 
 export default function ResetPasswordPage() {
+  const { showToast } = useToast();
   const [step, setStep] = useState<Step>("request");
 
   // Step 1 — request reset token
@@ -36,7 +36,6 @@ export default function ResetPasswordPage() {
   const {
     register: requestRegister,
     handleSubmit: handleRequestSubmit,
-    formState: { errors: requestErrors },
     watch: watchRequest,
   } = useForm<RequestResetFormValues>({
     resolver: zodResolver(requestResetSchema),
@@ -46,7 +45,6 @@ export default function ResetPasswordPage() {
   const {
     register: resetRegister,
     handleSubmit: handleResetSubmit,
-    formState: { errors: resetErrors },
     watch: watchReset,
     reset: resetForm,
   } = useForm<ResetPasswordFormValues>({
@@ -59,8 +57,8 @@ export default function ResetPasswordPage() {
   const confirmPassword = watchReset("confirmPassword");
 
   // Shared
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
+  const [, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   // ─── Step 1: Request reset token ─────────────────────────────────────────
@@ -74,6 +72,7 @@ export default function ResetPasswordPage() {
       if (!isApiAuthEnabled()) {
         setResetToken("local-reset-token");
         setSuccess("Mode tanpa API aktif. Gunakan password baru langsung.");
+        showToast("Mode tanpa API aktif. Gunakan password baru langsung.", "info");
         setStep("reset");
         return;
       }
@@ -81,6 +80,7 @@ export default function ResetPasswordPage() {
       const data = await authApi.forgotPassword({ email: trim(values.email) });
       setResetToken(data.reset_token);
       setSuccess("Token reset password berhasil dibuat. Silakan masukkan password baru.");
+      showToast("Token reset password berhasil dibuat. Silakan masukkan password baru.", "success");
       setStep("reset");
     } catch (err: unknown) {
       const apiErr = err as { message?: string | string[]; statusCode?: number };
@@ -99,8 +99,11 @@ export default function ResetPasswordPage() {
 
       if (isUnregisteredEmail) {
         setError("email tidak terdaftar");
+        showToast("email tidak terdaftar", "error");
       } else {
-        setError(message ?? "Gagal mengirim reset password. Coba lagi.");
+        const fallback = message ?? "Gagal mengirim reset password. Coba lagi.";
+        setError(fallback);
+        showToast(fallback, "error");
       }
     } finally {
       setLoading(false);
@@ -117,6 +120,7 @@ export default function ResetPasswordPage() {
     try {
       if (!isApiAuthEnabled()) {
         setSuccess("Password lokal berhasil diperbarui. Silakan login kembali.");
+        showToast("Password lokal berhasil diperbarui. Silakan login kembali.", "success");
         resetForm({ newPassword: "", confirmPassword: "" });
         return;
       }
@@ -126,21 +130,23 @@ export default function ResetPasswordPage() {
         new_password: values.newPassword,
       });
       setSuccess(data.message + " Silakan login dengan password baru.");
+      showToast(data.message + " Silakan login dengan password baru.", "success");
       resetForm({ newPassword: "", confirmPassword: "" });
     } catch (err: unknown) {
       const apiErr = err as { message?: string | string[]; statusCode?: number };
       if (Array.isArray(apiErr.message)) {
-        setError(apiErr.message.join(". "));
+        const message = apiErr.message.join(". ");
+        setError(message);
+        showToast(message, "error");
       } else {
-        setError(apiErr.message ?? "Gagal reset password. Coba lagi.");
+        const message = apiErr.message ?? "Gagal reset password. Coba lagi.";
+        setError(message);
+        showToast(message, "error");
       }
     } finally {
       setLoading(false);
     }
   });
-
-  const requestErrorMessage = error ?? requestErrors.email?.message ?? null;
-  const resetErrorMessage = error ?? resetErrors.newPassword?.message ?? resetErrors.confirmPassword?.message ?? null;
 
   return (
     <AuthPageShell>
@@ -156,9 +162,6 @@ export default function ResetPasswordPage() {
             />
 
             <form onSubmit={onRequestReset} className="mt-5 space-y-4">
-              <AuthErrorAlert message={requestErrorMessage} />
-              <AuthSuccessAlert message={success} />
-
               <AuthInput
                 type="email"
                 placeholder="Email"
@@ -183,9 +186,6 @@ export default function ResetPasswordPage() {
             />
 
             <form onSubmit={onResetPassword} className="mt-5 space-y-4">
-              <AuthErrorAlert message={resetErrorMessage} />
-              <AuthSuccessAlert message={success} />
-
               <AuthPasswordInput
                 placeholder="Password baru (min. 8 karakter)"
                 {...resetRegister("newPassword")}

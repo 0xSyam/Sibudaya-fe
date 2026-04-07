@@ -36,6 +36,7 @@ import {
   getPendingSertifikatNikFile,
 } from "@/app/lib/pengajuan-draft-store";
 import { buildProtectedFileUrl } from "@/app/lib/file-url";
+import { useToast } from "@/app/lib/toast-context";
 import type {
   CreatePengajuanPentasDto,
   CreatePengajuanHibahDto,
@@ -135,6 +136,7 @@ type StepThreeFormValues = {
 export default function AjukanFasilitasiFormStep3Page() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const jenisId = Number(searchParams.get("jenis") ?? "1");
   const stepThreeSchema = useMemo(() => createStepThreeSchema(jenisId), [jenisId]);
 
@@ -376,6 +378,7 @@ export default function AjukanFasilitasiFormStep3Page() {
         ? apiError.message.join(", ")
         : (apiError?.message ?? "Gagal mengirim pengajuan. Silakan coba lagi.");
       setSubmitError(msg);
+      showToast(msg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -398,12 +401,6 @@ export default function AjukanFasilitasiFormStep3Page() {
         />
 
         <FormStepper steps={stepThreeProgress} />
-
-        {submitError && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {submitError}
-          </div>
-        )}
 
         <form
           className="mt-6 rounded-[10px] bg-white px-7 pb-8 pt-11"

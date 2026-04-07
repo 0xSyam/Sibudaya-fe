@@ -9,7 +9,6 @@ import { trim } from "lodash";
 import {
   AuthCard,
   AuthDivider,
-  AuthErrorAlert,
   AuthHeading,
   AuthInput,
   AuthLogo,
@@ -21,18 +20,19 @@ import {
 } from "@/app/components/auth/auth-ui";
 import { useAuth } from "@/app/lib/auth-context";
 import { loginSchema, type LoginFormValues } from "@/app/lib/form-schemas";
+import { useToast } from "@/app/lib/toast-context";
 import { useUiFormStore } from "@/app/lib/ui-form-store";
 
 export default function LoginPage() {
+  const { showToast } = useToast();
   const { login, loginWithGoogle, isAuthenticated, isLoading, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { authError, setAuthError, clearAuthError } = useUiFormStore();
+  const { setAuthError, clearAuthError } = useUiFormStore();
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
     watch,
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -66,16 +66,18 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const apiErr = err as { message?: string | string[]; statusCode?: number };
       if (Array.isArray(apiErr.message)) {
-        setAuthError(apiErr.message.join(". "));
+        const message = apiErr.message.join(". ");
+        setAuthError(message);
+        showToast(message, "error");
       } else {
-        setAuthError(apiErr.message ?? "Login gagal. Silakan coba lagi.");
+        const message = apiErr.message ?? "Login gagal. Silakan coba lagi.";
+        setAuthError(message);
+        showToast(message, "error");
       }
     } finally {
       setLoading(false);
     }
   });
-
-  const combinedError = authError ?? errors.email?.message ?? errors.password?.message ?? null;
 
   if (isLoading || isAuthenticated) {
     return (
@@ -98,8 +100,6 @@ export default function LoginPage() {
         />
 
         <form onSubmit={onSubmit} className="mt-5 space-y-4">
-          <AuthErrorAlert message={combinedError} />
-
           <AuthInput
             type="email"
             placeholder="Email"

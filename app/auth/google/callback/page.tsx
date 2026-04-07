@@ -4,9 +4,9 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { setTokens } from "@/app/lib/api";
 import { useAuth } from "@/app/lib/auth-context";
+import { useToast } from "@/app/lib/toast-context";
 import {
   AuthCard,
-  AuthErrorAlert,
   AuthLogo,
   AuthPageShell,
 } from "@/app/components/auth/auth-ui";
@@ -15,6 +15,7 @@ function GoogleCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { refreshUser } = useAuth();
+  const { showToast } = useToast();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,17 +29,18 @@ function GoogleCallbackContent() {
         router.replace("/dashboard");
       } else {
         const errMsg = searchParams.get("error");
-        setError(errMsg ?? "Google login gagal. Tidak ada token yang diterima.");
+        const message = errMsg ?? "Google login gagal. Tidak ada token yang diterima.";
+        setError(message);
+        showToast(message, "error");
       }
     }
 
     handleCallback();
-  }, [searchParams, router, refreshUser]);
+  }, [searchParams, router, refreshUser, showToast]);
 
   if (error) {
     return (
       <div className="mt-6 space-y-4">
-        <AuthErrorAlert message={error} />
         <button
           onClick={() => router.push("/login")}
           className="w-full rounded-[8px] bg-[#c23513] py-2 text-[15px] font-medium text-white hover:bg-[#a62c10] cursor-pointer"

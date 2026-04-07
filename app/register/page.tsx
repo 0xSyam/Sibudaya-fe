@@ -9,7 +9,6 @@ import { trim } from "lodash";
 import {
   AuthCard,
   AuthDivider,
-  AuthErrorAlert,
   AuthHeading,
   AuthInput,
   AuthLogo,
@@ -21,18 +20,19 @@ import {
 } from "@/app/components/auth/auth-ui";
 import { useAuth } from "@/app/lib/auth-context";
 import { registerSchema, type RegisterFormValues } from "@/app/lib/form-schemas";
+import { useToast } from "@/app/lib/toast-context";
 import { useUiFormStore } from "@/app/lib/ui-form-store";
 
 export default function RegisterPage() {
+  const { showToast } = useToast();
   const { register, loginWithGoogle, isAuthenticated, isLoading, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { authError, setAuthError, clearAuthError } = useUiFormStore();
+  const { setAuthError, clearAuthError } = useUiFormStore();
 
   const {
     register: registerField,
     handleSubmit,
-    formState: { errors },
     watch,
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -85,25 +85,18 @@ export default function RegisterPage() {
     } catch (err: unknown) {
       const apiErr = err as { message?: string | string[]; statusCode?: number };
       if (Array.isArray(apiErr.message)) {
-        setAuthError(apiErr.message.join(". "));
+        const message = apiErr.message.join(". ");
+        setAuthError(message);
+        showToast(message, "error");
       } else {
-        setAuthError(apiErr.message ?? "Registrasi gagal. Silakan coba lagi.");
+        const message = apiErr.message ?? "Registrasi gagal. Silakan coba lagi.";
+        setAuthError(message);
+        showToast(message, "error");
       }
     } finally {
       setLoading(false);
     }
   });
-
-  const combinedError =
-    authError ??
-    errors.firstName?.message ??
-    errors.lastName?.message ??
-    errors.address?.message ??
-    errors.email?.message ??
-    errors.noTelp?.message ??
-    errors.password?.message ??
-    errors.confirmPassword?.message ??
-    null;
 
   if (isLoading || isAuthenticated) {
     return (
@@ -127,8 +120,6 @@ export default function RegisterPage() {
         />
 
         <form onSubmit={onSubmit} className="mt-5 space-y-4">
-          <AuthErrorAlert message={combinedError} />
-
           <div className="grid grid-cols-2 gap-3">
             <AuthInput
               type="text"

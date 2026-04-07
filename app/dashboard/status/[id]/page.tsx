@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { pengajuanApi, fasilitasiApi } from "@/app/lib/api";
 import { buildProtectedFileUrl } from "@/app/lib/file-url";
 import { pdfUploadValidation, validateUploadFile } from "@/app/lib/file-validation";
+import { useToast } from "@/app/lib/toast-context";
 import type { Pengajuan } from "@/app/lib/types";
 
 /* ------------------------------------------------------------------ */
@@ -384,12 +385,12 @@ function PdfFileChip({ filename }: { filename: string }) {
 export default function UserStatusDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const { showToast } = useToast();
 
   const [data, setData] = useState<Pengajuan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadNotice, setUploadNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [selectedLaporanFile, setSelectedLaporanFile] = useState<File | null>(null);
   const [templateLaporanUrl, setTemplateLaporanUrl] = useState<string | null>(null);
 
@@ -433,44 +434,30 @@ export default function UserStatusDetailPage() {
 
     if (validationMessage) {
       setSelectedLaporanFile(null);
-      setUploadNotice({
-        type: "error",
-        message: "Laporan kegiatan wajib dalam format PDF",
-      });
+      showToast("Laporan kegiatan wajib dalam format PDF", "error");
       return;
     }
 
     setSelectedLaporanFile(file);
-    setUploadNotice(null);
   }
 
   async function handleUploadLaporan() {
     if (!data) return;
 
     if (!selectedLaporanFile) {
-      setUploadNotice({
-        type: "error",
-        message: "Laporan kegiatan wajib diunggah",
-      });
+      showToast("Laporan kegiatan wajib diunggah", "error");
       return;
     }
 
     try {
       setUploading(true);
-      setUploadNotice(null);
       await pengajuanApi.uploadLaporan(data.pengajuan_id, selectedLaporanFile);
       setSelectedLaporanFile(null);
-      setUploadNotice({
-        type: "success",
-        message: "Laporan kegiatan berhasil diunggah.",
-      });
+      showToast("Laporan kegiatan berhasil diunggah.", "success");
       await fetchData();
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Gagal mengunggah laporan";
-      setUploadNotice({
-        type: "error",
-        message: msg,
-      });
+      showToast(msg, "error");
     } finally {
       setUploading(false);
     }
@@ -523,18 +510,6 @@ export default function UserStatusDetailPage() {
           <p className="mt-4 text-[13px] leading-5 text-[rgba(38,43,67,0.7)]">
             Pantau perkembangan pengajuan fasilitas pentas dan sarana prasarana yang telah Anda ajukan.
           </p>
-
-          {uploadNotice ? (
-            <div
-              className={`mt-4 rounded-lg px-4 py-3 text-[14px] ${
-                uploadNotice.type === "success"
-                  ? "border border-green-200 bg-green-50 text-green-700"
-                  : "border border-red-200 bg-red-50 text-red-700"
-              }`}
-            >
-              {uploadNotice.message}
-            </div>
-          ) : null}
 
           <div className="mt-4 overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
             <div className="overflow-x-auto">

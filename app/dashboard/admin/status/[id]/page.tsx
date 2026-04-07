@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { adminPengajuanApi, fasilitasiApi } from "@/app/lib/api";
 import { buildProtectedFileUrl } from "@/app/lib/file-url";
 import { documentUploadValidation, pdfUploadValidation, validateUploadFile } from "@/app/lib/file-validation";
+import { useToast } from "@/app/lib/toast-context";
 import { StatusBackButton, StatusChip, TimelineDot } from "@/app/dashboard/components/status/timeline-ui";
 import type { PaketFasilitasi, Pengajuan } from "@/app/lib/types";
 
@@ -490,6 +491,7 @@ function ActionButton({
 export default function AdminStatusDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const { showToast } = useToast();
 
   const [data, setData] = useState<Pengajuan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -504,7 +506,6 @@ export default function AdminStatusDetailPage() {
   const [paketId, setPaketId] = useState("");
   const [showPaketPicker, setShowPaketPicker] = useState(false);
   const [paketOptions, setPaketOptions] = useState<PaketFasilitasi[]>([]);
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [rejectReasonError, setRejectReasonError] = useState<string | null>(null);
   const [timelineRejectStep, setTimelineRejectStep] = useState<TimelineStep | null>(null);
   const [timelineRejectReason, setTimelineRejectReason] = useState("");
@@ -550,11 +551,10 @@ export default function AdminStatusDetailPage() {
     if (!data) return;
     try {
       setActionLoading(true);
-      setActionMessage(null);
       switch (actionType) {
         case "setujui_pemeriksaan":
           if (data.jenis_fasilitasi_id === 1 && !paketId) {
-            alert("Pilih paket terlebih dahulu");
+            showToast("Pilih paket terlebih dahulu", "error");
             setActionLoading(false);
             return;
           }
@@ -588,7 +588,11 @@ export default function AdminStatusDetailPage() {
           setRejectReasonError(null);
           break;
         case "set_survey":
-          if (!surveyDate) { alert("Pilih tanggal survey terlebih dahulu"); setActionLoading(false); return; }
+          if (!surveyDate) {
+            showToast("Pilih tanggal survey terlebih dahulu", "error");
+            setActionLoading(false);
+            return;
+          }
           await adminPengajuanApi.setSurvey(data.pengajuan_id, {
             tanggal_survey: surveyDate,
           });
@@ -624,7 +628,7 @@ export default function AdminStatusDetailPage() {
       await fetchData();
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Aksi gagal";
-      setActionMessage(msg);
+      showToast(msg, "error");
     } finally {
       setActionLoading(false);
     }
@@ -643,14 +647,13 @@ export default function AdminStatusDetailPage() {
 
     const validationMessage = validateUploadFile(file, validationConfig);
     if (validationMessage) {
-      setActionMessage(validationMessage);
+      showToast(validationMessage, "error");
       setPendingFileAction(null);
       return;
     }
 
     try {
       setActionLoading(true);
-      setActionMessage(null);
       switch (currentAction) {
         case "upload_surat":
           await adminPengajuanApi.uploadSuratPersetujuan(
@@ -683,7 +686,7 @@ export default function AdminStatusDetailPage() {
       await fetchData();
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Upload gagal";
-      setActionMessage(msg);
+      showToast(msg, "error");
     } finally {
       setActionLoading(false);
     }
@@ -758,14 +761,12 @@ export default function AdminStatusDetailPage() {
       setTimelineRejectReason("");
       setTimelineRejectReasonError(null);
       setTimelineRejectSuratFile(null);
-      setActionMessage(null);
       return;
     }
 
     void (async () => {
       try {
         setActionLoading(true);
-        setActionMessage(null);
         await adminPengajuanApi.updateTimelineStatus(data.pengajuan_id, {
           step: apiStep,
           status: mapTimelineStatusToApi(nextStatus),
@@ -774,7 +775,7 @@ export default function AdminStatusDetailPage() {
         await fetchData();
       } catch (err: unknown) {
         const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Gagal mengubah status timeline";
-        setActionMessage(msg);
+        showToast(msg, "error");
       } finally {
         setActionLoading(false);
       }
@@ -793,7 +794,6 @@ export default function AdminStatusDetailPage() {
     void (async () => {
       try {
         setActionLoading(true);
-        setActionMessage(null);
         setTimelineRejectReasonError(null);
         if (timelineRejectStep.key === "PEMERIKSAAN") {
           await adminPengajuanApi.tolak(
@@ -820,7 +820,7 @@ export default function AdminStatusDetailPage() {
         await fetchData();
       } catch (err: unknown) {
         const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Gagal mengubah status timeline";
-        setActionMessage(msg);
+        showToast(msg, "error");
       } finally {
         setActionLoading(false);
       }
@@ -854,7 +854,6 @@ export default function AdminStatusDetailPage() {
                     onChange={(e) => {
                       setTolakCatatan(e.target.value);
                       setRejectReasonError(null);
-                      setActionMessage(null);
                     }}
                     placeholder="Alasan penolakan"
                     className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
@@ -880,12 +879,11 @@ export default function AdminStatusDetailPage() {
 
                       if (validationMessage) {
                         setTolakSuratFile(null);
-                        setActionMessage(validationMessage);
+                        showToast(validationMessage, "error");
                         e.currentTarget.value = "";
                         return;
                       }
 
-                      setActionMessage(null);
                       setTolakSuratFile(selectedFile);
                     }}
                   />
@@ -951,7 +949,6 @@ export default function AdminStatusDetailPage() {
               onChange={(e) => {
                 setTolakCatatan(e.target.value);
                 setRejectReasonError(null);
-                setActionMessage(null);
               }}
               placeholder="Alasan penolakan"
               className="w-full max-w-[250px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
@@ -1053,12 +1050,11 @@ export default function AdminStatusDetailPage() {
 
                       if (validationMessage) {
                         setTimelineRejectSuratFile(null);
-                        setActionMessage(validationMessage);
+                        showToast(validationMessage, "error");
                         e.currentTarget.value = "";
                         return;
                       }
 
-                      setActionMessage(null);
                       setTimelineRejectSuratFile(selectedFile);
                     }}
                   />
@@ -1225,10 +1221,9 @@ export default function AdminStatusDetailPage() {
 
             if (validationMessage) {
               setSelectedPengirimanFile(null);
-              setActionMessage(validationMessage);
+              showToast(validationMessage, "error");
             } else {
               setSelectedPengirimanFile(file);
-              setActionMessage(null);
             }
           } else if (file) {
             handleFileUpload(file);
@@ -1311,12 +1306,6 @@ export default function AdminStatusDetailPage() {
           <p className="mt-4 text-[13px] leading-5 text-[rgba(38,43,67,0.7)]">
             Kelola dan perbarui status pengajuan fasilitas lembaga budaya.
           </p>
-
-          {actionMessage ? (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-700">
-              {actionMessage}
-            </div>
-          ) : null}
 
           <div className="mt-4 rounded-[10px] bg-white p-5 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
             <p className="text-[13px] leading-5 text-[rgba(38,43,67,0.7)]">Status Review Admin</p>
