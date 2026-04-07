@@ -619,7 +619,9 @@ export default function UserStatusDetailPage() {
                                 >
                                   <PdfFileChip filename={step.attachmentFile} />
                                 </a>
-                              ) : step.canUploadLaporan ? (
+                              ) : null}
+
+                              {step.canUploadLaporan ? (
                                 <div className="flex flex-col gap-2">
                                   <input
                                     ref={fileInputRef}
@@ -642,7 +644,7 @@ export default function UserStatusDetailPage() {
                                       onClick={() => fileInputRef.current?.click()}
                                       className="inline-flex w-fit items-center justify-center gap-2 rounded-lg border border-[rgba(38,43,67,0.22)] px-[20px] py-2 text-[15px] font-medium capitalize leading-[22px] text-[rgba(38,43,67,0.78)] transition-colors hover:bg-[rgba(38,43,67,0.04)] disabled:opacity-50"
                                     >
-                                      Pilih File
+                                      {step.attachmentFile ? "Ganti File" : "Pilih File"}
                                     </button>
                                     <button
                                       type="button"
@@ -650,7 +652,7 @@ export default function UserStatusDetailPage() {
                                       onClick={() => handleUploadLaporan()}
                                       className="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium capitalize leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-50"
                                     >
-                                      {uploading ? "Mengunggah..." : "Submit Laporan"}
+                                      {uploading ? "Mengunggah..." : step.attachmentFile ? "Simpan Penggantian" : "Submit Laporan"}
                                       <UploadCloudIcon />
                                     </button>
                                   </div>

@@ -252,7 +252,7 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
     attachmentLabel: p.pengiriman_sarana?.bukti_pengiriman ? "Bukti Pengiriman:" : undefined,
     attachmentFile: p.pengiriman_sarana?.bukti_pengiriman ? extractFilename(p.pengiriman_sarana.bukti_pengiriman) : undefined,
     attachmentPath: p.pengiriman_sarana?.bukti_pengiriman ?? undefined,
-    action: pengirimanStatus === "in_progress" && !p.pengiriman_sarana?.bukti_pengiriman ? { type: "upload_pengiriman" } : undefined,
+    action: pengirimanStatus === "in_progress" ? { type: "upload_pengiriman" } : undefined,
   });
 
   const laporanStatus = p.laporan_kegiatan ? mapSubStatus(p.laporan_kegiatan.status, p.status) : deriveNext(pengirimanStatus);
@@ -351,6 +351,16 @@ function getAdminReviewStatus(p: Pengajuan): {
     className: "bg-[rgba(253,181,40,0.16)] text-[#fdb528]",
     description: "Pengajuan masih dalam proses review admin.",
   };
+}
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message: unknown }).message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
+  return fallback;
 }
 
 function UploadIcon() {
@@ -512,7 +522,13 @@ export default function AdminStatusDetailPage() {
   const [timelineRejectReasonError, setTimelineRejectReasonError] = useState<string | null>(null);
   const [timelineRejectSuratFile, setTimelineRejectSuratFile] = useState<File | null>(null);
   const [showDataModal, setShowDataModal] = useState(false);
-  const [selectedPengirimanFile, setSelectedPengirimanFile] = useState<File | null>(null);
+  const [selectedUploadFile, setSelectedUploadFile] = useState<{
+    name: string;
+    action: StepAction["type"];
+  } | null>(null);
+  const [pencairanTanggal, setPencairanTanggal] = useState("");
+  const [pencairanTotalDana, setPencairanTotalDana] = useState("");
+  const [pencairanFormError, setPencairanFormError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingFileAction, setPendingFileAction] = useState<StepAction["type"] | null>(null);
@@ -545,6 +561,30 @@ export default function AdminStatusDetailPage() {
       .getPaketByJenis(1)
       .then(setPaketOptions)
       .catch(() => setPaketOptions(data.jenis_fasilitasi?.paket_fasilitasi ?? []));
+  }, [data]);
+
+  useEffect(() => {
+    if (!data) {
+      setPencairanTanggal("");
+      setPencairanTotalDana("");
+      setPencairanFormError(null);
+      return;
+    }
+
+    setPencairanFormError(null);
+    setPencairanTanggal((prev) => {
+      if (prev) return prev;
+      const existingTanggal = data.pencairan_dana?.tanggal_pencairan;
+      if (typeof existingTanggal === "string" && existingTanggal.trim()) {
+        return existingTanggal.split("T")[0];
+      }
+      return new Date().toISOString().split("T")[0];
+    });
+    setPencairanTotalDana((prev) => {
+      if (prev) return prev;
+      const existingTotal = data.pencairan_dana?.total_dana ?? data.total_pengajuan_dana;
+      return existingTotal === undefined || existingTotal === null ? "" : String(existingTotal);
+    });
   }, [data]);
 
   async function handleAction(actionType: StepAction["type"]) {
@@ -652,6 +692,25 @@ export default function AdminStatusDetailPage() {
       return;
     }
 
+    if (currentAction === "upload_pencairan") {
+      const parsedTotalDana = Number(pencairanTotalDana);
+      if (!pencairanTotalDana.trim() || !Number.isFinite(parsedTotalDana) || parsedTotalDana <= 0) {
+        setPencairanFormError("Total dana wajib diisi");
+        showToast("Total dana wajib diisi", "error");
+        setPendingFileAction(null);
+        return;
+      }
+
+      if (!pencairanTanggal.trim()) {
+        setPencairanFormError("Tanggal pencairan wajib diisi");
+        showToast("Tanggal pencairan wajib diisi", "error");
+        setPendingFileAction(null);
+        return;
+      }
+
+      setPencairanFormError(null);
+    }
+
     try {
       setActionLoading(true);
       switch (currentAction) {
@@ -665,11 +724,14 @@ export default function AdminStatusDetailPage() {
           );
           break;
         case "upload_pencairan":
-          await adminPengajuanApi.uploadBuktiPencairan(
-            data.pengajuan_id,
-            { tanggal_pencairan: new Date().toISOString().split("T")[0], total_dana: Number(data.total_pengajuan_dana ?? 0) },
-            file,
-          );
+          {
+            const parsedTotalDana = Number(pencairanTotalDana);
+            await adminPengajuanApi.uploadBuktiPencairan(
+              data.pengajuan_id,
+              { tanggal_pencairan: pencairanTanggal, total_dana: parsedTotalDana },
+              file,
+            );
+          }
           break;
         case "upload_pengiriman":
           await adminPengajuanApi.uploadBuktiPengiriman(
@@ -679,13 +741,12 @@ export default function AdminStatusDetailPage() {
             },
             file,
           );
-          setSelectedPengirimanFile(null);
           break;
       }
       setPendingFileAction(null);
       await fetchData();
     } catch (err: unknown) {
-      const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Upload gagal";
+      const msg = getApiErrorMessage(err, "Upload gagal");
       showToast(msg, "error");
     } finally {
       setActionLoading(false);
@@ -695,6 +756,21 @@ export default function AdminStatusDetailPage() {
   function triggerFileUpload(actionType: StepAction["type"]) {
     setPendingFileAction(actionType);
     fileInputRef.current?.click();
+  }
+
+  function renderSelectedFileInfo(actionType: StepAction["type"]) {
+    if (!selectedUploadFile || selectedUploadFile.action !== actionType) return null;
+
+    return (
+      <div className="inline-flex max-w-full items-center gap-2 rounded-[8px] border border-[rgba(38,43,67,0.14)] bg-[rgba(38,43,67,0.04)] px-3 py-2">
+        <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-[2px] text-[8px] font-bold leading-none text-white">
+          FILE
+        </span>
+        <p className="truncate text-[14px] leading-5 text-[rgba(38,43,67,0.72)]" title={selectedUploadFile.name}>
+          File dipilih: <span className="font-medium text-[rgba(38,43,67,0.9)]">{selectedUploadFile.name}</span>
+        </p>
+      </div>
+    );
   }
 
   if (loading) {
@@ -774,7 +850,7 @@ export default function AdminStatusDetailPage() {
         });
         await fetchData();
       } catch (err: unknown) {
-        const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Gagal mengubah status timeline";
+        const msg = getApiErrorMessage(err, "Gagal mengubah status timeline");
         showToast(msg, "error");
       } finally {
         setActionLoading(false);
@@ -819,7 +895,7 @@ export default function AdminStatusDetailPage() {
         setTimelineRejectSuratFile(null);
         await fetchData();
       } catch (err: unknown) {
-        const msg = err && typeof err === "object" && "message" in err ? String(err.message) : "Gagal mengubah status timeline";
+        const msg = getApiErrorMessage(err, "Gagal mengubah status timeline");
         showToast(msg, "error");
       } finally {
         setActionLoading(false);
@@ -925,6 +1001,7 @@ export default function AdminStatusDetailPage() {
       case "upload_surat":
         return (
           <div className="mt-4 space-y-3">
+            {renderSelectedFileInfo("upload_surat")}
             <button
               type="button"
               disabled={actionLoading}
@@ -938,7 +1015,24 @@ export default function AdminStatusDetailPage() {
         );
 
       case "konfirmasi_surat":
-        return null;
+        return (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {renderSelectedFileInfo("upload_surat")}
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => triggerFileUpload("upload_surat")}
+              className="inline-flex w-fit items-center justify-center gap-2 rounded-lg border border-[rgba(38,43,67,0.22)] px-[20px] py-2 text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.78)] transition-colors hover:bg-[rgba(38,43,67,0.04)] disabled:opacity-50"
+            >
+              Unggah Ulang
+            </button>
+            <ActionButton
+              label="Konfirmasi Surat"
+              onClick={() => handleAction("konfirmasi_surat")}
+              disabled={actionLoading}
+            />
+          </div>
+        );
 
       case "setujui_laporan":
         return tolakMode === "laporan" ? (
@@ -971,7 +1065,37 @@ export default function AdminStatusDetailPage() {
       case "upload_pencairan":
         return (
           <div className="mt-4 space-y-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-[13px] text-[rgba(38,43,67,0.7)]">
+                Tanggal pencairan
+                <input
+                  type="date"
+                  value={pencairanTanggal}
+                  onChange={(e) => {
+                    setPencairanTanggal(e.target.value);
+                    setPencairanFormError(null);
+                  }}
+                  className="rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[14px] text-[rgba(38,43,67,0.9)] outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[13px] text-[rgba(38,43,67,0.7)]">
+                Total dana
+                <input
+                  type="number"
+                  min={1}
+                  value={pencairanTotalDana}
+                  onChange={(e) => {
+                    setPencairanTotalDana(e.target.value);
+                    setPencairanFormError(null);
+                  }}
+                  placeholder="Masukkan total dana"
+                  className="rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[14px] text-[rgba(38,43,67,0.9)] outline-none"
+                />
+              </label>
+            </div>
+            {pencairanFormError ? <p className="text-[13px] text-red-500">{pencairanFormError}</p> : null}
             <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">Bukti Pencairan:</p>
+            {renderSelectedFileInfo("upload_pencairan")}
             <button
               type="button"
               disabled={actionLoading}
@@ -985,18 +1109,36 @@ export default function AdminStatusDetailPage() {
         );
 
       case "selesaikan_pencairan":
-        return null;
+        return (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {renderSelectedFileInfo("upload_pencairan")}
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => triggerFileUpload("upload_pencairan")}
+              className="inline-flex w-fit items-center justify-center gap-2 rounded-lg border border-[rgba(38,43,67,0.22)] px-[20px] py-2 text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.78)] transition-colors hover:bg-[rgba(38,43,67,0.04)] disabled:opacity-50"
+            >
+              Unggah Ulang
+            </button>
+            <ActionButton
+              label="Selesaikan Pencairan"
+              onClick={() => handleAction("selesaikan_pencairan")}
+              disabled={actionLoading}
+            />
+          </div>
+        );
 
       case "upload_pengiriman":
         return (
-          <div className="mt-4">
+          <div className="mt-4 space-y-2">
+            {renderSelectedFileInfo("upload_pengiriman")}
             <button
               type="button"
               disabled={actionLoading}
               onClick={() => triggerFileUpload("upload_pengiriman")}
               className="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-50"
             >
-              {selectedPengirimanFile || step.attachmentFile ? "Unggah Ulang" : "Unggah Berkas"}
+              {selectedUploadFile?.action === "upload_pengiriman" || step.attachmentFile ? "Unggah Ulang" : "Unggah Berkas"}
               <UploadIcon />
             </button>
           </div>
@@ -1213,19 +1355,10 @@ export default function AdminStatusDetailPage() {
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file && pendingFileAction === "upload_pengiriman") {
-            const validationMessage = validateUploadFile(file, {
-              ...documentUploadValidation,
-              label: "Bukti pengiriman",
-            });
-
-            if (validationMessage) {
-              setSelectedPengirimanFile(null);
-              showToast(validationMessage, "error");
-            } else {
-              setSelectedPengirimanFile(file);
+          if (file) {
+            if (pendingFileAction) {
+              setSelectedUploadFile({ name: file.name, action: pendingFileAction });
             }
-          } else if (file) {
             handleFileUpload(file);
           }
           e.target.value = "";
