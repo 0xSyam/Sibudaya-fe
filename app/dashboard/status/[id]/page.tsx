@@ -58,7 +58,7 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
           ? `Pengajuan ditolak. ${p.catatan_pemeriksaan?.trim() || "Tidak ada alasan penolakan."}`
           : "Data pendaftaran telah berhasil dikirim dan sedang diperiksa oleh Admin Dinas Kebudayaan DIY untuk memastikan kelengkapan dan kesesuaian data.",
     status: pemeriksaanStatus,
-    detailsTitle: pemeriksaanStatus === "completed" && p.paket_fasilitasi ? "Detail paket yang disetujui:" : undefined,
+    detailsTitle: pemeriksaanStatus === "completed" && p.paket_fasilitasi ? "Detail paket yang selesai diverifikasi:" : undefined,
     details:
       pemeriksaanStatus === "completed" && p.paket_fasilitasi
         ? [
@@ -233,7 +233,6 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
     attachmentFile: p.laporan_kegiatan?.file_laporan ? extractFilename(p.laporan_kegiatan.file_laporan) : undefined,
     attachmentPath: p.laporan_kegiatan?.file_laporan ?? undefined,
   });
-
   return steps;
 }
 
@@ -399,6 +398,8 @@ export default function UserStatusDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [selectedLaporanFile, setSelectedLaporanFile] = useState<File | null>(null);
   const [templateLaporanUrl, setTemplateLaporanUrl] = useState<string | null>(null);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewPdfTitle, setPreviewPdfTitle] = useState<string>("Preview PDF");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -445,6 +446,15 @@ export default function UserStatusDetailPage() {
     }
 
     setSelectedLaporanFile(file);
+  }
+
+  function openPdfPreview(path: string, title?: string) {
+    setPreviewPdfUrl(buildUploadUrl(path));
+    setPreviewPdfTitle(title ?? "Preview PDF");
+  }
+
+  function closePdfPreview() {
+    setPreviewPdfUrl(null);
   }
 
   async function handleUploadLaporan() {
@@ -597,14 +607,13 @@ export default function UserStatusDetailPage() {
                                 Contoh Laporan:
                               </p>
                               {templateLaporanUrl ? (
-                                <a
-                                  href={buildUploadUrl(templateLaporanUrl)}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => openPdfPreview(templateLaporanUrl, "Contoh Laporan")}
                                   className="inline-flex"
                                 >
                                   <PdfFileChip filename={templateLaporanUrl.split("/").pop() ?? "Contoh Laporan Kegiatan.pdf"} />
-                                </a>
+                                </button>
                               ) : (
                                 <PdfFileChip filename="Contoh Laporan Kegiatan.pdf" />
                               )}
@@ -617,14 +626,13 @@ export default function UserStatusDetailPage() {
                                 Hasil Laporan:
                               </p>
                               {step.attachmentFile && step.attachmentPath ? (
-                                <a
-                                  href={buildUploadUrl(step.attachmentPath)}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => openPdfPreview(step.attachmentPath!, step.attachmentFile)}
                                   className="inline-flex"
                                 >
                                   <PdfFileChip filename={step.attachmentFile} />
-                                </a>
+                                </button>
                               ) : null}
 
                               {step.canUploadLaporan ? (
@@ -680,14 +688,13 @@ export default function UserStatusDetailPage() {
                                 {step.attachmentLabel}
                               </p>
                               {step.attachmentPath ? (
-                                <a
-                                  href={buildUploadUrl(step.attachmentPath)}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => openPdfPreview(step.attachmentPath!, step.attachmentFile)}
                                   className="inline-flex"
                                 >
                                   <PdfFileChip filename={step.attachmentFile} />
-                                </a>
+                                </button>
                               ) : (
                                 <PdfFileChip filename={step.attachmentFile} />
                               )}
@@ -722,6 +729,28 @@ export default function UserStatusDetailPage() {
           ) : null}
         </section>
       </div>
+
+      {previewPdfUrl ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(16,18,25,0.6)] p-4">
+          <div className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[12px] bg-white shadow-[0_20px_48px_rgba(0,0,0,0.35)]">
+            <div className="flex items-center justify-between border-b border-[rgba(38,43,67,0.14)] px-4 py-3">
+              <p className="truncate text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">{previewPdfTitle}</p>
+              <button
+                type="button"
+                onClick={closePdfPreview}
+                className="inline-flex items-center justify-center rounded-lg border border-[rgba(38,43,67,0.18)] px-3 py-1.5 text-[14px] font-medium text-[rgba(38,43,67,0.8)] transition-colors hover:bg-[rgba(38,43,67,0.06)]"
+              >
+                Tutup
+              </button>
+            </div>
+            <iframe
+              src={previewPdfUrl}
+              title={previewPdfTitle}
+              className="h-full w-full border-0"
+            />
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

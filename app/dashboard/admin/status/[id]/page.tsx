@@ -79,7 +79,7 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
           ? `Pengajuan ditolak. ${p.catatan_pemeriksaan?.trim() || "Tidak ada alasan penolakan."}`
           : "Data pendaftaran telah berhasil dikirim. Lihat data pengajuan untuk memastikan kelengkapan dan kesesuaian data.",
     status: pemStatus,
-    detailsTitle: pemStatus === "completed" && p.paket_fasilitasi ? "Detail paket yang disetujui:" : undefined,
+    detailsTitle: pemStatus === "completed" && p.paket_fasilitasi ? "Detail paket yang selesai diverifikasi:" : undefined,
     details:
       pemStatus === "completed" && p.paket_fasilitasi
         ? [`Nama Paket: ${p.paket_fasilitasi.nama_paket}`, ...(p.paket_fasilitasi.nilai_bantuan ? [`Nilai Bantuan: Rp ${Number(p.paket_fasilitasi.nilai_bantuan).toLocaleString("id-ID")}`] : [])]
@@ -135,7 +135,7 @@ function buildAdminPentasTimeline(p: Pengajuan): TimelineStep[] {
     description:
       pencairanStatus === "completed"
         ? "Dana fasilitasi telah dicairkan ke rekening lembaga budaya yang terdaftar."
-        : "Proses pencairan dana sedang dilakukan berdasarkan laporan kegiatan yang telah disetujui. Mohon menunggu.",
+        : "Proses pencairan dana sedang dilakukan berdasarkan laporan kegiatan yang telah selesai diverifikasi. Mohon menunggu.",
     status: pencairanStatus,
     details:
       pencairanStatus === "completed" || pencairanStatus === "in_progress"
@@ -332,17 +332,17 @@ function getAdminReviewStatus(p: Pengajuan): {
 
   if (p.jenis_fasilitasi_id === 2 && p.survey_lapangan?.status === "SELESAI") {
     return {
-      label: "Disetujui",
+      label: "Selesai",
       className: "bg-[rgba(114,225,40,0.16)] text-[#58be15]",
-      description: "Pengajuan telah disetujui pada tahap review admin dan siap dilanjutkan ke penerbitan surat persetujuan.",
+      description: "Pengajuan telah selesai diverifikasi pada tahap review admin dan siap dilanjutkan ke penerbitan surat persetujuan.",
     };
   }
 
   if (p.status_pemeriksaan === "SELESAI" || p.status_pemeriksaan === "DISETUJUI") {
     return {
-      label: "Disetujui",
+      label: "Selesai",
       className: "bg-[rgba(114,225,40,0.16)] text-[#58be15]",
-      description: "Pengajuan telah disetujui pada tahap review admin dan siap dilanjutkan ke tahap berikutnya.",
+      description: "Pengajuan telah selesai pada tahap review admin dan siap dilanjutkan ke tahap berikutnya.",
     };
   }
 

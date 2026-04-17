@@ -6,7 +6,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { adminPengajuanApi } from "@/app/lib/api";
 import type { AdminDashboardSummary, FilterPengajuanDto, Pengajuan } from "@/app/lib/types";
 
-type SubmissionStatus = "selesai" | "disetujui" | "perlu_tindakan" | "dalam_proses" | "ditolak";
+type SubmissionStatus = "selesai" | "perlu_tindakan" | "dalam_proses" | "ditolak";
 
 type Submission = {
   id: string;
@@ -34,8 +34,8 @@ function mapPengajuanToSubmission(p: Pengajuan): Submission {
   let status: SubmissionStatus = "dalam_proses";
   if (p.status === "DITOLAK" || hasRejectedStep) status = "ditolak";
   else if (p.status === "SELESAI" || p.surat_persetujuan?.file_path) status = "selesai";
-  else if (p.jenis_fasilitasi_id === 2 && p.survey_lapangan?.status === "SELESAI") status = "disetujui";
-  else if (p.status_pemeriksaan === "SELESAI" || p.status_pemeriksaan === "DISETUJUI") status = "disetujui";
+  else if (p.jenis_fasilitasi_id === 2 && p.survey_lapangan?.status === "SELESAI") status = "selesai";
+  else if (p.status_pemeriksaan === "SELESAI" || p.status_pemeriksaan === "DISETUJUI") status = "selesai";
   else if (p.status_pemeriksaan === "MENUNGGU") status = "perlu_tindakan";
 
   return {
@@ -58,10 +58,6 @@ const statusStyles: Record<
   selesai: {
     label: "Selesai",
     className: "bg-[rgba(114,225,40,0.16)] text-[#72e128]",
-  },
-  disetujui: {
-    label: "Disetujui",
-    className: "bg-[rgba(114,225,40,0.16)] text-[#58be15]",
   },
   perlu_tindakan: {
     label: "Perlu Tindakan",
@@ -302,7 +298,7 @@ function StatCard({ icon, iconBgClass, value, label }: StatCardProps) {
       </div>
       <div className="flex flex-col">
         <p className="text-[18px] font-medium leading-7 text-[rgba(38,43,67,0.9)]">{value}</p>
-        <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">{label}</p>
+        <p className="text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)]">{label}</p>
       </div>
     </div>
   );
@@ -382,7 +378,7 @@ function SearchAndToolbar({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       {/* Search Input */}
-      <div className="flex h-12 w-full items-center gap-2.5 rounded-lg border-2 border-[#c23513] px-4 sm:max-w-[447px]">
+      <div className="flex h-12 w-full items-center gap-2.5 rounded-lg border-2 border-[#c23513] px-4 sm:max-w-111.75">
         <SearchIcon />
         <input
           type="text"
@@ -394,14 +390,14 @@ function SearchAndToolbar({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-start gap-2.5" ref={filterRef}>
+      <div className="flex items-center gap-2.5">
         {/* Terbaru Button */}
         <button
           type="button"
           onClick={onToggleSortOrder}
-          className="flex items-center justify-center gap-2.5 rounded-[10px] border border-[#c23513] px-[26px] py-2 transition-colors hover:bg-[rgba(194,53,19,0.04)]"
+          className="flex items-center justify-center gap-2.5 rounded-[10px] border border-[#c23513] px-6.5 py-2 transition-colors hover:bg-[rgba(194,53,19,0.04)]"
         >
-          <span className="text-[17px] font-medium capitalize leading-[26px] text-[#c23513]">Terbaru</span>
+          <span className="text-[17px] font-medium capitalize leading-6.5 text-[#c23513]">Terbaru</span>
           <span className={`${sortOrder === "asc" ? "rotate-180" : ""} transition-transform`}>
             <ArrowUpDownIcon />
           </span>
@@ -412,14 +408,14 @@ function SearchAndToolbar({
           <button
             type="button"
             onClick={() => setShowFilterMenu((v) => !v)}
-            className="flex items-center justify-center gap-2.5 rounded-[10px] bg-[#c23513] px-[26px] py-2 shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+            className="flex items-center justify-center gap-2.5 rounded-[10px] bg-[#c23513] px-6.5 py-2 shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
           >
-            <span className="text-[17px] font-medium capitalize leading-[26px] text-white">Filter</span>
+            <span className="text-[17px] font-medium capitalize leading-6.5 text-white">Filter</span>
             <FilterIcon />
           </button>
 
           {showFilterMenu ? (
-            <div className="absolute right-0 top-[calc(100%+8px)] z-10 w-[350px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[12px] border border-[rgba(38,43,67,0.12)] bg-white shadow-[0_14px_30px_-18px_rgba(22,35,71,0.35)]">
+            <div className="absolute right-0 top-[calc(100%+8px)] z-10 w-87.5 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-[rgba(38,43,67,0.12)] bg-white shadow-[0_14px_30px_-18px_rgba(22,35,71,0.35)]">
               <div className="space-y-0">
                 <div className="px-4 py-3.5">
                   <p className="mb-2.5 text-[16px] font-medium leading-6 text-[#3c4358]">Jenis</p>
@@ -465,7 +461,6 @@ function SearchAndToolbar({
                     {[
                       { value: "all", label: "Semua", className: "bg-[rgba(109,120,141,0.16)] text-[#6d788d]" },
                       { value: "selesai", label: "Selesai", className: "bg-[rgba(114,225,40,0.2)] text-[#58be15]" },
-                      { value: "disetujui", label: "Disetujui", className: "bg-[rgba(114,225,40,0.2)] text-[#58be15]" },
                       { value: "dalam_proses", label: "Dalam Proses", className: "bg-[rgba(253,181,40,0.2)] text-[#eea006]" },
                       { value: "perlu_tindakan", label: "Perlu Tindakan", className: "bg-[rgba(38,198,249,0.2)] text-[#1ea8d5]" },
                       { value: "ditolak", label: "Ditolak", className: "bg-[#cc3e15] text-white" },
@@ -479,7 +474,7 @@ function SearchAndToolbar({
                         <span className={`flex size-4.5 items-center justify-center rounded-full border-[3px] ${statusFilter === option.value ? "border-[#cc3e15]" : "border-[#6d7285]"}`}>
                           <span className={`size-1.5 rounded-full ${statusFilter === option.value ? "bg-[#cc3e15]" : "bg-transparent"}`} />
                         </span>
-                        <span className={`min-w-[108px] rounded-[999px] px-2.5 py-1 text-center text-[13px] leading-5 ${option.className}`}>
+                        <span className={`min-w-27 rounded-[999px] px-2.5 py-1 text-center text-[13px] leading-5 ${option.className}`}>
                           {option.label}
                         </span>
                       </button>
@@ -500,7 +495,7 @@ function SearchAndToolbar({
                         type="date"
                         value={startDate}
                         onChange={(e) => onStartDateChange(e.target.value)}
-                        className="w-full bg-transparent text-[13px] text-[#4a5066] outline-none [color-scheme:light]"
+                        className="scheme-light w-full bg-transparent text-[13px] text-[#4a5066] outline-none"
                       />
                     </label>
                     <label className="relative flex h-10 items-center rounded-[10px] border border-[rgba(60,67,88,0.24)] pl-10 pr-3">
@@ -511,7 +506,7 @@ function SearchAndToolbar({
                         type="date"
                         value={endDate}
                         onChange={(e) => onEndDateChange(e.target.value)}
-                        className="w-full bg-transparent text-[13px] text-[#4a5066] outline-none [color-scheme:light]"
+                        className="scheme-light w-full bg-transparent text-[13px] text-[#4a5066] outline-none"
                       />
                     </label>
                   </div>
@@ -552,56 +547,52 @@ function SubmissionRow({ submission, isLast }: { submission: Submission; isLast:
   const status = statusStyles[submission.status];
 
   return (
-    <div
-      className={`flex h-[50px] ${
-        !isLast ? "border-b border-[rgba(38,43,67,0.12)]" : ""
-      }`}
-    >
+    <div className={`flex h-12.5 ${!isLast ? "border-b border-[rgba(38,43,67,0.12)]" : ""}`}>
       {/* Nama Kegiatan */}
-      <div className="flex w-[250px] items-center p-5">
-        <p className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+      <div className="flex w-62.5 items-center p-5">
+        <p className="text-[15px] font-medium leading-5.5 text-[rgba(38,43,67,0.9)]">
           {submission.activityName}
         </p>
       </div>
 
       {/* Kategori */}
       <div className="flex min-w-0 flex-1 items-center gap-3 p-5">
-        <span className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-[rgba(194,53,19,0.16)]">
+        <span className="flex size-7.5 shrink-0 items-center justify-center rounded-full bg-[rgba(194,53,19,0.16)]">
           <Image
             src="/figma/shopping-bag-3-line.png"
             alt=""
             width={18}
             height={18}
             aria-hidden="true"
-            className="size-[18px]"
+            className="size-4.5"
           />
         </span>
-        <p className="whitespace-nowrap text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">
+        <p className="whitespace-nowrap text-[15px] leading-5.5 text-[rgba(38,43,67,0.9)]">
           {submission.category}
         </p>
       </div>
 
       {/* Tanggal Pengajuan */}
       <div className="flex min-w-0 flex-1 items-center p-5">
-        <p className="whitespace-nowrap text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+        <p className="whitespace-nowrap text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)]">
           {submission.submittedAt}
         </p>
       </div>
 
       {/* Status */}
-      <div className="flex w-[165px] items-center p-5">
+      <div className="flex w-41.25 items-center p-5">
         <span
-          className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-2 py-[2px] text-[13px] font-medium leading-5 ${status.className}`}
+          className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-2 py-0.5 text-[13px] font-medium leading-5 ${status.className}`}
         >
           {status.label}
         </span>
       </div>
 
       {/* Actions */}
-      <div className="flex w-[120px] items-center justify-center p-5">
+      <div className="flex w-30 items-center justify-center p-5">
         <Link
           href={submission.actionHref}
-          className="inline-flex size-[34px] items-center justify-center rounded-full text-[#c23513] transition-colors hover:bg-[rgba(194,53,19,0.12)]"
+          className="inline-flex size-8.5 items-center justify-center rounded-full text-[#c23513] transition-colors hover:bg-[rgba(194,53,19,0.12)]"
           aria-label={`Lihat detail ${submission.activityName}`}
         >
           <ArrowUpRightIcon />
@@ -615,7 +606,7 @@ function SubmissionStatusTable({ submissions }: { submissions: Submission[] }) {
   return (
     <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
       <div className="overflow-x-auto">
-        <div className="min-w-[950px]">
+        <div className="min-w-237.5">
           <SubmissionHeader />
 
           {submissions.length > 0 ? (
@@ -628,10 +619,10 @@ function SubmissionStatusTable({ submissions }: { submissions: Submission[] }) {
             ))
           ) : (
             <div className="px-5 py-10 text-center">
-              <p className="text-[28px] font-bold leading-[42px] text-[rgba(38,43,67,0.9)]">
+              <p className="text-[28px] font-bold leading-10.5 text-[rgba(38,43,67,0.9)]">
                 Belum Ada Pengajuan Fasilitasi
               </p>
-              <p className="mx-auto mt-4 max-w-[560px] text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+              <p className="mx-auto mt-4 max-w-140 text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)]">
                 Belum ada permohonan fasilitasi kegiatan pentas atau hibah yang diajukan oleh pemohon.
               </p>
             </div>
@@ -670,8 +661,6 @@ export default function AdminDashboardPage() {
           ? undefined
           : statusFilter === "selesai"
             ? "SELESAI"
-            : statusFilter === "disetujui"
-              ? "DALAM_PROSES"
             : statusFilter === "ditolak"
               ? "DITOLAK"
               : "DALAM_PROSES",
@@ -723,14 +712,14 @@ export default function AdminDashboardPage() {
   const totalPengajuan = dashboardSummary?.statistik.total_pengajuan ?? submissions.length;
   const dalamProses = dashboardSummary?.statistik.dalam_proses ?? submissions.filter((s) => s.status === "dalam_proses").length;
   const perluTindakan = dashboardSummary?.statistik.perlu_tindakan ?? submissions.filter((s) => s.status === "perlu_tindakan").length;
-  const selesai = dashboardSummary?.statistik.selesai ?? submissions.filter((s) => s.status === "selesai" || s.status === "disetujui").length;
+  const selesai = dashboardSummary?.statistik.selesai ?? submissions.filter((s) => s.status === "selesai").length;
 
   return (
     <section className="h-full overflow-y-auto px-4 py-6 sm:px-6">
-      <div className="mx-auto w-full max-w-[950px] pb-10 pt-6 lg:pt-7">
+      <div className="mx-auto w-full max-w-237.5 pb-10 pt-6 lg:pt-7">
         {/* Page Header */}
         <div className="flex flex-col gap-4">
-          <h1 className="text-[28px] font-bold leading-[42px] text-[rgba(38,43,67,0.9)]">
+          <h1 className="text-[28px] font-bold leading-10.5 text-[rgba(38,43,67,0.9)]">
             Status Pengajuan Fasilitasi
           </h1>
           <p className="text-[13px] leading-5 text-[rgba(38,43,67,0.9)]">
@@ -783,7 +772,7 @@ export default function AdminDashboardPage() {
             icon={<SelesaiIcon />}
             iconBgClass="bg-[rgba(114,225,40,0.16)]"
             value={selesai}
-            label="Disetujui / Selesai"
+            label="Selesai"
           />
         </div>
 

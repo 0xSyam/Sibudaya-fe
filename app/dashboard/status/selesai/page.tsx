@@ -41,11 +41,11 @@ const timelineEntries: TimelineEntry[] = [
 
 function PdfFileChip({ filename }: { filename: string }) {
   return (
-    <div className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px]">
-      <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-[2px] text-[8px] font-bold leading-none text-white">
+    <div className="inline-flex items-center gap-2.5 rounded-lg bg-[rgba(38,43,67,0.06)] px-2.5 py-1.25">
+      <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-0.5 text-[8px] font-bold leading-none text-white">
         PDF
       </span>
-      <p className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.7)]">{filename}</p>
+      <p className="text-[15px] font-medium leading-5.5 text-[rgba(38,43,67,0.7)]">{filename}</p>
     </div>
   );
 }
@@ -53,11 +53,11 @@ function PdfFileChip({ filename }: { filename: string }) {
 export default function StatusSelesaiPage() {
   return (
     <section className="h-full overflow-y-auto px-4 py-6 sm:px-6">
-      <div className="mx-auto w-full max-w-[950px] pb-10 pt-6 lg:pt-[28px]">
+      <div className="mx-auto w-full max-w-237.5 pb-10 pt-6 lg:pt-7">
         <StatusBackButton href="/dashboard" />
 
         <section className="mt-6">
-          <h1 className="text-[28px] font-medium leading-[42px] text-[rgba(38,43,67,0.9)]">
+          <h1 className="text-[28px] font-medium leading-10.5 text-[rgba(38,43,67,0.9)]">
             Status Pengajuan Fasilitasi
           </h1>
           <p className="mt-4 text-[13px] leading-5 text-[rgba(38,43,67,0.7)]">
@@ -66,7 +66,7 @@ export default function StatusSelesaiPage() {
 
           <div className="mt-4 overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
             <div className="overflow-x-auto">
-              <div className="min-w-[920px]">
+              <div className="min-w-230">
                 <SubmissionSummaryTable
                   namaKegiatan="Sanggar Tribhuwana"
                   kategori="Fasilitasi Pentas"
@@ -89,17 +89,17 @@ export default function StatusSelesaiPage() {
                           <div className="mb-2 md:hidden">
                             <StatusChip status="completed" />
                           </div>
-                          <h2 className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
+                          <h2 className="text-[15px] font-medium leading-5.5 text-[rgba(38,43,67,0.9)]">
                             {entry.title}
                           </h2>
-                          <p className="mt-4 text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+                          <p className="mt-4 text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)]">
                             {entry.description}
                           </p>
 
                           {entry.details ? (
-                            <div className="mt-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
-                              <p>Detail paket yang disetujui:</p>
-                              <ul className="ml-[22px] list-disc">
+                            <div className="mt-3 text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)]">
+                              <p>Detail paket yang selesai diverifikasi:</p>
+                              <ul className="ml-5.5 list-disc">
                                 {entry.details.map((detail) => (
                                   <li key={detail}>{detail}</li>
                                 ))}
@@ -109,7 +109,7 @@ export default function StatusSelesaiPage() {
 
                           {entry.attachmentLabel && entry.attachmentFile ? (
                             <div className="mt-4 space-y-2">
-                              <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+                              <p className="text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)]">
                                 {entry.attachmentLabel}
                               </p>
                               <PdfFileChip filename={entry.attachmentFile} />
