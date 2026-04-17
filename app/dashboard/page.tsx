@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { pengajuanApi } from "@/app/lib/api";
+import { fasilitasiApi, getAccessToken, pengajuanApi } from "@/app/lib/api";
+import { buildProtectedFileUrl } from "@/app/lib/file-url";
 import { useToast } from "@/app/lib/toast-context";
 import type { Pengajuan } from "@/app/lib/types";
 
@@ -155,8 +156,38 @@ function OverviewCard({
 
 type PdfPreviewState = {
   url: string;
+  rawUrl: string;
   filename: string;
+  isObjectUrl: boolean;
 };
+
+async function buildPdfPreviewState(url: string, filename: string): Promise<PdfPreviewState> {
+  const token = getAccessToken();
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error("Preview fetch failed");
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    return { url: blobUrl, rawUrl: url, filename, isObjectUrl: true };
+  } catch {
+    return { url, rawUrl: url, filename, isObjectUrl: false };
+  }
+}
+
+function releasePdfPreview(preview: PdfPreviewState | null) {
+  if (preview?.isObjectUrl) {
+    URL.revokeObjectURL(preview.url);
+  }
+}
 
 function PdfPreviewModal({ preview, onClose }: { preview: PdfPreviewState | null; onClose: () => void }) {
   if (!preview) return null;
@@ -166,9 +197,19 @@ function PdfPreviewModal({ preview, onClose }: { preview: PdfPreviewState | null
       <div className="flex h-full max-h-[92vh] w-full max-w-[1000px] flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_24px_60px_rgba(22,35,71,0.22)]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-[rgba(38,43,67,0.10)] px-4 py-3 sm:px-6">
           <p className="truncate pr-4 text-[15px] font-medium text-[rgba(38,43,67,0.9)]">{preview.filename}</p>
-          <button type="button" onClick={onClose} className="inline-flex h-[34px] items-center justify-center rounded-[8px] border border-[rgba(38,43,67,0.2)] px-3 text-[13px] font-medium text-[rgba(38,43,67,0.78)] hover:bg-[rgba(38,43,67,0.04)]">
-            Tutup
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href={preview.rawUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-[34px] items-center justify-center rounded-[8px] border border-[#c23513] px-3 text-[13px] font-medium text-[#c23513] hover:bg-[rgba(194,53,19,0.08)]"
+            >
+              Buka Tab Baru
+            </a>
+            <button type="button" onClick={onClose} className="inline-flex h-[34px] items-center justify-center rounded-[8px] border border-[rgba(38,43,67,0.2)] px-3 text-[13px] font-medium text-[rgba(38,43,67,0.78)] hover:bg-[rgba(38,43,67,0.04)]">
+              Tutup
+            </button>
+          </div>
         </div>
         <iframe src={preview.url} title={`Preview ${preview.filename}`} className="h-full w-full bg-[rgba(38,43,67,0.03)]" />
       </div>
@@ -331,6 +372,13 @@ export default function DashboardPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
+  const [guideFilePath, setGuideFilePath] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      releasePdfPreview(pdfPreview);
+    };
+  }, [pdfPreview]);
 
   useEffect(() => {
     const notice = sessionStorage.getItem(SUBMIT_SUCCESS_NOTICE_KEY);
@@ -340,18 +388,31 @@ export default function DashboardPage() {
     sessionStorage.removeItem(SUBMIT_SUCCESS_NOTICE_KEY);
   }, [showToast]);
 
-  const openGuidePreview = () => {
-    setPdfPreview({
-      url: "/figma/panduan-pengajuan-fasilitasi.pdf",
-      filename: "Panduan Pengajuan Fasilitasi.pdf",
+  const openGuidePreview = async () => {
+    if (!guideFilePath) {
+      showToast("File panduan belum tersedia. Silakan hubungi admin.", "error");
+      return;
+    }
+
+    const filename = guideFilePath.split("/").pop() ?? "Panduan Pengajuan Fasilitasi.pdf";
+    const previewState = await buildPdfPreviewState(buildProtectedFileUrl(guideFilePath), filename);
+    setPdfPreview((current) => {
+      releasePdfPreview(current);
+      return previewState;
     });
   };
 
   useEffect(() => {
-    pengajuanApi
-      .getMyPengajuan()
-      .then((data) => setSubmissions(data.map(mapPengajuanToSubmission)))
-      .catch(() => setSubmissions([]))
+    Promise.all([pengajuanApi.getMyPengajuan(), fasilitasiApi.getAll()])
+      .then(([pengajuanList, fasilitasiList]) => {
+        setSubmissions(pengajuanList.map(mapPengajuanToSubmission));
+        const panduanFromPentas = fasilitasiList.find((item) => item.jenis_fasilitasi_id === 1)?.panduan_file ?? null;
+        setGuideFilePath(panduanFromPentas);
+      })
+      .catch(() => {
+        setSubmissions([]);
+        setGuideFilePath(null);
+      })
       .finally(() => setLoading(false));
   }, []);
 

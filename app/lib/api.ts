@@ -721,6 +721,18 @@ export const adminFasilitasiApi = {
       formData,
     );
   },
+
+  uploadTemplatePanduan(
+    jenisFasilitasiId: number,
+    file: File,
+  ): Promise<AdminJenisFasilitasi> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiMultipartFetch<AdminJenisFasilitasi>(
+      `/admin/fasilitasi/${jenisFasilitasiId}/template/panduan`,
+      formData,
+    );
+  },
 };
 
 // ─── Admin Pengaturan Akun API ──────────────────────────────────────────────

@@ -1058,13 +1058,21 @@ function JenisLembagaTable({
 
 // ─── General Tab Content ────────────────────────────────
 
-function GeneralTabContent() {
+function GeneralTabContent({
+  data,
+  onRefetch,
+}: {
+  data: ApiFasilitasi | null;
+  onRefetch: () => Promise<void>;
+}) {
   const { showToast } = useToast();
+  const JENIS_ID = 1;
   const [jenisLembaga, setJenisLembaga] = useState<JenisLembagaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAddJenisDialog, setShowAddJenisDialog] = useState(false);
   const [editingJenisIndex, setEditingJenisIndex] = useState<number | null>(null);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
 
   const closePdfPreview = useCallback(() => {
@@ -1133,17 +1141,46 @@ function GeneralTabContent() {
   };
 
   const editingItem = editingJenisIndex !== null ? jenisLembaga[editingJenisIndex] : null;
+  const panduanFilename = data?.panduan_file?.split("/").pop() ?? "Belum ada file panduan";
+  const canPreviewPanduan = Boolean(data?.panduan_file);
+
+  const handleUploadPanduan = async (file: File) => {
+    if (file.type !== "application/pdf") {
+      showToast("File panduan harus berformat PDF.", "error");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await adminFasilitasiApi.uploadTemplatePanduan(JENIS_ID, file);
+      await onRefetch();
+      showToast("File panduan berhasil diunggah.", "success");
+    } catch (e: unknown) {
+      const message =
+        typeof e === "object" && e !== null && "message" in e
+          ? String((e as { message: unknown }).message)
+          : "Gagal mengunggah file panduan";
+      showToast(message, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <>
       <DocumentCard
-        title="Lihat Panduan"
-        filename="Panduan Pengajuan Fasilitasi.pdf"
-        filePath="/figma/panduan-pengajuan-fasilitasi.pdf"
-        actionLabel="Lihat Panduan"
+        title="File Lihat Panduan"
+        filename={panduanFilename}
+        filePath={data?.panduan_file ?? undefined}
+        actionLabel={saving ? "Menyimpan..." : "Upload Panduan"}
         onPreview={openPdfPreview}
-        onUbah={() => void openPdfPreview("/figma/panduan-pengajuan-fasilitasi.pdf", "Panduan Pengajuan Fasilitasi.pdf")}
+        onUbah={() => setShowUploadDialog(true)}
       />
+      {!canPreviewPanduan ? (
+        <p className="-mt-2 text-[13px] leading-5 text-[rgba(38,43,67,0.7)]">
+          File panduan belum diunggah. Upload PDF agar tombol Lihat Panduan di dashboard bisa dibuka pengguna.
+        </p>
+      ) : null}
 
       <JenisLembagaTable
         items={jenisLembaga}
@@ -1153,6 +1190,11 @@ function GeneralTabContent() {
       />
 
       <PdfPreviewModal preview={pdfPreview} onClose={closePdfPreview} />
+      <UploadFileDialog
+        open={showUploadDialog}
+        onClose={() => setShowUploadDialog(false)}
+        onFileSelected={handleUploadPanduan}
+      />
 
       <JenisLembagaDialog
         open={showAddJenisDialog}
@@ -2040,7 +2082,7 @@ export default function PengaturanFasilitasiPage() {
   const renderTabContent = () => {
     switch (activeTab) {
       case "general":
-        return <GeneralTabContent />;
+        return <GeneralTabContent data={pentas} onRefetch={loadData} />;
       case "pentas":
         return <PentasTabContent data={pentas} onRefetch={loadData} />;
       case "hibah":

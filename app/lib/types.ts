@@ -77,6 +77,7 @@ export interface JenisFasilitasi {
   deskripsi: string | null;
   template_proposal_file?: string | null;
   template_laporan_file?: string | null;
+  panduan_file?: string | null;
   paket_fasilitasi: PaketFasilitasi[];
 }
 
@@ -86,6 +87,7 @@ export interface AdminJenisFasilitasi {
   deskripsi: string | null;
   template_proposal_file: string | null;
   template_laporan_file: string | null;
+  panduan_file: string | null;
   paket_fasilitasi: PaketFasilitasiWithCount[];
 }
 
