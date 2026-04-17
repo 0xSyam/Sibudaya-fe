@@ -64,9 +64,18 @@ function InboxIcon() {
   );
 }
 
-function UserAvatar({ email }: { email?: string }) {
-  // Ambil inisial dari email
-  const initial = email ? email.charAt(0).toUpperCase() : "U";
+function UserAvatar({
+  email,
+  firstName,
+  lastName,
+}: {
+  email?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+}) {
+  const fullName = `${firstName ?? ""} ${lastName ?? ""}`.trim();
+  const initialSource = fullName || email || "";
+  const initial = initialSource ? initialSource.charAt(0).toUpperCase() : "U";
 
   return (
     <div className="flex size-10 items-center justify-center rounded-full bg-[#c23513] text-[15px] font-semibold text-white">
@@ -85,8 +94,9 @@ export function DashboardTopbar() {
   const menuRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<Notifikasi[]>([]);
 
-  const userName = user?.email ? user.email.split("@")[0] : "Rayhan";
-  const displayName = userName.charAt(0).toUpperCase() + userName.slice(1);
+  const fullName = `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim();
+  const emailName = user?.email ? user.email.split("@")[0] : "";
+  const displayName = fullName || (emailName ? emailName.charAt(0).toUpperCase() + emailName.slice(1) : "User");
   const roleLabel =
     user?.role === "SUPER_ADMIN"
       ? "Super Admin"
@@ -234,7 +244,7 @@ export function DashboardTopbar() {
             aria-label="Menu profil"
           >
             {user ? (
-              <UserAvatar email={user.email} />
+              <UserAvatar email={user.email} firstName={user.first_name} lastName={user.last_name} />
             ) : (
               <Image
                 src="/figma/avatar-profile.jpg"
@@ -251,7 +261,7 @@ export function DashboardTopbar() {
               <div className="rounded-[10px] bg-white">
                 <div className="flex items-center gap-3 px-4 py-4">
                   {user ? (
-                    <UserAvatar email={user.email} />
+                    <UserAvatar email={user.email} firstName={user.first_name} lastName={user.last_name} />
                   ) : (
                     <Image
                       src="/figma/avatar-profile.jpg"

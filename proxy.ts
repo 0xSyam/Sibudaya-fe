@@ -12,7 +12,9 @@ export async function proxy(request: NextRequest) {
 
   const isDashboardRoute = pathname.startsWith("/dashboard");
   const accessToken = request.cookies.get("access_token")?.value;
+  const refreshToken = request.cookies.get("refresh_token")?.value;
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
+  const isProduction = process.env.NODE_ENV === "production";
 
   const response = NextResponse.next();
 
@@ -36,10 +38,51 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  function setAccessCookie(token: string): void {
+    response.cookies.set({
+      name: "access_token",
+      value: token,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: isProduction,
+      path: "/",
+      maxAge: 15 * 60,
+    });
+  }
+
+  async function tryRefreshSession(): Promise<boolean> {
+    if (!refreshToken) return false;
+
+    try {
+      const res = await fetch(`${apiBase}/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+
+      if (!res.ok) return false;
+
+      const data = (await res.json()) as { access_token?: string };
+      if (!data.access_token) return false;
+
+      setAccessCookie(data.access_token);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   const validSession = await isSessionValid();
 
   if (isDashboardRoute && !validSession) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const refreshed = await tryRefreshSession();
+
+    if (!refreshed) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
   }
 
   return response;

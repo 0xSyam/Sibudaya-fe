@@ -231,6 +231,7 @@ export interface Pengajuan {
 
 export interface CreatePengajuanPentasDto {
   jenis_kegiatan: string;
+  paket_id?: string;
   judul_kegiatan: string;
   tujuan_kegiatan: string;
   lokasi_kegiatan: string;
@@ -245,6 +246,7 @@ export interface CreatePengajuanPentasDto {
 
 export interface CreatePengajuanHibahDto {
   jenis_kegiatan: string;
+  paket_id?: string;
   nama_penerima: string;
   email_penerima: string;
   no_hp_penerima: string;

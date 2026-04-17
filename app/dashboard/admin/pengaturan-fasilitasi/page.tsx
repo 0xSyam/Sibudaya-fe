@@ -1,9 +1,45 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { adminFasilitasiApi } from "../../../lib/api";
+import { adminFasilitasiApi, getAccessToken } from "../../../lib/api";
 import type { AdminJenisFasilitasi as ApiFasilitasi } from "../../../lib/types";
 import { useToast } from "@/app/lib/toast-context";
+import { buildProtectedFileUrl } from "@/app/lib/file-url";
+
+type PdfPreviewState = {
+  url: string;
+  rawUrl: string;
+  filename: string;
+  isObjectUrl: boolean;
+};
+
+async function buildPdfPreviewState(url: string, filename: string): Promise<PdfPreviewState> {
+  const token = getAccessToken();
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error("Preview fetch failed");
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    return { url: blobUrl, rawUrl: url, filename, isObjectUrl: true };
+  } catch {
+    return { url, rawUrl: url, filename, isObjectUrl: false };
+  }
+}
+
+function releasePdfPreview(preview: PdfPreviewState | null) {
+  if (preview?.isObjectUrl) {
+    URL.revokeObjectURL(preview.url);
+  }
+}
 
 // ─── Icons ───────────────────────────────────────────────
 
@@ -757,11 +793,10 @@ function KuotaPengajuanDialog({
   title: string;
   submitLabel: string;
   initialValue?: KuotaPengajuan | null;
-  onSubmit: (payload: KuotaPengajuan) => void;
+  onSubmit: (payload: Omit<KuotaPengajuan, "totalPengajuan">) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [jenis, setJenis] = useState(initialValue?.jenis ?? "");
-  const [totalPengajuan, setTotalPengajuan] = useState(initialValue?.totalPengajuan ?? "");
   const [kuotaPengajuan, setKuotaPengajuan] = useState(initialValue?.kuotaPengajuan ?? "");
 
   useEffect(() => {
@@ -777,10 +812,9 @@ function KuotaPengajuanDialog({
 
   const handleClose = useCallback(() => {
     setJenis(initialValue?.jenis ?? "");
-    setTotalPengajuan(initialValue?.totalPengajuan ?? "");
     setKuotaPengajuan(initialValue?.kuotaPengajuan ?? "");
     onClose();
-  }, [initialValue?.jenis, initialValue?.kuotaPengajuan, initialValue?.totalPengajuan, onClose]);
+  }, [initialValue?.jenis, initialValue?.kuotaPengajuan, onClose]);
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent<HTMLDialogElement>) => {
@@ -791,14 +825,13 @@ function KuotaPengajuanDialog({
     [handleClose]
   );
 
-  const isValid = !!jenis.trim() && !!totalPengajuan.trim() && !!kuotaPengajuan.trim();
+  const isValid = !!jenis.trim() && !!kuotaPengajuan.trim();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isValid) return;
     onSubmit({
       jenis: jenis.trim(),
-      totalPengajuan: totalPengajuan.trim(),
       kuotaPengajuan: kuotaPengajuan.trim(),
     });
     handleClose();
@@ -826,18 +859,6 @@ function KuotaPengajuanDialog({
                 type="text"
                 value={jenis}
                 onChange={(e) => setJenis(e.target.value)}
-                className="h-11 rounded-lg border border-[rgba(38,43,67,0.18)] px-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)] outline-none transition-colors placeholder:text-[rgba(38,43,67,0.35)] focus:border-[#c23513]"
-              />
-            </label>
-
-            <label className="flex flex-col gap-2">
-              <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
-                Total Pengajuan
-              </span>
-              <input
-                type="text"
-                value={totalPengajuan}
-                onChange={(e) => setTotalPengajuan(e.target.value)}
                 className="h-11 rounded-lg border border-[rgba(38,43,67,0.18)] px-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)] outline-none transition-colors placeholder:text-[rgba(38,43,67,0.35)] focus:border-[#c23513]"
               />
             </label>
@@ -1044,6 +1065,28 @@ function GeneralTabContent() {
   const [saving, setSaving] = useState(false);
   const [showAddJenisDialog, setShowAddJenisDialog] = useState(false);
   const [editingJenisIndex, setEditingJenisIndex] = useState<number | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
+
+  const closePdfPreview = useCallback(() => {
+    setPdfPreview((current) => {
+      releasePdfPreview(current);
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      releasePdfPreview(pdfPreview);
+    };
+  }, [pdfPreview]);
+
+  const openPdfPreview = useCallback(async (url: string, filename: string) => {
+    const previewState = await buildPdfPreviewState(url, filename);
+    setPdfPreview((current) => {
+      releasePdfPreview(current);
+      return previewState;
+    });
+  }, []);
 
   const loadJenisLembaga = useCallback(async () => {
     setLoading(true);
@@ -1093,12 +1136,23 @@ function GeneralTabContent() {
 
   return (
     <>
+      <DocumentCard
+        title="Lihat Panduan"
+        filename="Panduan Pengajuan Fasilitasi.pdf"
+        filePath="/figma/panduan-pengajuan-fasilitasi.pdf"
+        actionLabel="Lihat Panduan"
+        onPreview={openPdfPreview}
+        onUbah={() => void openPdfPreview("/figma/panduan-pengajuan-fasilitasi.pdf", "Panduan Pengajuan Fasilitasi.pdf")}
+      />
+
       <JenisLembagaTable
         items={jenisLembaga}
         onEdit={(index) => setEditingJenisIndex(index)}
         onDelete={handleDelete}
         onAdd={() => setShowAddJenisDialog(true)}
       />
+
+      <PdfPreviewModal preview={pdfPreview} onClose={closePdfPreview} />
 
       <JenisLembagaDialog
         open={showAddJenisDialog}
@@ -1150,11 +1204,13 @@ function JenisFasilitasiTable({
   onEdit,
   onDelete,
   onAdd,
+  showDanaPembinaan = true,
 }: {
   items: JenisFasilitasi[];
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
   onAdd: () => void;
+  showDanaPembinaan?: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]">
@@ -1173,16 +1229,18 @@ function JenisFasilitasiTable({
 
       {/* Table header */}
       <div className="overflow-x-auto">
-        <div className="min-w-[560px]">
+        <div className={showDanaPembinaan ? "min-w-[560px]" : "min-w-[360px]"}>
       <div className="flex items-center">
-        <div className="flex flex-1 items-center bg-[#f5f5f7] p-5">
+        <div className={showDanaPembinaan ? "flex flex-1 items-center bg-[#f5f5f7] p-5" : "flex flex-[1.5] items-center bg-[#f5f5f7] p-5"}>
           <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis</p>
           <div className="h-3.5 w-0.5 bg-[rgba(38,43,67,0.12)]" />
         </div>
-        <div className="flex w-[200px] items-center bg-[#f5f5f7] p-5">
-          <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Dana Pembinaan</p>
-          <div className="h-3.5 w-0.5 bg-[rgba(38,43,67,0.12)]" />
-        </div>
+        {showDanaPembinaan ? (
+          <div className="flex w-[200px] items-center bg-[#f5f5f7] p-5">
+            <p className="flex-1 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">Dana Pembinaan</p>
+            <div className="h-3.5 w-0.5 bg-[rgba(38,43,67,0.12)]" />
+          </div>
+        ) : null}
         <div className="flex w-[200px] items-center justify-center bg-[#f5f5f7] p-5">
           <p className="text-[13px] font-medium uppercase leading-6 tracking-[0.2px] text-[rgba(38,43,67,0.9)]">
             Action
@@ -1196,16 +1254,18 @@ function JenisFasilitasiTable({
           key={`${item.jenis}-${index}`}
           className="flex h-[50px] items-center border-b border-[rgba(38,43,67,0.12)]"
         >
-          <div className="flex flex-1 items-center px-5">
+          <div className={showDanaPembinaan ? "flex flex-1 items-center px-5" : "flex flex-[1.5] items-center px-5"}>
             <p className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">
               {item.jenis}
             </p>
           </div>
-          <div className="flex w-[200px] items-center px-5">
-            <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
-              {item.danaPembinaan}
-            </p>
-          </div>
+          {showDanaPembinaan ? (
+            <div className="flex w-[200px] items-center px-5">
+              <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+                {item.danaPembinaan}
+              </p>
+            </div>
+          ) : null}
           <div className="flex w-[200px] items-center justify-center gap-2 px-5">
             <button
               type="button"
@@ -1330,12 +1390,20 @@ function KuotaPengajuanTable({
 function DocumentCard({
   title,
   filename,
+  filePath,
+  onPreview,
   onUbah,
+  actionLabel = "Ubah",
 }: {
   title: string;
   filename: string;
+  filePath?: string;
+  onPreview?: (url: string, filename: string) => void | Promise<void>;
   onUbah: () => void;
+  actionLabel?: string;
 }) {
+  const fileUrl = filePath ? buildProtectedFileUrl(filePath) : null;
+
   return (
     <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]">
       <div className="flex items-center justify-between p-5">
@@ -1346,16 +1414,75 @@ function DocumentCard({
           className="inline-flex items-center gap-2 rounded-lg bg-[#c23513] px-[22px] py-2 text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
         >
           <SwapIcon />
-          <span>Ubah</span>
+          <span>{actionLabel}</span>
         </button>
       </div>
       <div className="px-5 pb-5">
         <div className="inline-flex items-center gap-[10px] rounded-lg bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px]">
           <PdfIcon />
-          <p className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.7)]">
-            {filename}
-          </p>
+          {fileUrl ? (
+            <button
+              type="button"
+              onClick={() => onPreview?.(fileUrl, filename)}
+              className="text-[15px] font-medium leading-[22px] text-[#c23513] underline-offset-2 hover:underline"
+            >
+              {filename}
+            </button>
+          ) : (
+            <p className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.7)]">{filename}</p>
+          )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PdfPreviewModal({
+  preview,
+  onClose,
+}: {
+  preview: PdfPreviewState | null;
+  onClose: () => void;
+}) {
+  if (!preview) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 px-4 py-6"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Preview dokumen"
+    >
+      <div
+        className="w-full max-w-5xl overflow-hidden rounded-[14px] bg-white shadow-[0_24px_64px_0_rgba(15,23,42,0.28)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-[rgba(38,43,67,0.12)] px-5 py-4">
+          <p className="truncate pr-4 text-[15px] font-medium text-[rgba(38,43,67,0.9)]">{preview.filename}</p>
+          <div className="flex items-center gap-3">
+            <a
+              href={preview.rawUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-[#c23513] px-3 py-1.5 text-[13px] font-medium text-[#c23513] transition-colors hover:bg-[rgba(194,53,19,0.08)]"
+            >
+              Buka Tab Baru
+            </a>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg bg-[#c23513] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[#a62c10]"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+        <iframe
+          src={preview.url}
+          title={`Preview ${preview.filename}`}
+          className="h-[72vh] w-full"
+        />
       </div>
     </div>
   );
@@ -1378,6 +1505,28 @@ function PentasTabContent({
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<"proposal" | "laporan">("proposal");
   const [saving, setSaving] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
+
+  const closePdfPreview = useCallback(() => {
+    setPdfPreview((current) => {
+      releasePdfPreview(current);
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      releasePdfPreview(pdfPreview);
+    };
+  }, [pdfPreview]);
+
+  const openPdfPreview = useCallback(async (url: string, filename: string) => {
+    const previewState = await buildPdfPreviewState(url, filename);
+    setPdfPreview((current) => {
+      releasePdfPreview(current);
+      return previewState;
+    });
+  }, []);
 
   const pakets = data?.paket_fasilitasi ?? [];
 
@@ -1465,7 +1614,7 @@ function PentasTabContent({
     withSave(() => adminFasilitasiApi.deleteKuota(paket.paket_id), "Jenis fasilitasi berhasil dihapus.");
   };
 
-  const handleAddKuota = (payload: KuotaPengajuan) => {
+  const handleAddKuota = (payload: Pick<KuotaPengajuan, "jenis" | "kuotaPengajuan">) => {
     if (isDuplicatePaket(payload.jenis)) {
       showToast("Paket Fasilitasi sudah ada", "error");
       return;
@@ -1480,7 +1629,7 @@ function PentasTabContent({
     );
   };
 
-  const handleEditKuota = (payload: KuotaPengajuan) => {
+  const handleEditKuota = (payload: Pick<KuotaPengajuan, "jenis" | "kuotaPengajuan">) => {
     if (editingKuotaIndex === null) return;
     const paket = pakets[editingKuotaIndex];
     if (!paket) return;
@@ -1536,6 +1685,8 @@ function PentasTabContent({
       <DocumentCard
         title="Contoh Proposal"
         filename={proposalFilename}
+        filePath={data?.template_proposal_file ?? undefined}
+        onPreview={openPdfPreview}
         onUbah={() => {
           setUploadTarget("proposal");
           setShowUploadDialog(true);
@@ -1546,11 +1697,15 @@ function PentasTabContent({
       <DocumentCard
         title="Contoh Laporan"
         filename={laporanFilename}
+        filePath={data?.template_laporan_file ?? undefined}
+        onPreview={openPdfPreview}
         onUbah={() => {
           setUploadTarget("laporan");
           setShowUploadDialog(true);
         }}
       />
+
+      <PdfPreviewModal preview={pdfPreview} onClose={closePdfPreview} />
 
       <UploadFileDialog
         open={showUploadDialog}
@@ -1612,6 +1767,28 @@ function SaranaPrasaranaTabContent({
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<"proposal" | "laporan">("proposal");
   const [saving, setSaving] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
+
+  const closePdfPreview = useCallback(() => {
+    setPdfPreview((current) => {
+      releasePdfPreview(current);
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      releasePdfPreview(pdfPreview);
+    };
+  }, [pdfPreview]);
+
+  const openPdfPreview = useCallback(async (url: string, filename: string) => {
+    const previewState = await buildPdfPreviewState(url, filename);
+    setPdfPreview((current) => {
+      releasePdfPreview(current);
+      return previewState;
+    });
+  }, []);
 
   const pakets = data?.paket_fasilitasi ?? [];
 
@@ -1649,7 +1826,7 @@ function SaranaPrasaranaTabContent({
     }
   };
 
-  const handleAddKuota = (payload: KuotaPengajuan) => {
+  const handleAddKuota = (payload: Pick<KuotaPengajuan, "jenis" | "kuotaPengajuan">) => {
     if (isDuplicatePaket(payload.jenis)) {
       showToast("Paket Fasilitasi sudah ada", "error");
       return;
@@ -1704,7 +1881,7 @@ function SaranaPrasaranaTabContent({
     withSave(() => adminFasilitasiApi.deleteKuota(paket.paket_id), "Jenis fasilitasi hibah berhasil dihapus.");
   };
 
-  const handleEditKuota = (payload: KuotaPengajuan) => {
+  const handleEditKuota = (payload: Pick<KuotaPengajuan, "jenis" | "kuotaPengajuan">) => {
     if (editingKuotaIndex === null) return;
     const paket = pakets[editingKuotaIndex];
     if (!paket) return;
@@ -1757,6 +1934,7 @@ function SaranaPrasaranaTabContent({
         onAdd={() => setShowAddJenisDialog(true)}
         onEdit={(index) => setEditingJenisIndex(index)}
         onDelete={handleDeleteJenis}
+        showDanaPembinaan={false}
       />
 
       {/* 2. Kuota Pengajuan table */}
@@ -1771,6 +1949,8 @@ function SaranaPrasaranaTabContent({
       <DocumentCard
         title="Contoh Proposal"
         filename={proposalFilename}
+        filePath={data?.template_proposal_file ?? undefined}
+        onPreview={openPdfPreview}
         onUbah={() => {
           setUploadTarget("proposal");
           setShowUploadDialog(true);
@@ -1781,11 +1961,15 @@ function SaranaPrasaranaTabContent({
       <DocumentCard
         title="Contoh Laporan"
         filename={laporanFilename}
+        filePath={data?.template_laporan_file ?? undefined}
+        onPreview={openPdfPreview}
         onUbah={() => {
           setUploadTarget("laporan");
           setShowUploadDialog(true);
         }}
       />
+
+      <PdfPreviewModal preview={pdfPreview} onClose={closePdfPreview} />
 
       <UploadFileDialog
         open={showUploadDialog}

@@ -523,6 +523,7 @@ export default function AdminStatusDetailPage() {
   const [timelineRejectReasonError, setTimelineRejectReasonError] = useState<string | null>(null);
   const [timelineRejectSuratFile, setTimelineRejectSuratFile] = useState<File | null>(null);
   const [showDataModal, setShowDataModal] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string } | null>(null);
   const [selectedUploadFile, setSelectedUploadFile] = useState<{
     name: string;
     action: StepAction["type"];
@@ -563,6 +564,21 @@ export default function AdminStatusDetailPage() {
       .then(setPaketOptions)
       .catch(() => setPaketOptions(data.jenis_fasilitasi?.paket_fasilitasi ?? []));
   }, [data]);
+
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setPdfPreview(null);
+      }
+    }
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, []);
+
+  const openPdfPreview = useCallback((url: string, filename: string) => {
+    setPdfPreview({ url, filename });
+  }, []);
 
   useEffect(() => {
     if (!data) {
@@ -1379,26 +1395,24 @@ export default function AdminStatusDetailPage() {
                 <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-[rgba(38,43,67,0.5)]">Dokumen</h3>
                 <div className="space-y-2">
                   {data.proposal_file && (
-                    <a
-                      href={buildUploadUrl(data.proposal_file)}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => openPdfPreview(buildUploadUrl(data.proposal_file), data.proposal_file.split("/").pop() ?? "Proposal")}
                       className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px] hover:bg-[rgba(38,43,67,0.10)]"
                     >
                       <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-[2px] text-[8px] font-bold leading-none text-white">PDF</span>
                       <span className="text-[15px] font-medium text-[rgba(38,43,67,0.7)]">{data.proposal_file.split("/").pop() ?? "Proposal"}</span>
-                    </a>
+                    </button>
                   )}
                   {data.sertifikat_nik_file && (
-                    <a
-                      href={buildUploadUrl(data.sertifikat_nik_file)}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => openPdfPreview(buildUploadUrl(data.sertifikat_nik_file), data.sertifikat_nik_file.split("/").pop() ?? "Sertifikat NIK")}
                       className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px] hover:bg-[rgba(38,43,67,0.10)]"
                     >
                       <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-[2px] text-[8px] font-bold leading-none text-white">PDF</span>
                       <span className="text-[15px] font-medium text-[rgba(38,43,67,0.7)]">{data.sertifikat_nik_file.split("/").pop() ?? "Sertifikat NIK"}</span>
-                    </a>
+                    </button>
                   )}
                 </div>
               </section>
@@ -1417,6 +1431,46 @@ export default function AdminStatusDetailPage() {
           </div>
         </div>
       )}
+
+      {/* PDF Preview Modal */}
+      {pdfPreview ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4 py-6"
+          onClick={() => setPdfPreview(null)}
+        >
+          <div
+            className="flex h-full max-h-[92vh] w-full max-w-[1000px] flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_24px_60px_rgba(22,35,71,0.22)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[rgba(38,43,67,0.10)] px-4 py-3 sm:px-6">
+              <p className="truncate pr-4 text-[15px] font-medium text-[rgba(38,43,67,0.9)]">{pdfPreview.filename}</p>
+              <div className="flex items-center gap-2">
+                <a
+                  href={pdfPreview.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-[34px] items-center justify-center rounded-[8px] border border-[rgba(38,43,67,0.2)] px-3 text-[13px] font-medium text-[rgba(38,43,67,0.78)] hover:bg-[rgba(38,43,67,0.04)]"
+                >
+                  Buka Tab Baru
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPdfPreview(null)}
+                  className="inline-flex size-8 items-center justify-center rounded-full text-[rgba(38,43,67,0.5)] hover:bg-[rgba(38,43,67,0.06)]"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <iframe
+              src={pdfPreview.url}
+              title={`Preview ${pdfPreview.filename}`}
+              className="h-full w-full bg-[rgba(38,43,67,0.03)]"
+            />
+          </div>
+        </div>
+      ) : null}
 
       {/* Hidden file input for uploads */}
       <input
@@ -1619,21 +1673,20 @@ export default function AdminStatusDetailPage() {
                             <div className="mt-4 space-y-2">
                               <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">{step.attachmentLabel}</p>
                               {step.attachmentPath ? (
-                                <a
-                                  href={buildUploadUrl(step.attachmentPath)}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => openPdfPreview(buildUploadUrl(step.attachmentPath), step.attachmentFile)}
                                   className="inline-flex"
                                 >
                                   <PdfFileChip filename={step.attachmentFile} />
-                                </a>
+                                </button>
                               ) : (
                                 <PdfFileChip filename={step.attachmentFile} />
                               )}
                             </div>
                           )}
 
-                          {step.secondaryDetails && (
+                          {step.secondaryDetails && step.status !== "locked" && (
                             <div className="mt-4 space-y-1">
                               <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">Hasil Laporan:</p>
                               {step.secondaryDetails.map((detail) => (

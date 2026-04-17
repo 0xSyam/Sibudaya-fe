@@ -40,6 +40,7 @@ import { useToast } from "@/app/lib/toast-context";
 import type {
   CreatePengajuanPentasDto,
   CreatePengajuanHibahDto,
+  PaketFasilitasi,
 } from "@/app/lib/types";
 import bankList from "@/list_banks.json";
 
@@ -142,6 +143,7 @@ export default function AjukanFasilitasiFormStep3Page() {
 
   const [proposalFile, setProposalFile] = useState<File | null>(null);
   const [templateProposalUrl, setTemplateProposalUrl] = useState<string | null>(null);
+  const [paketList, setPaketList] = useState<PaketFasilitasi[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -238,16 +240,17 @@ export default function AjukanFasilitasiFormStep3Page() {
   useEffect(() => {
     let mounted = true;
 
-    fasilitasiApi
-      .getAll()
-      .then((list) => {
+    Promise.all([fasilitasiApi.getAll(), fasilitasiApi.getPaketByJenis(jenisId)])
+      .then(([list, paket]) => {
         if (!mounted) return;
         const currentJenis = list.find((j) => j.jenis_fasilitasi_id === jenisId);
         setTemplateProposalUrl(currentJenis?.template_proposal_file ?? null);
+        setPaketList(paket);
       })
       .catch(() => {
         if (!mounted) return;
         setTemplateProposalUrl(null);
+        setPaketList([]);
       });
 
     return () => {
@@ -264,6 +267,17 @@ export default function AjukanFasilitasiFormStep3Page() {
     try {
       const saved = localStorage.getItem(FORM_STORAGE_KEY);
       const formData = saved ? JSON.parse(saved) : {};
+      const selectedPaketId =
+        String(get(formData, "selectedPaketId", "")) ||
+        paketList.find((paket) => paket.nama_paket === get(formData, "selectedPaket", ""))?.paket_id ||
+        "";
+
+      if (!selectedPaketId) {
+        throw {
+          message: "Jenis paket fasilitasi belum valid. Kembali ke langkah identitas lembaga dan pilih ulang paket.",
+        };
+      }
+
       const lembagaPayload = {
         nama_lembaga: get(formData, "namaLembaga", ""),
         jenis_kesenian: get(formData, "jenisKesenian", ""),
@@ -333,6 +347,7 @@ export default function AjukanFasilitasiFormStep3Page() {
         // Pentas submission
         const dto: CreatePengajuanPentasDto = {
           jenis_kegiatan: formData.selectedPaket || formData.namaKegiatan || "",
+          paket_id: selectedPaketId,
           judul_kegiatan: formData.namaKegiatan || "",
           tujuan_kegiatan: formData.tujuanKegiatan || "",
           lokasi_kegiatan: formData.alamatLokasi || "",
@@ -349,6 +364,7 @@ export default function AjukanFasilitasiFormStep3Page() {
         // Hibah submission
         const dto: CreatePengajuanHibahDto = {
           jenis_kegiatan: formData.selectedPaket || formData.namaKegiatan || "",
+          paket_id: selectedPaketId,
           nama_penerima: formData.namaPenerima || "",
           email_penerima: formData.email || "",
           no_hp_penerima: formData.nomorHp || "",

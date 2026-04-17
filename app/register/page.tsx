@@ -23,6 +23,8 @@ import { registerSchema, type RegisterFormValues } from "@/app/lib/form-schemas"
 import { useToast } from "@/app/lib/toast-context";
 import { useUiFormStore } from "@/app/lib/ui-form-store";
 
+const registerPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
 export default function RegisterPage() {
   const { showToast } = useToast();
   const { register, loginWithGoogle, isAuthenticated, isLoading, user } = useAuth();
@@ -54,6 +56,8 @@ export default function RegisterPage() {
   const noTelp = watch("noTelp");
   const password = watch("password");
   const confirmPassword = watch("confirmPassword");
+  const isPasswordFormatInvalid = Boolean(password) && !registerPasswordPattern.test(password);
+  const isPasswordMismatch = Boolean(confirmPassword) && password !== confirmPassword;
 
   useEffect(() => {
     return () => clearAuthError();
@@ -84,14 +88,15 @@ export default function RegisterPage() {
       });
     } catch (err: unknown) {
       const apiErr = err as { message?: string | string[]; statusCode?: number };
+      const toastType = apiErr.statusCode === 401 ? "warning" : "error";
       if (Array.isArray(apiErr.message)) {
         const message = apiErr.message.join(". ");
         setAuthError(message);
-        showToast(message, "error");
+        showToast(message, toastType);
       } else {
-        const message = apiErr.message ?? "Registrasi gagal. Silakan coba lagi.";
+        const message = apiErr.message ?? (apiErr.statusCode === 401 ? "Email atau password tidak valid." : "Registrasi gagal. Silakan coba lagi.");
         setAuthError(message);
-        showToast(message, "error");
+        showToast(message, toastType);
       }
     } finally {
       setLoading(false);
@@ -189,7 +194,7 @@ export default function RegisterPage() {
           />
 
           <AuthPasswordInput
-            placeholder="Password (Aturan 8-4)"
+            placeholder="Password"
             {...registerField("password")}
             value={password}
             onChange={(e) => {
@@ -199,6 +204,12 @@ export default function RegisterPage() {
             autoComplete="new-password"
             required
           />
+
+          {isPasswordFormatInvalid && (
+            <p className="-mt-2 text-[13px] leading-5 text-[#b42318]">
+              Password harus mengandung huruf kecil, huruf besar, angka, dan karakter khusus.
+            </p>
+          )}
 
           <AuthPasswordInput
             placeholder="Konfirmasi password"
@@ -211,6 +222,12 @@ export default function RegisterPage() {
             autoComplete="new-password"
             required
           />
+
+          {isPasswordMismatch && (
+            <p className="-mt-2 text-[13px] leading-5 text-[#b42318]">
+              Password dan konfirmasi password tidak cocok.
+            </p>
+          )}
 
           <AuthPrimaryButton loading={loading}>Daftar</AuthPrimaryButton>
 

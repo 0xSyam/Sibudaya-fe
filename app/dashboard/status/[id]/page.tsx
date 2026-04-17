@@ -75,7 +75,9 @@ function buildPentasTimeline(p: Pengajuan): TimelineStep[] {
     description:
       suratStatus === "completed"
         ? "Surat persetujuan telah diterima dan dikonfirmasi di Kantor Dinas Kebudayaan DIY."
-        : "Surat persetujuan telah diterbitkan. Pemohon wajib mengunduh surat persetujuan dan melakukan penandatanganan secara langsung di Kantor Dinas Kebudayaan DIY.",
+        : !p.surat_persetujuan?.file_path
+          ? "Surat persetujuan belum diunggah oleh admin. Silakan tunggu hingga dokumen tersedia."
+          : "Surat persetujuan telah diterbitkan. Pemohon wajib mengunduh surat persetujuan dan melakukan penandatanganan secara langsung di Kantor Dinas Kebudayaan DIY.",
     status: suratStatus,
     attachmentLabel: p.surat_persetujuan?.file_path ? "Surat Persetujuan:" : undefined,
     attachmentFile: p.surat_persetujuan?.file_path ? extractFilename(p.surat_persetujuan.file_path) : undefined,
@@ -173,7 +175,9 @@ function buildHibahTimeline(p: Pengajuan): TimelineStep[] {
     description:
       suratStatus === "completed"
         ? "Surat persetujuan telah diterima dan dikonfirmasi di Kantor Dinas Kebudayaan DIY."
-        : "Surat persetujuan telah diterbitkan. Pemohon wajib mengunduh surat persetujuan dan melakukan penandatanganan secara langsung di Kantor Dinas Kebudayaan DIY.",
+        : !p.surat_persetujuan?.file_path
+          ? "Surat persetujuan belum diunggah oleh admin. Silakan tunggu hingga dokumen tersedia."
+          : "Surat persetujuan telah diterbitkan. Pemohon wajib mengunduh surat persetujuan dan melakukan penandatanganan secara langsung di Kantor Dinas Kebudayaan DIY.",
     status: suratStatus,
     attachmentLabel: p.surat_persetujuan?.file_path ? "Surat Persetujuan:" : undefined,
     attachmentFile: p.surat_persetujuan?.file_path ? extractFilename(p.surat_persetujuan.file_path) : undefined,

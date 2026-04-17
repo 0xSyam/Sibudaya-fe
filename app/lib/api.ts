@@ -93,13 +93,18 @@ export function clearLocalAuthUser() {
 
 // ─── Fetch wrapper ───────────────────────────────────────────────────────────
 
+type ApiFetchOptions = RequestInit & {
+  skipAuthRefresh?: boolean;
+};
+
 async function apiFetch<T>(
   endpoint: string,
-  options: RequestInit = {},
+  options: ApiFetchOptions = {},
 ): Promise<T> {
+  const { skipAuthRefresh, ...fetchOptions } = options;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers as Record<string, string>),
+    ...(fetchOptions.headers as Record<string, string>),
   };
 
   const token = getAccessToken();
@@ -108,13 +113,13 @@ async function apiFetch<T>(
   }
 
   const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
+    ...fetchOptions,
     headers,
     credentials: "include",
   });
 
   // Jika 401 & ada refresh token → coba refresh sekali
-  if (res.status === 401) {
+  if (res.status === 401 && !skipAuthRefresh) {
     const refreshed = await tryRefreshToken();
     if (refreshed) {
       const nextToken = getAccessToken();
@@ -246,6 +251,7 @@ export const authApi = {
     return apiFetch<AuthTokens>("/auth/login", {
       method: "POST",
       body: JSON.stringify(dto),
+      skipAuthRefresh: true,
     });
   },
 
@@ -254,6 +260,7 @@ export const authApi = {
     return apiFetch<AuthTokens>("/auth/register", {
       method: "POST",
       body: JSON.stringify(dto),
+      skipAuthRefresh: true,
     });
   },
 
@@ -294,6 +301,7 @@ export const authApi = {
     return apiFetch<{ reset_token: string }>("/auth/forgot-password", {
       method: "POST",
       body: JSON.stringify(dto),
+      skipAuthRefresh: true,
     });
   },
 
@@ -302,6 +310,7 @@ export const authApi = {
     return apiFetch<{ message: string }>("/auth/reset-password", {
       method: "POST",
       body: JSON.stringify(dto),
+      skipAuthRefresh: true,
     });
   },
 };

@@ -17,7 +17,7 @@ type Submission = {
   actionHref: string;
 };
 
-type SubmissionJenisFilter = "all" | "sapras" | "pentas";
+type SubmissionJenisFilter = "all" | "hibah" | "pentas";
 
 function mapPengajuanToSubmission(p: Pengajuan): Submission {
   const category = p.jenis_fasilitasi_id === 1 ? "Fasilitasi Pentas" as const : "Fasilitasi Hibah" as const;
@@ -436,13 +436,13 @@ function SearchAndToolbar({
                     </button>
                     <button
                       type="button"
-                      onClick={() => onJenisFilterChange("sapras")}
+                      onClick={() => onJenisFilterChange("hibah")}
                       className="flex items-center gap-2.5 text-[#3c4358]"
                     >
-                      <span className={`flex size-4.5 items-center justify-center rounded-full border-[3px] ${jenisFilter === "sapras" ? "border-[#cc3e15]" : "border-[#6d7285]"}`}>
-                        <span className={`size-1.5 rounded-full ${jenisFilter === "sapras" ? "bg-[#cc3e15]" : "bg-transparent"}`} />
+                      <span className={`flex size-4.5 items-center justify-center rounded-full border-[3px] ${jenisFilter === "hibah" ? "border-[#cc3e15]" : "border-[#6d7285]"}`}>
+                        <span className={`size-1.5 rounded-full ${jenisFilter === "hibah" ? "bg-[#cc3e15]" : "bg-transparent"}`} />
                       </span>
-                      <span className="text-[14px] leading-6">Sapras</span>
+                      <span className="text-[14px] leading-6">Hibah</span>
                     </button>
                     <button
                       type="button"
@@ -704,8 +704,8 @@ export default function AdminDashboardPage() {
         ? submission.activityName.toLowerCase().includes(normalizedQuery)
         : true;
       const matchesStatus = statusFilter === "all" ? true : submission.status === statusFilter;
-      const isSapras = submission.category === "Fasilitasi Hibah";
-      const matchesJenis = jenisFilter === "all" ? true : jenisFilter === "sapras" ? isSapras : !isSapras;
+      const isHibah = submission.category === "Fasilitasi Hibah";
+      const matchesJenis = jenisFilter === "all" ? true : jenisFilter === "hibah" ? isHibah : !isHibah;
       const dateTimestamp = parseIndonesianDate(submission.submittedAt);
       const matchesStartDate = startTimestamp === null ? true : dateTimestamp >= startTimestamp;
       const matchesEndDate = endTimestamp === null ? true : dateTimestamp <= endTimestamp;

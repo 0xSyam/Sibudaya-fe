@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { authApi } from "@/app/lib/api";
 import { useAuth } from "@/app/lib/auth-context";
@@ -40,6 +39,14 @@ function toProfileForm(user: SafeUser): ProfileForm {
   };
 }
 
+function getProfileInitial(user: SafeUser | null, fallbackEmail?: string) {
+  const fullName = `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim();
+  if (fullName) return fullName.charAt(0).toUpperCase();
+  const email = user?.email ?? fallbackEmail ?? "";
+  if (email) return email.charAt(0).toUpperCase();
+  return "U";
+}
+
 export default function MyProfilePage() {
   const { showToast } = useToast();
   const { user, refreshUser } = useAuth();
@@ -74,6 +81,8 @@ export default function MyProfilePage() {
     const full = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
     return full || profile.email || "User";
   }, [profile, user?.email]);
+
+  const profileInitial = useMemo(() => getProfileInitial(profile, user?.email), [profile, user?.email]);
 
   const roleLabel =
     profile?.role === "SUPER_ADMIN"
@@ -134,13 +143,12 @@ export default function MyProfilePage() {
             <section className="rounded-xl border border-[rgba(38,43,67,0.12)] bg-white p-4 shadow-[0_4px_18px_rgba(38,43,67,0.08)] sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <Image
-                    src="/figma/avatar-profile.jpg"
-                    alt={`Foto profil ${displayName}`}
-                    width={96}
-                    height={96}
-                    className="size-24 rounded-xl object-cover"
-                  />
+                  <div
+                    className="flex size-24 items-center justify-center rounded-xl bg-[#c23513] text-[34px] font-semibold text-white"
+                    aria-label={`Avatar profil ${displayName}`}
+                  >
+                    {profileInitial}
+                  </div>
 
                   <div>
                     <h2 className="text-[22px] font-semibold leading-7 text-[#383f55] sm:text-[28px] sm:leading-9">

@@ -65,14 +65,15 @@ export default function LoginPage() {
       await login({ email: trim(values.email), password: values.password });
     } catch (err: unknown) {
       const apiErr = err as { message?: string | string[]; statusCode?: number };
+      const toastType = apiErr.statusCode === 401 ? "warning" : "error";
       if (Array.isArray(apiErr.message)) {
         const message = apiErr.message.join(". ");
         setAuthError(message);
-        showToast(message, "error");
+        showToast(message, toastType);
       } else {
-        const message = apiErr.message ?? "Login gagal. Silakan coba lagi.";
+        const message = apiErr.message ?? (apiErr.statusCode === 401 ? "Email atau password salah." : "Login gagal. Silakan coba lagi.");
         setAuthError(message);
-        showToast(message, "error");
+        showToast(message, toastType);
       }
     } finally {
       setLoading(false);
@@ -126,7 +127,7 @@ export default function LoginPage() {
           />
 
           <div className="flex items-center justify-between gap-3">
-            <label className="flex items-center gap-2 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)]">
+            <label className="flex items-center gap-2 text-[15px] leading-5.5 text-[rgba(38,43,67,0.9)]">
               <input
                 type="checkbox"
                 defaultChecked
@@ -136,7 +137,7 @@ export default function LoginPage() {
             </label>
             <Link
               href="/reset-password"
-              className="text-[15px] font-normal leading-[22px] text-[#c23513] hover:underline"
+              className="text-[15px] font-normal leading-5.5 text-[#c23513] hover:underline"
             >
               Lupa Password?
             </Link>
@@ -149,7 +150,7 @@ export default function LoginPage() {
           <GoogleButton onClick={loginWithGoogle} disabled={loading} />
         </form>
 
-        <p className="mt-4 text-center text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+        <p className="mt-4 text-center text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)]">
           Belum punya akun?{" "}
           <Link href="/register" className="text-[#c23513] hover:underline">
             Registrasi

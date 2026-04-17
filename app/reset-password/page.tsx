@@ -55,6 +55,8 @@ export default function ResetPasswordPage() {
   const email = watchRequest("email");
   const newPassword = watchReset("newPassword");
   const confirmPassword = watchReset("confirmPassword");
+  const isPasswordFormatInvalid = Boolean(newPassword) && newPassword.length < 8;
+  const isPasswordMismatch = Boolean(confirmPassword) && newPassword !== confirmPassword;
 
   // Shared
   const [, setError] = useState<string | null>(null);
@@ -195,6 +197,12 @@ export default function ResetPasswordPage() {
                 required
               />
 
+              {isPasswordFormatInvalid && (
+                <p className="-mt-2 text-[13px] leading-5 text-[#b42318]">
+                  Password minimal 8 karakter.
+                </p>
+              )}
+
               <AuthPasswordInput
                 placeholder="Konfirmasi password"
                 {...resetRegister("confirmPassword")}
@@ -203,6 +211,12 @@ export default function ResetPasswordPage() {
                 autoComplete="new-password"
                 required
               />
+
+              {isPasswordMismatch && (
+                <p className="-mt-2 text-[13px] leading-5 text-[#b42318]">
+                  Password dan konfirmasi password tidak cocok.
+                </p>
+              )}
 
               <AuthPrimaryButton loading={loading}>
                 Konfirmasi

@@ -42,7 +42,7 @@ const stepOneSchema = z
   .object({
     namaLembaga: z.string().trim().min(1, "Nama lembaga wajib diisi"),
     jenisKesenian: z.string().trim().min(1, "Jenis kesenian wajib dipilih"),
-    nik: z.string().trim().regex(/^\d{16}$/, "Format NIK harus 16 digit angka"),
+    nik: z.string().trim().min(1, "NIK wajib diisi").regex(/^\d+$/, "Format NIK harus berupa angka"),
     nikTanggalTerbit: z.string().min(1, "Tanggal terbit sertifikat wajib diisi"),
     nikTanggalBerlakuSampai: z.string().min(1, "Tanggal berlaku sertifikat wajib diisi"),
     selectedPaket: z.string().min(1, "Jenis paket fasilitasi wajib dipilih"),
@@ -158,6 +158,7 @@ export default function AjukanFasilitasiFormPage() {
   }, [jenisId, reset]);
 
   const saveStep = handleSubmit((values) => {
+    const selectedPaket = paketList.find((paket) => paket.nama_paket === values.selectedPaket);
     const existingSertifikat = lembaga?.sertifikat_nik;
     const isUpdatingExistingCertificate = Boolean(sertifikatFile);
 
@@ -192,6 +193,7 @@ export default function AjukanFasilitasiFormPage() {
       nikTanggalTerbit: values.nikTanggalTerbit,
       nikTanggalBerlakuSampai: values.nikTanggalBerlakuSampai,
       selectedPaket: values.selectedPaket,
+      selectedPaketId: selectedPaket?.paket_id ?? get(draft, "selectedPaketId", ""),
       lembagaId: lembaga?.lembaga_id ?? existing.lembagaId,
       hasExistingSertifikat: Boolean(lembaga?.sertifikat_nik),
     };

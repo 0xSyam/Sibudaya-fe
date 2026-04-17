@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
-type ToastType = "success" | "error" | "info";
+type ToastType = "success" | "error" | "warning" | "info";
 
 type ToastItem = {
   id: string;
@@ -27,6 +27,16 @@ function ToastIcon({ type }: { type: ToastType }) {
   }
 
   if (type === "error") {
+    return (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 9V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M12 17H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M10.29 3.86L1.82 18A2 2 0 0 0 3.53 21H20.47A2 2 0 0 0 22.18 18L13.71 3.86A2 2 0 0 0 10.29 3.86Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (type === "warning") {
     return (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M12 9V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -65,6 +75,17 @@ function getToastTone(type: ToastType) {
       iconWrap: "bg-rose-100 text-rose-700",
       progress: "bg-rose-500",
       close: "text-rose-700 hover:bg-rose-100",
+    };
+  }
+
+  if (type === "warning") {
+    return {
+      title: "Peringatan",
+      card: "border-amber-200 bg-[linear-gradient(135deg,#fffaf0_0%,#fffbeb_100%)] text-amber-900",
+      accent: "bg-amber-500",
+      iconWrap: "bg-amber-100 text-amber-700",
+      progress: "bg-amber-500",
+      close: "text-amber-700 hover:bg-amber-100",
     };
   }
  
