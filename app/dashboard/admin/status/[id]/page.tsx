@@ -535,6 +535,12 @@ export default function AdminStatusDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingFileAction, setPendingFileAction] = useState<StepAction["type"] | null>(null);
 
+  function openPaketPickerModal() {
+    if (!data || data.jenis_fasilitasi_id !== 1) return;
+    setPaketId(data.paket_fasilitasi?.paket_id ?? "");
+    setShowPaketPicker(true);
+  }
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -848,6 +854,11 @@ export default function AdminStatusDetailPage() {
     if (!data) return;
     const apiStep = mapStepKeyToApi(step.key);
     if (!apiStep) return;
+
+    if (step.key === "PEMERIKSAAN" && nextStatus === "completed" && data.jenis_fasilitasi_id === 1) {
+      openPaketPickerModal();
+      return;
+    }
 
     if (step.key === "PENCAIRAN" && nextStatus === "completed" && !data.pencairan_dana?.bukti_transfer) {
       const message = "Bukti transfer wajib diunggah";

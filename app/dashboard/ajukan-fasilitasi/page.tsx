@@ -7,6 +7,8 @@ import { map } from "lodash";
 import { fasilitasiApi } from "@/app/lib/api";
 import type { JenisFasilitasi } from "@/app/lib/types";
 
+const STATIC_PENTAS_ITEMS = ["Pembinaan Sanggar", "Pentas Seni"];
+
 type FacilityCardProps = {
   icon: string;
   iconWidth: number;
@@ -75,7 +77,7 @@ function mapJenisToCard(j: JenisFasilitasi): FacilityCardProps {
     description: j.deskripsi ?? (isPentas
       ? "Bantuan untuk pelaksanaan kegiatan pentas seni dan pembinaan lembaga budaya."
       : "Bantuan pendukung kegiatan seni seperti gamelan, alat musik, atau pakaian pentas."),
-    items: map(j.paket_fasilitasi, (p) => p.nama_paket),
+    items: isPentas ? STATIC_PENTAS_ITEMS : map(j.paket_fasilitasi, (p) => p.nama_paket),
     href: `/dashboard/ajukan-fasilitasi/form?jenis=${j.jenis_fasilitasi_id}`,
   };
 }

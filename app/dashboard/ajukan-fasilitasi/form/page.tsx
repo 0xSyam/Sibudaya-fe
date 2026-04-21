@@ -28,6 +28,24 @@ import { setPendingSertifikatNikFile } from "@/app/lib/pengajuan-draft-store";
 import type { Lembaga, PaketFasilitasi } from "@/app/lib/types";
 
 const FORM_STORAGE_KEY = "pengajuan_form_data";
+const STATIC_PENTAS_PAKET_LIST: PaketFasilitasi[] = [
+  {
+    paket_id: "",
+    jenis_fasilitasi_id: 1,
+    nama_paket: "Pembinaan Sanggar",
+    kuota: 0,
+    nilai_bantuan: null,
+    catatan: null,
+  },
+  {
+    paket_id: "",
+    jenis_fasilitasi_id: 1,
+    nama_paket: "Pentas Seni",
+    kuota: 0,
+    nilai_bantuan: null,
+    catatan: null,
+  },
+];
 
 type StepOneFormValues = {
   namaLembaga: string;
@@ -108,11 +126,12 @@ export default function AjukanFasilitasiFormPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [lem, paket, jenisLembaga] = await Promise.all([
+        const [lem, paketFromApi, jenisLembaga] = await Promise.all([
           lembagaApi.getMe().catch(() => null),
-          fasilitasiApi.getPaketByJenis(jenisId),
+          jenisId === 1 ? Promise.resolve([] as PaketFasilitasi[]) : fasilitasiApi.getPaketByJenis(jenisId),
           fasilitasiApi.getJenisLembaga(),
         ]);
+        const paket = jenisId === 1 ? STATIC_PENTAS_PAKET_LIST : paketFromApi;
 
         const dynamicOptions = jenisLembaga
           .map((item) => trim(item.nama))
