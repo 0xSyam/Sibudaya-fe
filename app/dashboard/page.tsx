@@ -10,7 +10,7 @@ import type { Pengajuan } from "@/app/lib/types";
 
 const SUBMIT_SUCCESS_NOTICE_KEY = "pengajuan_submit_notice";
 
-type SubmissionStatus = "selesai" | "dalam_proses" | "ditolak";
+type SubmissionStatus = "selesai" | "dalam_proses" | "perlu_tindakan" | "ditolak";
 
 type SubmissionCategory = "Pentas" | "Hibah";
 
@@ -27,6 +27,19 @@ function pickActivityName(p: Pengajuan): string {
   return p.lembaga_budaya?.nama_lembaga || p.judul_kegiatan || p.jenis_kegiatan || "Pengajuan";
 }
 
+function needsUserAction(p: Pengajuan): boolean {
+  const isPentas = p.jenis_fasilitasi_id === 1;
+  const laporanBelumDiunggah = !p.laporan_kegiatan?.file_laporan;
+
+  return Boolean(
+    p.status_pemeriksaan === "DITOLAK" ||
+    (p.surat_persetujuan?.file_path && !p.surat_persetujuan.tanggal_konfirmasi) ||
+      (isPentas && p.surat_persetujuan?.status === "SELESAI" && laporanBelumDiunggah) ||
+      (!isPentas && p.pengiriman_sarana?.status === "SELESAI" && laporanBelumDiunggah) ||
+      p.laporan_kegiatan?.status === "DITOLAK",
+  );
+}
+
 function mapPengajuanToSubmission(p: Pengajuan): Submission {
   const category: SubmissionCategory = p.jenis_fasilitasi_id === 1 ? "Pentas" : "Hibah";
   const date = new Date(p.tanggal_pengajuan);
@@ -36,16 +49,15 @@ function mapPengajuanToSubmission(p: Pengajuan): Submission {
     year: "numeric",
   });
 
-  const hasRejectedStep =
-    p.status_pemeriksaan === "DITOLAK" ||
+  const hasTerminalRejectedStep =
     p.survey_lapangan?.status === "DITOLAK" ||
-    p.laporan_kegiatan?.status === "DITOLAK" ||
     p.pengiriman_sarana?.status === "DITOLAK" ||
     p.pencairan_dana?.status === "DITOLAK";
 
   let status: SubmissionStatus = "dalam_proses";
   if (p.status === "SELESAI") status = "selesai";
-  else if (p.status === "DITOLAK" || hasRejectedStep) status = "ditolak";
+  else if (p.status === "DITOLAK" || hasTerminalRejectedStep) status = "ditolak";
+  else if (needsUserAction(p)) status = "perlu_tindakan";
 
   return {
     id: p.pengajuan_id,
@@ -69,8 +81,12 @@ const statusStyles: Record<
     className: "bg-[rgba(114,225,40,0.16)] text-[#72e128]",
   },
   dalam_proses: {
+    label: "Dalam Proses",
+    className: "min-w-[101px] bg-[rgba(253,181,40,0.16)] text-[#fdb528]",
+  },
+  perlu_tindakan: {
     label: "Perlu Tindakan",
-    className: "min-w-[134px] bg-[rgba(38,198,249,0.16)] text-[#26c6f9]",
+    className: "min-w-[101px] bg-[rgba(38,198,249,0.16)] text-[#26c6f9]",
   },
   ditolak: {
     label: "Ditolak",

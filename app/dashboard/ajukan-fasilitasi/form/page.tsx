@@ -193,7 +193,7 @@ export default function AjukanFasilitasiFormPage() {
       nikTanggalTerbit: values.nikTanggalTerbit,
       nikTanggalBerlakuSampai: values.nikTanggalBerlakuSampai,
       selectedPaket: values.selectedPaket,
-      selectedPaketId: selectedPaket?.paket_id ?? get(draft, "selectedPaketId", ""),
+      selectedPaketId: selectedPaket?.paket_id ?? get(existing, "selectedPaketId", ""),
       lembagaId: lembaga?.lembaga_id ?? existing.lembagaId,
       hasExistingSertifikat: Boolean(lembaga?.sertifikat_nik),
     };

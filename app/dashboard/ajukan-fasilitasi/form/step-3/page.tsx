@@ -142,6 +142,11 @@ export default function AjukanFasilitasiFormStep3Page() {
   const stepThreeSchema = useMemo(() => createStepThreeSchema(jenisId), [jenisId]);
 
   const [proposalFile, setProposalFile] = useState<File | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{
+    url: string;
+    title: string;
+    fromObjectUrl: boolean;
+  } | null>(null);
   const [templateProposalUrl, setTemplateProposalUrl] = useState<string | null>(null);
   const [paketList, setPaketList] = useState<PaketFasilitasi[]>([]);
 
@@ -182,6 +187,25 @@ export default function AjukanFasilitasiFormStep3Page() {
 
   function buildUploadUrl(path: string): string {
     return buildProtectedFileUrl(path);
+  }
+
+  function closePdfPreview() {
+    if (pdfPreview?.fromObjectUrl) {
+      URL.revokeObjectURL(pdfPreview.url);
+    }
+    setPdfPreview(null);
+  }
+
+  function openPdfPreview(url: string, title: string, fromObjectUrl = false) {
+    if (pdfPreview?.fromObjectUrl) {
+      URL.revokeObjectURL(pdfPreview.url);
+    }
+
+    setPdfPreview({
+      url,
+      title,
+      fromObjectUrl,
+    });
   }
 
   function validate(values: StepThreeFormValues) {
@@ -257,6 +281,14 @@ export default function AjukanFasilitasiFormStep3Page() {
       mounted = false;
     };
   }, [jenisId]);
+
+  useEffect(() => {
+    return () => {
+      if (pdfPreview?.fromObjectUrl) {
+        URL.revokeObjectURL(pdfPreview.url);
+      }
+    };
+  }, [pdfPreview]);
 
   const onSubmit = handleRHFSubmit(async (values) => {
     if (!validate(values)) return;
@@ -577,16 +609,20 @@ export default function AjukanFasilitasiFormStep3Page() {
             <div>
               <FieldLabel htmlFor="contohProposal">Contoh Proposal</FieldLabel>
               {templateProposalUrl ? (
-                <a
-                  href={buildUploadUrl(templateProposalUrl)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex"
+                <button
+                  type="button"
+                  onClick={() => {
+                    openPdfPreview(
+                      buildUploadUrl(templateProposalUrl),
+                      templateProposalUrl.split("/").pop() ?? "Contoh Proposal.pdf",
+                    );
+                  }}
+                  className="inline-flex cursor-pointer"
                 >
                   <SamplePdfChip
                     filename={templateProposalUrl.split("/").pop() ?? "Contoh Proposal.pdf"}
                   />
-                </a>
+                </button>
               ) : (
                 <SamplePdfChip filename="Contoh Proposal.pdf" />
               )}
@@ -599,6 +635,7 @@ export default function AjukanFasilitasiFormStep3Page() {
                 accept=".pdf,application/pdf"
                 isError={submitError?.toLowerCase().includes("proposal")}
                 onChange={(e) => {
+                  closePdfPreview();
                   const f = (e.target as HTMLInputElement).files?.[0] ?? null;
                   if (f) {
                     const validationMessage = validateUploadFile(f, {
@@ -616,6 +653,21 @@ export default function AjukanFasilitasiFormStep3Page() {
                   setSubmitError(null);
                 }}
               />
+              {proposalFile ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    openPdfPreview(
+                      URL.createObjectURL(proposalFile),
+                      proposalFile.name,
+                      true,
+                    );
+                  }}
+                  className="mt-2 inline-flex items-center rounded-lg border border-[rgba(194,53,19,0.35)] px-3 py-1.5 text-[13px] font-medium text-[#a42e12] hover:bg-[rgba(194,53,19,0.08)]"
+                >
+                  Review PDF
+                </button>
+              ) : null}
               {submitError?.toLowerCase().includes("proposal") ? (
                 <ErrorText>{submitError}</ErrorText>
               ) : (
@@ -663,6 +715,34 @@ export default function AjukanFasilitasiFormStep3Page() {
           </PrimaryButton>
         </FormActionBar>
       </div>
+
+      {pdfPreview ? (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center bg-[rgba(16,23,40,0.56)] px-4 py-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Preview PDF"
+        >
+          <div className="w-full max-w-5xl overflow-hidden rounded-xl bg-white shadow-[0_20px_64px_rgba(0,0,0,0.35)]">
+            <div className="flex items-center justify-between border-b border-[rgba(38,43,67,0.14)] px-5 py-3">
+              <p className="line-clamp-1 text-[15px] font-medium text-[rgba(38,43,67,0.92)]">
+                {pdfPreview.title}
+              </p>
+              <button
+                type="button"
+                onClick={closePdfPreview}
+                className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[rgba(38,43,67,0.75)] hover:bg-[rgba(38,43,67,0.08)]"
+              >
+                Tutup
+              </button>
+            </div>
+
+            <div className="h-[75vh] w-full bg-[rgba(38,43,67,0.04)]">
+              <iframe title={pdfPreview.title} src={pdfPreview.url} className="h-full w-full" />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

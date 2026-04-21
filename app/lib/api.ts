@@ -478,7 +478,7 @@ export const adminPengajuanApi = {
   /** Tolak pemeriksaan */
   tolak(pengajuanId: string, dto: TolakPemeriksaanDto, suratFile?: File): Promise<Pengajuan> {
     const formData = new FormData();
-    formData.append("catatan_pemeriksaan", dto.catatan);
+    formData.append("catatan_pemeriksaan", dto.catatan_pemeriksaan);
     if (suratFile) formData.append("surat_penolakan", suratFile);
     return apiMultipartFetch<Pengajuan>(`/admin/pengajuan/${pengajuanId}/tolak`, formData, "PATCH");
   },
@@ -498,12 +498,22 @@ export const adminPengajuanApi = {
     });
   },
 
-  /** Tolak survey lapangan (Hibah) */
-  tolakSurvey(pengajuanId: string, catatan: string): Promise<SurveyLapangan> {
-    return apiFetch<SurveyLapangan>(`/admin/pengajuan/${pengajuanId}/survey/tolak`, {
-      method: "PATCH",
-      body: JSON.stringify({ catatan }),
-    });
+  /** Tolak survey lapangan (Hibah) dengan surat penolakan opsional */
+  tolakSurvey(
+    pengajuanId: string,
+    catatan: string,
+    suratFile?: File,
+  ): Promise<SurveyLapangan> {
+    if (!suratFile) {
+      return apiFetch<SurveyLapangan>(`/admin/pengajuan/${pengajuanId}/survey/tolak`, {
+        method: "PATCH",
+        body: JSON.stringify({ catatan }),
+      });
+    }
+    const formData = new FormData();
+    formData.append("catatan", catatan);
+    formData.append("surat_penolakan", suratFile);
+    return apiMultipartFetch<SurveyLapangan>(`/admin/pengajuan/${pengajuanId}/survey/tolak`, formData);
   },
 
   /** Upload surat persetujuan */
@@ -557,15 +567,9 @@ export const adminPengajuanApi = {
   },
 
   /** Upload bukti pencairan dana (Pentas) */
-  uploadBuktiPencairan(
-    pengajuanId: string,
-    dto: { tanggal_pencairan: string; total_dana: number },
-    file: File,
-  ): Promise<PencairanDana> {
+  uploadBuktiPencairan(pengajuanId: string, file: File): Promise<PencairanDana> {
     const formData = new FormData();
     formData.append("bukti_transfer", file);
-    formData.append("tanggal_pencairan", dto.tanggal_pencairan);
-    formData.append("total_dana", String(dto.total_dana));
     return apiMultipartFetch<PencairanDana>(`/admin/pengajuan/${pengajuanId}/pencairan`, formData);
   },
 

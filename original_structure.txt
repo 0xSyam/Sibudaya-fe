@@ -1,0 +1,72 @@
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Preview Modal */}
+      {pdfPreview ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4 py-6"
+          onClick={() => setPdfPreview(null)}
+        >
+          <div
+            className="flex h-full max-h-[92vh] w-full max-w-[1000px] flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_24px_60px_rgba(22,35,71,0.22)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[rgba(38,43,67,0.10)] px-4 py-3 sm:px-6">
+              <p className="truncate pr-4 text-[15px] font-medium text-[rgba(38,43,67,0.9)]">{pdfPreview.filename}</p>
+              <div className="flex items-center gap-2">
+                <a
+                  href={pdfPreview.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-[34px] items-center justify-center rounded-[8px] border border-[rgba(38,43,67,0.2)] px-3 text-[13px] font-medium text-[rgba(38,43,67,0.78)] hover:bg-[rgba(38,43,67,0.04)]"
+                >
+                  Buka Tab Baru
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPdfPreview(null)}
+                  className="inline-flex size-8 items-center justify-center rounded-full text-[rgba(38,43,67,0.5)] hover:bg-[rgba(38,43,67,0.06)]"
+                >
+                  Γ£ò
+                </button>
+              </div>
+            </div>
+
+            <iframe
+              src={pdfPreview.url}
+              title={`Preview ${pdfPreview.filename}`}
+              className="h-full w-full bg-[rgba(38,43,67,0.03)]"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {/* Hidden file input for uploads */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,application/pdf,.jpg,.jpeg,.png"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            if (pendingFileAction) {
+              setSelectedUploadFile({ name: file.name, action: pendingFileAction });
+            }
+            handleFileUpload(file);
+          }
+          e.target.value = "";
+        }}
+      />
+
+      {showPaketPicker && isPentas ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+          <div className="w-full max-w-[594px] rounded-[10px] bg-white p-6 shadow-[0_24px_60px_rgba(22,35,71,0.22)]">
+            <h2 className="text-center text-[28px] font-bold leading-[42px] text-[rgba(38,43,67,0.9)]">Pilih Paket</h2>
+            <p className="mt-1 text-center text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
+              Tetapkan paket yang sesuai dengan pengajuan
+            </p>
+

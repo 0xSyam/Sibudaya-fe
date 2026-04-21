@@ -19,6 +19,37 @@ type Submission = {
 
 type SubmissionJenisFilter = "all" | "hibah" | "pentas";
 
+function hasAdminActionRequired(p: Pengajuan): boolean {
+  const isHibah = p.jenis_fasilitasi_id === 2;
+  const pemeriksaanSelesai = p.status_pemeriksaan === "DISETUJUI" || p.status_pemeriksaan === "SELESAI";
+  const surveySelesai = p.survey_lapangan?.status === "SELESAI";
+  const suratSelesai = p.surat_persetujuan?.status === "SELESAI";
+  const laporanDisetujui = p.laporan_kegiatan?.status === "DISETUJUI";
+  const pencairanAktifPentas = Boolean(
+    !isHibah && p.pencairan_dana && p.pencairan_dana.status !== "SELESAI",
+  );
+  const pencairanParsial = Boolean(
+    p.pencairan_dana &&
+      !p.pencairan_dana.bukti_transfer &&
+      (p.pencairan_dana.tanggal_pencairan || p.pencairan_dana.total_dana),
+  );
+
+  return Boolean(
+    p.status_pemeriksaan === "DALAM_PROSES" ||
+      (isHibah && pemeriksaanSelesai && !p.survey_lapangan) ||
+      p.survey_lapangan?.status === "DALAM_PROSES" ||
+      ((isHibah ? surveySelesai : pemeriksaanSelesai) && !p.surat_persetujuan) ||
+      p.surat_persetujuan?.status === "DALAM_PROSES" ||
+      (isHibah && suratSelesai && !p.pengiriman_sarana) ||
+      p.pengiriman_sarana?.status === "DALAM_PROSES" ||
+      p.laporan_kegiatan?.status === "DALAM_PROSES" ||
+      (!isHibah && laporanDisetujui && !p.pencairan_dana) ||
+      pencairanAktifPentas ||
+      (!isHibah && pencairanParsial) ||
+      p.pencairan_dana?.status === "DALAM_PROSES",
+  );
+}
+
 function mapPengajuanToSubmission(p: Pengajuan): Submission {
   const category = p.jenis_fasilitasi_id === 1 ? "Fasilitasi Pentas" as const : "Fasilitasi Hibah" as const;
   const date = new Date(p.tanggal_pengajuan);
@@ -31,10 +62,12 @@ function mapPengajuanToSubmission(p: Pengajuan): Submission {
     p.pengiriman_sarana?.status === "DITOLAK" ||
     p.pencairan_dana?.status === "DITOLAK";
 
+  const needsAdminAction = hasAdminActionRequired(p);
+
   let status: SubmissionStatus = "dalam_proses";
   if (p.status === "DITOLAK" || hasRejectedStep) status = "ditolak";
   else if (p.status === "SELESAI") status = "selesai";
-  else if (p.status_pemeriksaan === "MENUNGGU") status = "perlu_tindakan";
+  else if (needsAdminAction) status = "perlu_tindakan";
 
   return {
     id: p.pengajuan_id,
@@ -59,7 +92,7 @@ const statusStyles: Record<
   },
   perlu_tindakan: {
     label: "Perlu Tindakan",
-    className: "bg-[rgba(38,198,249,0.16)] text-[#26c6f9]",
+    className: "min-w-[101px] bg-[rgba(38,198,249,0.16)] text-[#26c6f9]",
   },
   dalam_proses: {
     label: "Dalam Proses",

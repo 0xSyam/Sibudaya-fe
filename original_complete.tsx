@@ -636,7 +636,7 @@ export default function AdminStatusDetailPage() {
           }
           await adminPengajuanApi.tolak(
             data.pengajuan_id,
-            { catatan_pemeriksaan: tolakCatatan.trim() },
+            { catatan: tolakCatatan.trim() },
             tolakSuratFile ?? undefined,
           );
           setTolakMode(null);
@@ -837,7 +837,12 @@ export default function AdminStatusDetailPage() {
       return [];
     }
 
-    return ["in_progress", "completed", "rejected"];
+    const rejectableSteps: TimelineStepKey[] = ["PEMERIKSAAN", "SURVEY", "PENGIRIMAN", "PELAPORAN"];
+    if (rejectableSteps.includes(step.key)) {
+      return ["in_progress", "completed", "rejected"];
+    }
+
+    return ["in_progress", "completed"];
   }
 
   function mapStepKeyToApi(stepKey: TimelineStepKey): "PEMERIKSAAN" | "SURVEY" | "SURAT_PERSETUJUAN" | "PENGIRIMAN" | "PELAPORAN" | "PENCAIRAN" | null {
@@ -1057,6 +1062,11 @@ export default function AdminStatusDetailPage() {
             >
               Unggah Ulang
             </button>
+            <ActionButton
+              label="Konfirmasi Surat"
+              onClick={() => handleAction("konfirmasi_surat")}
+              disabled={actionLoading}
+            />
           </div>
         );
 
@@ -1387,7 +1397,7 @@ export default function AdminStatusDetailPage() {
                   {data.proposal_file && (
                     <button
                       type="button"
-                      onClick={() => openPdfPreview(buildUploadUrl(data.proposal_file!), data.proposal_file.split("/").pop() ?? "Proposal")}
+                      onClick={() => openPdfPreview(buildUploadUrl(data.proposal_file), data.proposal_file.split("/").pop() ?? "Proposal")}
                       className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px] hover:bg-[rgba(38,43,67,0.10)]"
                     >
                       <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-[2px] text-[8px] font-bold leading-none text-white">PDF</span>
@@ -1397,7 +1407,7 @@ export default function AdminStatusDetailPage() {
                   {data.sertifikat_nik_file && (
                     <button
                       type="button"
-                      onClick={() => openPdfPreview(buildUploadUrl(data.sertifikat_nik_file!), data.sertifikat_nik_file.split("/").pop() ?? "Sertifikat NIK")}
+                      onClick={() => openPdfPreview(buildUploadUrl(data.sertifikat_nik_file), data.sertifikat_nik_file.split("/").pop() ?? "Sertifikat NIK")}
                       className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px] hover:bg-[rgba(38,43,67,0.10)]"
                     >
                       <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-[2px] text-[8px] font-bold leading-none text-white">PDF</span>
@@ -1682,19 +1692,6 @@ export default function AdminStatusDetailPage() {
                               {step.secondaryDetails.map((detail) => (
                                 <div key={detail} className="inline-flex items-center rounded-[8px] bg-[rgba(38,43,67,0.06)] px-3 py-2 text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">
                                   {detail}
-
-                                                          {step.attachmentLabel && step.attachmentFile && step.attachmentPath && (
-                                                            <div className="mt-4 space-y-2">
-                                                              <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">{step.attachmentLabel}</p>
-                                                              <button
-                                                                type="button"
-                                                                onClick={() => openPdfPreview(buildUploadUrl(step.attachmentPath!), step.attachmentFile!)}
-                                                                className="inline-flex"
-                                                              >
-                                                                <PdfFileChip filename={step.attachmentFile} />
-                                                              </button>
-                                                            </div>
-                                                          )}
                                 </div>
                               ))}
                             </div>

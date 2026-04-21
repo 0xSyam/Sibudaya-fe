@@ -289,7 +289,7 @@ export interface SetujuiPemeriksaanDto {
 }
 
 export interface TolakPemeriksaanDto {
-  catatan: string;
+  catatan_pemeriksaan: string;
 }
 
 export interface SetSurveyDto {
