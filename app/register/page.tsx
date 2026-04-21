@@ -23,7 +23,6 @@ import { registerSchema, type RegisterFormValues } from "@/app/lib/form-schemas"
 import { useToast } from "@/app/lib/toast-context";
 import { useUiFormStore } from "@/app/lib/ui-form-store";
 
-const registerPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 
 export default function RegisterPage() {
   const { showToast } = useToast();
@@ -56,7 +55,7 @@ export default function RegisterPage() {
   const noTelp = watch("noTelp");
   const password = watch("password");
   const confirmPassword = watch("confirmPassword");
-  const isPasswordFormatInvalid = Boolean(password) && !registerPasswordPattern.test(password);
+  const isPasswordFormatInvalid = Boolean(password) && password.length < 8;
   const isPasswordMismatch = Boolean(confirmPassword) && password !== confirmPassword;
 
   useEffect(() => {
@@ -207,7 +206,7 @@ export default function RegisterPage() {
 
           {isPasswordFormatInvalid && (
             <p className="-mt-2 text-[13px] leading-5 text-[#b42318]">
-              Password harus mengandung huruf kecil, huruf besar, angka, dan karakter khusus.
+              Password minimal 8 karakter.
             </p>
           )}
 

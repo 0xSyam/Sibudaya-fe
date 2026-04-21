@@ -16,13 +16,7 @@ export const registerSchema = z
       .trim()
       .min(1, "Nomor telepon wajib diisi")
       .regex(/^\d+$/, "Nomor telepon hanya boleh berisi angka"),
-    password: z
-      .string()
-      .min(8, "Password minimal 8 karakter")
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/,
-        "Password harus mengandung huruf kecil, huruf besar, angka, dan karakter khusus",
-      ),
+    password: z.string().min(8, "Password minimal 8 karakter"),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
