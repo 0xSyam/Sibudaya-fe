@@ -52,13 +52,13 @@ export default function App() {
             />
           </div>
         </div>
-        <div className="mt-16 w-full max-w-140.25 md:mt-47.75">
+        <div className="mx-auto mt-16 w-full max-w-140.25 text-center md:mx-0 md:mt-47.75 md:text-left">
           <h1 className="text-[36px] font-semibold leading-13 text-[rgba(38,43,67,0.9)] sm:text-[46px] sm:leading-17">
             Layanan Fasilitasi
             <br />
             Lembaga Budaya DIY
           </h1>
-          <p className="mt-5 text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)]">
+          <p className="mx-auto mt-5 max-w-70 text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)] sm:max-w-full">
             Sistem pengajuan bantuan kegiatan dan sarana prasarana bagi lembaga budaya di Daerah
             Istimewa Yogyakarta secara terintegrasi dan transparan.
           </p>

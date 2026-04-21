@@ -389,17 +389,22 @@ export default function DashboardPage() {
   }, [showToast]);
 
   const openGuidePreview = async () => {
-    if (!guideFilePath) {
-      showToast("File panduan belum tersedia. Silakan hubungi admin.", "error");
-      return;
-    }
+    try {
+      if (!guideFilePath) {
+        showToast("File panduan belum tersedia. Silakan hubungi admin.", "error");
+        return;
+      }
 
-    const filename = guideFilePath.split("/").pop() ?? "Panduan Pengajuan Fasilitasi.pdf";
-    const previewState = await buildPdfPreviewState(buildProtectedFileUrl(guideFilePath), filename);
-    setPdfPreview((current) => {
-      releasePdfPreview(current);
-      return previewState;
-    });
+      const filename = guideFilePath.split("/").pop() ?? "Panduan Pengajuan Fasilitasi.pdf";
+      const previewState = await buildPdfPreviewState(buildProtectedFileUrl(guideFilePath), filename);
+      setPdfPreview((current) => {
+        releasePdfPreview(current);
+        return previewState;
+      });
+    } catch (error) {
+      console.error("Error opening guide preview:", error);
+      showToast("Gagal membuka panduan. Silakan coba lagi.", "error");
+    }
   };
 
   useEffect(() => {

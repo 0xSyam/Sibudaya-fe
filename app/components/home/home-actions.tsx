@@ -155,7 +155,7 @@ export function HomeActions() {
 
   return (
     <>
-      <div className="mt-5 flex flex-wrap items-center gap-2.5">
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-2.5 md:mt-5 md:justify-start">
         <button
           type="button"
           onClick={() => setIsModalOpen(true)}

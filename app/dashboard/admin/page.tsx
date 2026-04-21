@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { adminPengajuanApi } from "@/app/lib/api";
-import type { AdminDashboardSummary, FilterPengajuanDto, Pengajuan } from "@/app/lib/types";
+import type { FilterPengajuanDto, Pengajuan } from "@/app/lib/types";
 
 type SubmissionStatus = "selesai" | "perlu_tindakan" | "dalam_proses" | "ditolak";
 
@@ -33,9 +33,7 @@ function mapPengajuanToSubmission(p: Pengajuan): Submission {
 
   let status: SubmissionStatus = "dalam_proses";
   if (p.status === "DITOLAK" || hasRejectedStep) status = "ditolak";
-  else if (p.status === "SELESAI" || p.surat_persetujuan?.file_path) status = "selesai";
-  else if (p.jenis_fasilitasi_id === 2 && p.survey_lapangan?.status === "SELESAI") status = "selesai";
-  else if (p.status_pemeriksaan === "SELESAI" || p.status_pemeriksaan === "DISETUJUI") status = "selesai";
+  else if (p.status === "SELESAI") status = "selesai";
   else if (p.status_pemeriksaan === "MENUNGGU") status = "perlu_tindakan";
 
   return {
@@ -637,7 +635,6 @@ function SubmissionStatusTable({ submissions }: { submissions: Submission[] }) {
 
 export default function AdminDashboardPage() {
   const [allSubmissions, setAllSubmissions] = useState<Submission[]>([]);
-  const [dashboardSummary, setDashboardSummary] = useState<AdminDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
@@ -666,14 +663,12 @@ export default function AdminDashboardPage() {
               : "DALAM_PROSES",
     };
 
-    Promise.all([adminPengajuanApi.getAll(filter), adminPengajuanApi.getDashboard(filter)])
-      .then(([listData, dashboardData]) => {
+    adminPengajuanApi.getAll(filter)
+      .then((listData) => {
         setAllSubmissions(listData.map(mapPengajuanToSubmission));
-        setDashboardSummary(dashboardData);
       })
       .catch(() => {
         setAllSubmissions([]);
-        setDashboardSummary(null);
       })
       .finally(() => setLoading(false));
   }, [deferredSearchQuery, endDate, jenisFilter, sortOrder, startDate, statusFilter]);
@@ -709,10 +704,10 @@ export default function AdminDashboardPage() {
     });
   }, [allSubmissions, searchQuery, sortOrder, statusFilter, jenisFilter, startDate, endDate]);
 
-  const totalPengajuan = dashboardSummary?.statistik.total_pengajuan ?? submissions.length;
-  const dalamProses = dashboardSummary?.statistik.dalam_proses ?? submissions.filter((s) => s.status === "dalam_proses").length;
-  const perluTindakan = dashboardSummary?.statistik.perlu_tindakan ?? submissions.filter((s) => s.status === "perlu_tindakan").length;
-  const selesai = dashboardSummary?.statistik.selesai ?? submissions.filter((s) => s.status === "selesai").length;
+  const totalPengajuan = submissions.length;
+  const dalamProses = submissions.filter((s) => s.status === "dalam_proses").length;
+  const perluTindakan = submissions.filter((s) => s.status === "perlu_tindakan").length;
+  const selesai = submissions.filter((s) => s.status === "selesai").length;
 
   return (
     <section className="h-full overflow-y-auto px-4 py-6 sm:px-6">
