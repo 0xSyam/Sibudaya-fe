@@ -69,8 +69,8 @@ const statusStyles: Record<
     className: "bg-[rgba(114,225,40,0.16)] text-[#72e128]",
   },
   dalam_proses: {
-    label: "Dalam Proses",
-    className: "min-w-[101px] bg-[rgba(253,181,40,0.16)] text-[#fdb528]",
+    label: "Perlu Tindakan",
+    className: "min-w-[134px] bg-[rgba(38,198,249,0.16)] text-[#26c6f9]",
   },
   ditolak: {
     label: "Ditolak",
@@ -145,7 +145,7 @@ function OverviewCard({
       ) : (
         <Link
           href={ctaHref}
-          className="mt-4 inline-flex h-[38px] w-fit items-center justify-center rounded-[8px] bg-[#c23513] px-[22px] text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10]"
+          className="mt-4 inline-flex h-[38px] w-full items-center justify-center rounded-lg bg-[#c23513] px-5.5 text-[15px] font-medium leading-5.5 text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] lg:w-fit"
         >
           {ctaLabel}
         </Link>
@@ -282,7 +282,7 @@ function SubmissionStatusTable({ submissions }: { submissions: Submission[] }) {
       </p>
 
       {/* Desktop Table View */}
-      <div className="mt-6 hidden overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)] md:block">
+      <div className="mt-6 hidden overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)] lg:block">
         <div className="overflow-x-auto">
           <div className="min-w-[950px]">
             <SubmissionHeader />
@@ -310,7 +310,7 @@ function SubmissionStatusTable({ submissions }: { submissions: Submission[] }) {
       </div>
 
       {/* Mobile Cards View */}
-      <div className="mt-6 flex flex-col gap-4 md:hidden">
+      <div className="mt-6 flex flex-col gap-4 lg:hidden">
         {submissions.length > 0 ? (
           submissions.map((submission, index) => {
             const status = statusStyles[submission.status];
@@ -424,7 +424,7 @@ export default function DashboardPage() {
   return (
     <section className="h-full overflow-y-auto px-4 py-6 sm:px-6">
       <div className="mx-auto w-full max-w-[950px] pb-10 pt-6 lg:pt-[28px]">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-[33px]">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-8.25">
           <OverviewCard
             title="Panduan Pengajuan Fasilitasi"
             description="Pelajari alur dan ketentuan pengajuan fasilitasi agar proses pengajuan Anda berjalan lancar dan sesuai dengan persyaratan yang berlaku."

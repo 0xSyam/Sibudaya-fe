@@ -115,6 +115,20 @@ function FacilityTypeCard({ facility }: { facility: FacilityType }) {
 }
 
 function FacilityTypesModal({ onClose }: { onClose: () => void }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 1;
+  const totalPages = Math.ceil(facilityTypes.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedFacilities = facilityTypes.slice(startIndex, startIndex + itemsPerPage);
+
+  const handlePrev = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNext = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#8f929b]/80 p-4 backdrop-blur-[2px] sm:p-6">
       <div className="flex w-full max-w-190 flex-col items-start">
@@ -140,10 +154,80 @@ function FacilityTypesModal({ onClose }: { onClose: () => void }) {
           Kembali
         </button>
 
-        <div className="grid w-full shrink-0 grid-cols-1 gap-5 md:grid-cols-2">
-          {facilityTypes.map((facility) => (
+        <div className="grid w-full shrink-0 grid-cols-1 gap-5">
+          {paginatedFacilities.map((facility) => (
             <FacilityTypeCard key={facility.title} facility={facility} />
           ))}
+        </div>
+
+        <div className="mt-4 flex w-full items-center justify-center">
+          <div className="inline-flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handlePrev}
+              disabled={currentPage === 1}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/45 text-[#39416b] backdrop-blur-[1px] transition-colors hover:bg-white/60 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Halaman sebelumnya"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.25"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+
+          {Array.from({ length: totalPages }, (_, index) => {
+            const page = index + 1;
+            const isActive = currentPage === page;
+
+            return (
+              <button
+                key={page}
+                type="button"
+                onClick={() => setCurrentPage(page)}
+                aria-label={`Halaman ${page}`}
+                aria-current={isActive ? "page" : undefined}
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-full text-[20px] font-semibold leading-none transition-colors ${
+                  isActive
+                    ? "bg-[#c23513] text-white shadow-[0_0_0_2px_rgba(35,42,74,0.35)]"
+                    : "bg-white/35 text-[#39416b] hover:bg-white/50 hover:text-[#2f3550]"
+                }`}
+              >
+                {page}
+              </button>
+            );
+          })}
+
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={currentPage === totalPages}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/45 text-[#39416b] backdrop-blur-[1px] transition-colors hover:bg-white/60 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Halaman berikutnya"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.25"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>

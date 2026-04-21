@@ -71,6 +71,17 @@ const statusStyles: Record<
   },
 };
 
+const categoryIcons: Record<Submission["category"], { src: string; alt: string }> = {
+  "Fasilitasi Pentas": {
+    src: "/figma/icon-ticket.svg",
+    alt: "Ikon kategori pentas",
+  },
+  "Fasilitasi Hibah": {
+    src: "/figma/shopping-bag-3-line.png",
+    alt: "Ikon kategori hibah",
+  },
+};
+
 /* ───────── Icons ───────── */
 
 function SearchIcon() {
@@ -543,6 +554,7 @@ function SubmissionHeader() {
 
 function SubmissionRow({ submission, isLast }: { submission: Submission; isLast: boolean }) {
   const status = statusStyles[submission.status];
+  const categoryIcon = categoryIcons[submission.category];
 
   return (
     <div className={`flex h-12.5 ${!isLast ? "border-b border-[rgba(38,43,67,0.12)]" : ""}`}>
@@ -557,11 +569,10 @@ function SubmissionRow({ submission, isLast }: { submission: Submission; isLast:
       <div className="flex min-w-0 flex-1 items-center gap-3 p-5">
         <span className="flex size-7.5 shrink-0 items-center justify-center rounded-full bg-[rgba(194,53,19,0.16)]">
           <Image
-            src="/figma/shopping-bag-3-line.png"
-            alt=""
+            src={categoryIcon.src}
+            alt={categoryIcon.alt}
             width={18}
             height={18}
-            aria-hidden="true"
             className="size-4.5"
           />
         </span>
@@ -602,32 +613,86 @@ function SubmissionRow({ submission, isLast }: { submission: Submission; isLast:
 
 function SubmissionStatusTable({ submissions }: { submissions: Submission[] }) {
   return (
-    <div className="overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)]">
-      <div className="overflow-x-auto">
-        <div className="min-w-237.5">
-          <SubmissionHeader />
+    <>
+      <div className="hidden overflow-hidden rounded-[10px] bg-white shadow-[0_4px_14px_0_rgba(38,43,67,0.16)] lg:block">
+        <div className="overflow-x-auto">
+          <div className="min-w-237.5">
+            <SubmissionHeader />
 
-          {submissions.length > 0 ? (
-            submissions.map((submission, index) => (
-              <SubmissionRow
-                key={`${submission.category}-${submission.status}-${index}`}
-                submission={submission}
-                isLast={index === submissions.length - 1}
-              />
-            ))
-          ) : (
-            <div className="px-5 py-10 text-center">
-              <p className="text-[28px] font-bold leading-10.5 text-[rgba(38,43,67,0.9)]">
-                Belum Ada Pengajuan Fasilitasi
-              </p>
-              <p className="mx-auto mt-4 max-w-140 text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)]">
-                Belum ada permohonan fasilitasi kegiatan pentas atau hibah yang diajukan oleh pemohon.
-              </p>
-            </div>
-          )}
+            {submissions.length > 0 ? (
+              submissions.map((submission, index) => (
+                <SubmissionRow
+                  key={`${submission.category}-${submission.status}-${index}`}
+                  submission={submission}
+                  isLast={index === submissions.length - 1}
+                />
+              ))
+            ) : (
+              <div className="px-5 py-10 text-center">
+                <p className="text-[28px] font-bold leading-10.5 text-[rgba(38,43,67,0.9)]">
+                  Belum Ada Pengajuan Fasilitasi
+                </p>
+                <p className="mx-auto mt-4 max-w-140 text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)]">
+                  Belum ada permohonan fasilitasi kegiatan pentas atau hibah yang diajukan oleh pemohon.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      <div className="flex flex-col gap-4 lg:hidden">
+        {submissions.length > 0 ? (
+          submissions.map((submission, index) => {
+            const status = statusStyles[submission.status];
+            const categoryIcon = categoryIcons[submission.category];
+
+            return (
+              <div
+                key={`${submission.category}-${submission.status}-${index}-mobile`}
+                className="flex flex-col rounded-[10px] bg-white p-3.5 shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]"
+              >
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="flex size-7.5 shrink-0 items-center justify-center rounded-full bg-[rgba(194,53,19,0.16)]">
+                      <Image src={categoryIcon.src} alt={categoryIcon.alt} width={18} height={18} className="size-4.5" />
+                    </span>
+                    <p className="truncate text-[14px] font-medium leading-5 text-[rgba(38,43,67,0.9)]">{submission.category}</p>
+                  </div>
+                  <span
+                    className={`inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full px-2 py-0.5 text-[12px] font-medium leading-5 ${status.className}`}
+                  >
+                    {status.label}
+                  </span>
+                </div>
+
+                <p className="mt-2.5 text-[14px] font-medium leading-5.5 text-[rgba(38,43,67,0.9)]">{submission.activityName}</p>
+
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-[12px] leading-5 text-[rgba(38,43,67,0.7)]">{submission.submittedAt}</p>
+                  <Link
+                    href={submission.actionHref}
+                    className="inline-flex size-8.5 items-center justify-center rounded-full text-[#c23513] transition-colors hover:bg-[rgba(194,53,19,0.12)]"
+                    aria-label={`Lihat detail ${submission.activityName}`}
+                  >
+                    <ArrowUpRightIcon />
+                  </Link>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="rounded-[10px] bg-white px-4 py-8 text-center shadow-[0_2px_6px_0_rgba(38,43,67,0.14)]">
+            <p className="text-[20px] font-bold leading-8 text-[rgba(38,43,67,0.9)]">
+              Belum Ada Pengajuan Fasilitasi
+            </p>
+            <p className="mx-auto mt-3 max-w-140 text-[14px] leading-5.5 text-[rgba(38,43,67,0.7)]">
+              Belum ada permohonan fasilitasi kegiatan pentas atau hibah yang diajukan oleh pemohon.
+            </p>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 

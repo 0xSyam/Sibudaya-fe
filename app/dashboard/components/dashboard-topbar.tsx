@@ -1,12 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/app/lib/auth-context";
 import { notifikasiApi } from "@/app/lib/api";
 import type { Notifikasi } from "@/app/lib/types";
-import { useSidebar } from "./dashboard-sidebar";
 
 function BellIcon() {
   return (
@@ -64,6 +64,39 @@ function InboxIcon() {
   );
 }
 
+function MobileHomeIcon({ active }: { active: boolean }) {
+  const color = active ? "currentColor" : "#c23513";
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 10.5L12 3L21 10.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 9.8V20H18V9.8" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MobileApplyIcon({ active }: { active: boolean }) {
+  const color = active ? "currentColor" : "#c23513";
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 19V5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 11L12 5L18 11" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 19H20" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MobileSettingsIcon({ active }: { active: boolean }) {
+  const color = active ? "currentColor" : "#c23513";
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 8H20" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 16H20" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="9" cy="8" r="2" fill={color} />
+      <circle cx="15" cy="16" r="2" fill={color} />
+    </svg>
+  );
+}
+
 function UserAvatar({
   email,
   firstName,
@@ -87,22 +120,67 @@ function UserAvatar({
 export function DashboardTopbar() {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const { open: openSidebar } = useSidebar();
+  const pathname = usePathname();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<Notifikasi[]>([]);
 
   const fullName = `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim();
   const emailName = user?.email ? user.email.split("@")[0] : "";
   const displayName = fullName || (emailName ? emailName.charAt(0).toUpperCase() + emailName.slice(1) : "User");
+  const isAdminRole = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const homeHref = isAdminRole ? "/dashboard/admin" : "/dashboard";
   const roleLabel =
     user?.role === "SUPER_ADMIN"
       ? "Super Admin"
       : user?.role === "ADMIN"
         ? "Admin"
         : "User";
+
+  const mobileNavItems = isAdminRole
+    ? [
+        {
+          href: "/dashboard/admin",
+          label: "Beranda",
+          isActive: pathname === "/dashboard/admin" || pathname.startsWith("/dashboard/admin/status"),
+          icon: MobileHomeIcon,
+        },
+        {
+          href: "/dashboard/admin/pengaturan-fasilitasi",
+          label: "Pengaturan Fasilitasi",
+          isActive: pathname.startsWith("/dashboard/admin/pengaturan-fasilitasi"),
+          icon: MobileSettingsIcon,
+        },
+        ...(isSuperAdmin
+          ? [
+              {
+                href: "/dashboard/admin/pengaturan-akun",
+                label: "Pengaturan Akun",
+                isActive: pathname.startsWith("/dashboard/admin/pengaturan-akun"),
+                icon: MobileSettingsIcon,
+              },
+            ]
+          : []),
+      ]
+    : [
+        {
+          href: "/dashboard",
+          label: "Beranda",
+          isActive: pathname === "/dashboard" || pathname.startsWith("/dashboard/status"),
+          icon: MobileHomeIcon,
+        },
+        {
+          href: "/dashboard/ajukan-fasilitasi",
+          label: "Ajukan Fasilitasi",
+          isActive: pathname.startsWith("/dashboard/ajukan-fasilitasi"),
+          icon: MobileApplyIcon,
+        },
+      ];
 
   const unreadCount = Array.isArray(notifications)
     ? notifications.filter((n) => !n.status_baca).length
@@ -151,6 +229,9 @@ export function DashboardTopbar() {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setShowMenu(false);
       }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setShowMobileMenu(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -158,21 +239,37 @@ export function DashboardTopbar() {
 
   return (
     <header className="sticky top-0 z-20 h-16 border-b border-[rgba(38,43,67,0.12)] bg-white px-4 sm:px-6">
-      <div className="flex h-full items-center justify-between gap-3">
-        {/* Hamburger menu - mobile only */}
+      <div className="relative flex h-full items-center justify-between gap-3">
+        <div className="flex items-center gap-3 lg:hidden">
+          <Image
+            src="/figma/logo-diy-1.png"
+            alt="Dinas Kebudayaan Daerah Istimewa Yogyakarta"
+            width={149}
+            height={42}
+            priority
+            className="h-9 w-auto object-contain"
+          />
+        </div>
+
         <button
           type="button"
-          onClick={openSidebar}
+          onClick={() => {
+            setShowMobileMenu((current) => !current);
+            setShowNotifications(false);
+            setShowMenu(false);
+          }}
           className="flex size-10 items-center justify-center rounded-lg text-[rgba(38,43,67,0.9)] lg:hidden"
           aria-label="Buka menu"
+          aria-expanded={showMobileMenu}
+          aria-controls="mobile-dashboard-menu"
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <path d="M3 4H21V6H3V4ZM3 11H21V13H3V11ZM3 18H21V20H3V18Z" fill="currentColor" />
           </svg>
         </button>
 
-        <div className="flex flex-1 items-center justify-end gap-3">
-        {/* Notifikasi */}
+        <div className="hidden items-center gap-3 lg:flex">
+          {/* Notifikasi */}
         <div ref={notifRef} className="relative">
           <button
             type="button"
@@ -314,6 +411,68 @@ export function DashboardTopbar() {
         </div>
         </div>
       </div>
+
+      {showMobileMenu ? (
+        <div className="absolute right-0 top-full z-30 mt-2 w-85 max-w-[calc(100vw-2rem)] overflow-hidden rounded-[14px] border border-[rgba(38,43,67,0.12)] bg-[#f9f9fb] shadow-[0_18px_48px_-20px_rgba(22,35,71,0.45)] lg:hidden">
+          <div id="mobile-dashboard-menu" ref={mobileMenuRef} className="flex flex-col">
+            <div className="flex items-center gap-3 border-b border-[rgba(38,43,67,0.12)] bg-white px-4 py-3.5">
+              {user ? (
+                <UserAvatar email={user.email} firstName={user.first_name} lastName={user.last_name} />
+              ) : (
+                <Image
+                  src="/figma/avatar-profile.jpg"
+                  alt="Foto profil"
+                  width={40}
+                  height={40}
+                  className="size-10 rounded-full object-cover"
+                />
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-[32,43,67,0.9)] text-[31,43,67,0.9)] text-[20,43,67,0.9)] text-[17,43,67,0.9)] text-[16,43,67,0.9)] text-[14px] font-semibold leading-5.5 text-[#3c4358]">
+                  {displayName}
+                </p>
+                <p className="text-[31,43,67,0.9)] text-[16,43,67,0.9)] text-[14,43,67,0.9)] text-[13px] leading-5 text-[#8a90a5]">
+                  {roleLabel}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 bg-[#f9f9fb] p-4">
+              {mobileNavItems.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex h-11 items-center justify-center gap-2 rounded-[10px] px-4 text-[32,43,67,0.9)] text-[16,43,67,0.9)] text-[14px] font-medium leading-6 transition-colors ${
+                      item.isActive
+                        ? "bg-[#c23513] text-white"
+                        : "bg-white text-[#c23513] hover:bg-[rgba(194,53,19,0.06)]"
+                    }`}
+                    onClick={() => setShowMobileMenu(false)}
+                  >
+                    <Icon active={item.isActive} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowMobileMenu(false);
+                setShowMenu(false);
+                logout();
+              }}
+              className="border-t border-[rgba(38,43,67,0.12)] bg-white px-4 py-3 text-center text-[14px] font-medium text-[#c23513]"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      ) : null}
     </header>
   );
 }

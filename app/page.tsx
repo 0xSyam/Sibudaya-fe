@@ -21,7 +21,7 @@ export default function App() {
         <div className="absolute left-1/2 top-0 h-full w-full max-w-360 -translate-x-1/2" />
       </div>
 
-      <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-360 flex-col px-6 pb-20 pt-8 md:px-12 lg:px-35.5">
+      <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-360 flex-col px-6 py-8 md:px-12 md:pb-20 lg:px-35.5">
         <div className="mx-auto flex w-fit items-center gap-5">
           <Image
             src="/figma/logo-jogja-istimewa-1.png"
@@ -52,17 +52,19 @@ export default function App() {
             />
           </div>
         </div>
-        <div className="mx-auto mt-16 w-full max-w-140.25 text-center md:mx-0 md:mt-47.75 md:text-left">
-          <h1 className="text-[36px] font-semibold leading-13 text-[rgba(38,43,67,0.9)] sm:text-[46px] sm:leading-17">
-            Layanan Fasilitasi
-            <br />
-            Lembaga Budaya DIY
-          </h1>
-          <p className="mx-auto mt-5 max-w-70 text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)] sm:max-w-full">
-            Sistem pengajuan bantuan kegiatan dan sarana prasarana bagi lembaga budaya di Daerah
-            Istimewa Yogyakarta secara terintegrasi dan transparan.
-          </p>
-          <HomeActions />
+        <div className="flex flex-1 items-center justify-center md:block">
+          <div className="mx-auto w-full max-w-140.25 text-center md:mx-0 md:mt-47.75 md:text-left">
+            <h1 className="text-[36px] font-semibold leading-13 text-[rgba(38,43,67,0.9)] sm:text-[46px] sm:leading-17">
+              Layanan Fasilitasi
+              <br />
+              Lembaga Budaya DIY
+            </h1>
+            <p className="mx-auto mt-5 max-w-70 text-[15px] leading-5.5 text-[rgba(38,43,67,0.7)] sm:max-w-full">
+              Sistem pengajuan bantuan kegiatan dan sarana prasarana bagi lembaga budaya di Daerah
+              Istimewa Yogyakarta secara terintegrasi dan transparan.
+            </p>
+            <HomeActions />
+          </div>
         </div>
       </section>
     </main>
