@@ -8,6 +8,7 @@ import { trim } from "lodash";
 import {
   ArrowLeftIcon,
   AuthCard,
+  AuthFieldError,
   AuthHeading,
   AuthInput,
   AuthLogo,
@@ -37,8 +38,10 @@ export default function ResetPasswordPage() {
     register: requestRegister,
     handleSubmit: handleRequestSubmit,
     watch: watchRequest,
+    formState: { errors: requestErrors },
   } = useForm<RequestResetFormValues>({
     resolver: zodResolver(requestResetSchema),
+    mode: "onChange",
     defaultValues: { email: "" },
   });
 
@@ -47,16 +50,16 @@ export default function ResetPasswordPage() {
     handleSubmit: handleResetSubmit,
     watch: watchReset,
     reset: resetForm,
+    formState: { errors: resetErrors },
   } = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
+    mode: "onChange",
     defaultValues: { newPassword: "", confirmPassword: "" },
   });
 
   const email = watchRequest("email");
   const newPassword = watchReset("newPassword");
   const confirmPassword = watchReset("confirmPassword");
-  const isPasswordFormatInvalid = Boolean(newPassword) && newPassword.length < 8;
-  const isPasswordMismatch = Boolean(confirmPassword) && newPassword !== confirmPassword;
 
   // Shared
   const [, setError] = useState<string | null>(null);
@@ -163,16 +166,18 @@ export default function ResetPasswordPage() {
               descriptionClassName="mx-auto max-w-[320px] text-[16px] font-normal leading-6 text-[rgba(38,43,67,0.7)]"
             />
 
-            <form onSubmit={onRequestReset} className="mt-5 space-y-4">
+            <form onSubmit={onRequestReset} noValidate className="mt-5 space-y-4">
               <AuthInput
                 type="email"
                 placeholder="Email"
                 {...requestRegister("email")}
                 value={email}
+                isError={Boolean(requestErrors.email)}
                 onChange={(e) => requestRegister("email").onChange(e)}
                 autoComplete="email"
                 required
               />
+              <AuthFieldError message={requestErrors.email?.message} />
 
               <AuthPrimaryButton loading={loading}>
                 Kirim Reset Token
@@ -187,36 +192,28 @@ export default function ResetPasswordPage() {
               descriptionClassName="mx-auto max-w-[320px] text-[16px] font-normal leading-6 text-[rgba(38,43,67,0.7)]"
             />
 
-            <form onSubmit={onResetPassword} className="mt-5 space-y-4">
+            <form onSubmit={onResetPassword} noValidate className="mt-5 space-y-4">
               <AuthPasswordInput
                 placeholder="Password baru (min. 8 karakter)"
                 {...resetRegister("newPassword")}
                 value={newPassword}
+                isError={Boolean(resetErrors.newPassword)}
                 onChange={(e) => resetRegister("newPassword").onChange(e)}
                 autoComplete="new-password"
                 required
               />
-
-              {isPasswordFormatInvalid && (
-                <p className="-mt-2 text-[13px] leading-5 text-[#b42318]">
-                  Password minimal 8 karakter.
-                </p>
-              )}
+              <AuthFieldError message={resetErrors.newPassword?.message} />
 
               <AuthPasswordInput
                 placeholder="Konfirmasi password"
                 {...resetRegister("confirmPassword")}
                 value={confirmPassword}
+                isError={Boolean(resetErrors.confirmPassword)}
                 onChange={(e) => resetRegister("confirmPassword").onChange(e)}
                 autoComplete="new-password"
                 required
               />
-
-              {isPasswordMismatch && (
-                <p className="-mt-2 text-[13px] leading-5 text-[#b42318]">
-                  Password dan konfirmasi password tidak cocok.
-                </p>
-              )}
+              <AuthFieldError message={resetErrors.confirmPassword?.message} />
 
               <AuthPrimaryButton loading={loading}>
                 Konfirmasi
@@ -227,7 +224,7 @@ export default function ResetPasswordPage() {
 
         <Link
           href="/login"
-          className="mt-4 flex items-center justify-center gap-[6px] text-[15px] font-normal leading-[22px] text-[#c23513] hover:underline"
+          className="mt-4 flex items-center justify-center gap-1.5 text-[15px] font-normal leading-5.5 text-[#c23513] hover:underline"
         >
           <ArrowLeftIcon />
           <span>Kembali ke login</span>

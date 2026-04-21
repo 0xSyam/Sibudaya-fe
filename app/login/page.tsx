@@ -9,6 +9,7 @@ import { trim } from "lodash";
 import {
   AuthCard,
   AuthDivider,
+  AuthFieldError,
   AuthHeading,
   AuthInput,
   AuthLogo,
@@ -34,8 +35,10 @@ export default function LoginPage() {
     register,
     handleSubmit,
     watch,
+    formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
+    mode: "onChange",
     defaultValues: {
       email: "",
       password: "",
@@ -100,12 +103,13 @@ export default function LoginPage() {
           description="Masuk ke akun terdaftar untuk melanjutkan pengajuan"
         />
 
-        <form onSubmit={onSubmit} className="mt-5 space-y-4">
+        <form onSubmit={onSubmit} noValidate className="mt-5 space-y-4">
           <AuthInput
             type="email"
             placeholder="Email"
             {...register("email")}
             value={emailValue}
+            isError={Boolean(errors.email)}
             onChange={(e) => {
               clearAuthError();
               register("email").onChange(e);
@@ -113,11 +117,13 @@ export default function LoginPage() {
             autoComplete="email"
             required
           />
+          <AuthFieldError message={errors.email?.message} />
 
           <AuthPasswordInput
             placeholder="Password"
             {...register("password")}
             value={passwordValue}
+            isError={Boolean(errors.password)}
             onChange={(e) => {
               clearAuthError();
               register("password").onChange(e);
@@ -125,6 +131,7 @@ export default function LoginPage() {
             autoComplete="current-password"
             required
           />
+          <AuthFieldError message={errors.password?.message} />
 
           <div className="flex items-center justify-between gap-3">
             <label className="flex items-center gap-2 text-[15px] leading-5.5 text-[rgba(38,43,67,0.9)]">

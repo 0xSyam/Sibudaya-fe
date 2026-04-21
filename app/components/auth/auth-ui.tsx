@@ -13,7 +13,7 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
 
 export function AuthCard({ children }: { children: ReactNode }) {
   return (
-    <section className="w-full max-w-[460px] rounded-[10px] bg-white px-6 py-8 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)] sm:px-12 sm:py-12">
+    <section className="w-full max-w-115 rounded-[10px] bg-white px-6 py-8 shadow-[0_4px_14px_0_rgba(38,43,67,0.16)] sm:px-12 sm:py-12">
       {children}
     </section>
   );
@@ -33,7 +33,7 @@ export function AuthRedirectingState({ text = "Mengalihkan..." }: { text?: strin
 
 export function AuthLogo() {
   return (
-    <div className="relative mx-auto h-[42px] w-[185px]">
+    <div className="relative mx-auto h-10.5 w-46.25">
       <Image
         src="/figma/logo-diy-1.png"
         alt="Logo Dinas Kebudayaan DIY"
@@ -55,21 +55,29 @@ type AuthHeadingProps = {
 export function AuthHeading({ title, description, descriptionClassName, titleClassName }: AuthHeadingProps) {
   return (
     <div className="mt-6 text-center">
-      <h1 className={`text-[24px] leading-[38px] text-[rgba(38,43,67,0.9)] ${titleClassName ?? "font-medium"}`}>
+      <h1 className={`text-[24px] leading-9.5 text-[rgba(38,43,67,0.9)] ${titleClassName ?? "font-medium"}`}>
         {title}
       </h1>
-      <p className={descriptionClassName ?? "text-[15px] font-normal leading-[22px] text-[rgba(38,43,67,0.7)]"}>
+      <p className={descriptionClassName ?? "text-[15px] font-normal leading-5.5 text-[rgba(38,43,67,0.7)]"}>
         {description}
       </p>
     </div>
   );
 }
 
-type AuthInputProps = InputHTMLAttributes<HTMLInputElement>;
+type AuthInputProps = InputHTMLAttributes<HTMLInputElement> & {
+  isError?: boolean;
+};
 
 export const AuthInput = forwardRef<HTMLInputElement, AuthInputProps>(
-  function AuthInput({ className, ...props }, ref) {
-    return <input ref={ref} {...props} className={`${authInputBaseClass} ${className ?? ""}`} />;
+  function AuthInput({ className, isError = false, ...props }, ref) {
+    return (
+      <input
+        ref={ref}
+        {...props}
+        className={`${authInputBaseClass} ${isError ? "border-red-500 focus:border-red-500" : ""} ${className ?? ""}`}
+      />
+    );
   }
 );
 
@@ -93,8 +101,9 @@ export const AuthInputWithIcon = forwardRef<HTMLInputElement, AuthInputWithIconP
 /** Password input dengan toggle show/hide */
 export function AuthPasswordInput({
   className,
+  isError = false,
   ...props
-}: Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { isError?: boolean }) {
   const [show, setShow] = useState(false);
 
   return (
@@ -102,7 +111,7 @@ export function AuthPasswordInput({
       <input
         {...props}
         type={show ? "text" : "password"}
-        className={`${authInputBaseClass} pr-10 ${className ?? ""}`}
+        className={`${authInputBaseClass} pr-10 ${isError ? "border-red-500 focus:border-red-500" : ""} ${className ?? ""}`}
       />
       <button
         type="button"
@@ -127,7 +136,7 @@ export function AuthPrimaryButton({ children, type = "submit", className, loadin
       {...props}
       type={type}
       disabled={loading || disabled}
-      className={`h-[38px] w-full rounded-[8px] bg-[#c23513] text-[15px] font-medium leading-[22px] text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-60 disabled:cursor-not-allowed ${className ?? ""}`}
+      className={`h-9.5 w-full rounded-lg bg-[#c23513] text-[15px] font-medium leading-5.5 text-white shadow-[0_2px_6px_0_rgba(38,43,67,0.14)] transition-colors hover:bg-[#a62c10] disabled:opacity-60 disabled:cursor-not-allowed ${className ?? ""}`}
     >
       {loading ? (
         <span className="inline-flex items-center gap-2">
@@ -233,7 +242,7 @@ export function GoogleButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-[38px] w-full items-center justify-center gap-2 rounded-[8px] border border-[rgba(38,43,67,0.22)] bg-white text-[15px] font-medium text-[rgba(38,43,67,0.9)] transition-colors hover:bg-[#f7f7f9] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+      className="flex h-9.5 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[rgba(38,43,67,0.22)] bg-white text-[15px] font-medium text-[rgba(38,43,67,0.9)] transition-colors hover:bg-[#f7f7f9] disabled:cursor-not-allowed disabled:opacity-60"
     >
       <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
         <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4" />
@@ -250,7 +259,7 @@ export function GoogleButton({
 export function AuthErrorAlert({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <div className="rounded-[8px] border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-700">
+    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-700">
       {message}
     </div>
   );
@@ -260,8 +269,14 @@ export function AuthErrorAlert({ message }: { message: string | null }) {
 export function AuthSuccessAlert({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <div className="rounded-[8px] border border-green-200 bg-green-50 px-4 py-3 text-[14px] text-green-700">
+    <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-[14px] text-green-700">
       {message}
     </div>
   );
+}
+
+export function AuthFieldError({ message }: { message?: string }) {
+  if (!message) return null;
+
+  return <p className="pt-1 text-[13px] leading-[13px] text-red-500">{message}</p>;
 }

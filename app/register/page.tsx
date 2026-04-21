@@ -9,6 +9,7 @@ import { trim } from "lodash";
 import {
   AuthCard,
   AuthDivider,
+  AuthFieldError,
   AuthHeading,
   AuthInput,
   AuthLogo,
@@ -35,8 +36,10 @@ export default function RegisterPage() {
     register: registerField,
     handleSubmit,
     watch,
+    formState: { errors },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
+    mode: "onChange",
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -55,8 +58,6 @@ export default function RegisterPage() {
   const noTelp = watch("noTelp");
   const password = watch("password");
   const confirmPassword = watch("confirmPassword");
-  const isPasswordFormatInvalid = Boolean(password) && password.length < 8;
-  const isPasswordMismatch = Boolean(confirmPassword) && password !== confirmPassword;
 
   useEffect(() => {
     return () => clearAuthError();
@@ -123,7 +124,7 @@ export default function RegisterPage() {
           titleClassName="font-semibold"
         />
 
-        <form onSubmit={onSubmit} className="mt-5 space-y-4">
+        <form onSubmit={onSubmit} noValidate className="mt-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <AuthInput
               type="text"
@@ -169,6 +170,7 @@ export default function RegisterPage() {
             placeholder="Email"
             {...registerField("email")}
             value={email}
+            isError={Boolean(errors.email)}
             onChange={(e) => {
               clearAuthError();
               registerField("email").onChange(e);
@@ -176,12 +178,14 @@ export default function RegisterPage() {
             autoComplete="email"
             required
           />
+          <AuthFieldError message={errors.email?.message} />
 
           <AuthInput
             type="tel"
             placeholder="Nomor Telepon"
             {...registerField("noTelp")}
             value={noTelp}
+            isError={Boolean(errors.noTelp)}
             onChange={(e) => {
               clearAuthError();
               registerField("noTelp").onChange(e);
@@ -191,11 +195,13 @@ export default function RegisterPage() {
             pattern="[0-9]+"
             required
           />
+          <AuthFieldError message={errors.noTelp?.message} />
 
           <AuthPasswordInput
             placeholder="Password"
             {...registerField("password")}
             value={password}
+            isError={Boolean(errors.password)}
             onChange={(e) => {
               clearAuthError();
               registerField("password").onChange(e);
@@ -203,17 +209,13 @@ export default function RegisterPage() {
             autoComplete="new-password"
             required
           />
-
-          {isPasswordFormatInvalid && (
-            <p className="-mt-2 text-[13px] leading-5 text-[#b42318]">
-              Password minimal 8 karakter.
-            </p>
-          )}
+          <AuthFieldError message={errors.password?.message} />
 
           <AuthPasswordInput
             placeholder="Konfirmasi password"
             {...registerField("confirmPassword")}
             value={confirmPassword}
+            isError={Boolean(errors.confirmPassword)}
             onChange={(e) => {
               clearAuthError();
               registerField("confirmPassword").onChange(e);
@@ -221,12 +223,7 @@ export default function RegisterPage() {
             autoComplete="new-password"
             required
           />
-
-          {isPasswordMismatch && (
-            <p className="-mt-2 text-[13px] leading-5 text-[#b42318]">
-              Password dan konfirmasi password tidak cocok.
-            </p>
-          )}
+          <AuthFieldError message={errors.confirmPassword?.message} />
 
           <AuthPrimaryButton loading={loading}>Daftar</AuthPrimaryButton>
 

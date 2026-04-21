@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  email: z.string().trim().email("Format email tidak valid"),
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email wajib diisi")
+    .email("Format email tidak valid"),
   password: z.string().min(1, "Password wajib diisi"),
 });
 
@@ -10,14 +14,21 @@ export const registerSchema = z
     firstName: z.string().trim().min(1, "Nama depan wajib diisi"),
     lastName: z.string().trim().min(1, "Nama belakang wajib diisi"),
     address: z.string().trim().min(1, "Alamat wajib diisi"),
-    email: z.string().trim().email("Format email tidak valid"),
+    email: z
+      .string()
+      .trim()
+      .min(1, "Email wajib diisi")
+      .email("Format email tidak valid"),
     noTelp: z
       .string()
       .trim()
       .min(1, "Nomor telepon wajib diisi")
       .regex(/^\d+$/, "Nomor telepon hanya boleh berisi angka"),
-    password: z.string().min(8, "Password minimal 8 karakter"),
-    confirmPassword: z.string(),
+    password: z
+      .string()
+      .min(1, "Password wajib diisi")
+      .min(8, "Password minimal 8 karakter"),
+    confirmPassword: z.string().min(1, "Konfirmasi password wajib diisi"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Password dan konfirmasi password tidak cocok",
@@ -25,13 +36,20 @@ export const registerSchema = z
   });
 
 export const requestResetSchema = z.object({
-  email: z.string().trim().email("Format email tidak valid"),
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email wajib diisi")
+    .email("Format email tidak valid"),
 });
 
 export const resetPasswordSchema = z
   .object({
-    newPassword: z.string().min(8, "Password minimal 8 karakter"),
-    confirmPassword: z.string(),
+    newPassword: z
+      .string()
+      .min(1, "Password wajib diisi")
+      .min(8, "Password minimal 8 karakter"),
+    confirmPassword: z.string().min(1, "Konfirmasi password wajib diisi"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Password dan konfirmasi password tidak cocok",

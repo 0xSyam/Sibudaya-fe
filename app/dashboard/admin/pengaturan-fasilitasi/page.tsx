@@ -5,6 +5,7 @@ import { adminFasilitasiApi, getAccessToken } from "../../../lib/api";
 import type { AdminJenisFasilitasi as ApiFasilitasi } from "../../../lib/types";
 import { useToast } from "@/app/lib/toast-context";
 import { buildProtectedFileUrl } from "@/app/lib/file-url";
+import { SelectField } from "@/app/dashboard/components/forms/fields";
 
 type PdfPreviewState = {
   url: string;
@@ -786,6 +787,8 @@ function KuotaPengajuanDialog({
   title,
   submitLabel,
   initialValue,
+  paketOptions,
+  jenisDisabled = false,
   onSubmit,
 }: {
   open: boolean;
@@ -793,7 +796,9 @@ function KuotaPengajuanDialog({
   title: string;
   submitLabel: string;
   initialValue?: KuotaPengajuan | null;
-  onSubmit: (payload: Omit<KuotaPengajuan, "totalPengajuan">) => void;
+  paketOptions: Array<{ paketId: string; jenis: string }>;
+  jenisDisabled?: boolean;
+  onSubmit: (payload: Pick<KuotaPengajuan, "paketId" | "jenis" | "kuotaPengajuan">) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [jenis, setJenis] = useState(initialValue?.jenis ?? "");
@@ -830,8 +835,13 @@ function KuotaPengajuanDialog({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isValid) return;
+
+    const selectedPaket = paketOptions.find((paket) => paket.jenis === jenis.trim());
+    if (!selectedPaket) return;
+
     onSubmit({
-      jenis: jenis.trim(),
+      paketId: selectedPaket.paketId,
+      jenis: selectedPaket.jenis,
       kuotaPengajuan: kuotaPengajuan.trim(),
     });
     handleClose();
@@ -854,12 +864,13 @@ function KuotaPengajuanDialog({
 
           <div className="flex flex-col gap-4 px-5 pb-5">
             <label className="flex flex-col gap-2">
-              <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis</span>
-              <input
-                type="text"
+              <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis Paket</span>
+              <SelectField
+                placeholder="Pilih paket pengajuan"
+                options={paketOptions.map((paket) => paket.jenis)}
                 value={jenis}
+                disabled={jenisDisabled}
                 onChange={(e) => setJenis(e.target.value)}
-                className="h-11 rounded-lg border border-[rgba(38,43,67,0.18)] px-3 text-[15px] leading-[22px] text-[rgba(38,43,67,0.9)] outline-none transition-colors placeholder:text-[rgba(38,43,67,0.35)] focus:border-[#c23513]"
               />
             </label>
 
@@ -1234,6 +1245,7 @@ type LocalJenisFasilitasiRow = {
 };
 
 type KuotaPengajuan = {
+  paketId: string;
   jenis: string;
   totalPengajuan: string;
   kuotaPengajuan: string;
@@ -1571,6 +1583,7 @@ function PentasTabContent({
   }, []);
 
   const pakets = data?.paket_fasilitasi ?? [];
+  const paketOptions = pakets.map((paket) => ({ paketId: paket.paket_id, jenis: paket.nama_paket }));
 
   const formatRupiah = (v: string | null) => {
     if (!v) return "-";
@@ -1584,6 +1597,7 @@ function PentasTabContent({
   }));
 
   const kuotaItems: KuotaPengajuan[] = pakets.map((p) => ({
+    paketId: p.paket_id,
     jenis: p.nama_paket,
     totalPengajuan: `${p._count.pengajuan}`,
     kuotaPengajuan: `${p.kuota}`,
@@ -1656,24 +1670,18 @@ function PentasTabContent({
     withSave(() => adminFasilitasiApi.deleteKuota(paket.paket_id), "Jenis fasilitasi berhasil dihapus.");
   };
 
-  const handleAddKuota = (payload: Pick<KuotaPengajuan, "jenis" | "kuotaPengajuan">) => {
-    if (isDuplicatePaket(payload.jenis)) {
-      showToast("Paket Fasilitasi sudah ada", "error");
-      return;
-    }
-
+  const handleAddKuota = (payload: Pick<KuotaPengajuan, "paketId" | "jenis" | "kuotaPengajuan">) => {
     withSave(() =>
-      adminFasilitasiApi.createKuota(JENIS_ID, {
-        nama_paket: payload.jenis,
+      adminFasilitasiApi.updateKuota(payload.paketId, {
         kuota: parseInt(payload.kuotaPengajuan) || 0,
       }),
       "Kuota pengajuan berhasil ditambahkan.",
     );
   };
 
-  const handleEditKuota = (payload: Pick<KuotaPengajuan, "jenis" | "kuotaPengajuan">) => {
+  const handleEditKuota = (payload: Pick<KuotaPengajuan, "paketId" | "jenis" | "kuotaPengajuan">) => {
     if (editingKuotaIndex === null) return;
-    const paket = pakets[editingKuotaIndex];
+    const paket = pakets.find((item) => item.paket_id === payload.paketId) ?? pakets[editingKuotaIndex];
     if (!paket) return;
     withSave(() =>
       adminFasilitasiApi.updateKuota(paket.paket_id, {
@@ -1774,6 +1782,7 @@ function PentasTabContent({
         onClose={() => setShowAddKuotaDialog(false)}
         title="Tambah Kuota Pengajuan 2026"
         submitLabel="Tambah Kuota"
+        paketOptions={paketOptions}
         onSubmit={handleAddKuota}
       />
       {editingKuotaIndex !== null && kuotaItems[editingKuotaIndex] ? (
@@ -1783,6 +1792,8 @@ function PentasTabContent({
           title="Edit Kuota Pengajuan 2026"
           submitLabel="Simpan Kuota"
           initialValue={kuotaItems[editingKuotaIndex]}
+          paketOptions={paketOptions}
+          jenisDisabled
           onSubmit={handleEditKuota}
         />
       ) : null}
@@ -1833,6 +1844,7 @@ function SaranaPrasaranaTabContent({
   }, []);
 
   const pakets = data?.paket_fasilitasi ?? [];
+  const paketOptions = pakets.map((paket) => ({ paketId: paket.paket_id, jenis: paket.nama_paket }));
 
   const jenisFasilitasiItems: JenisFasilitasi[] = pakets.map((p) => ({
     jenis: p.nama_paket,
@@ -1840,6 +1852,7 @@ function SaranaPrasaranaTabContent({
   }));
 
   const kuotaItems: KuotaPengajuan[] = pakets.map((p) => ({
+    paketId: p.paket_id,
     jenis: p.nama_paket,
     totalPengajuan: `${p._count.pengajuan}`,
     kuotaPengajuan: `${p.kuota}`,
@@ -1868,15 +1881,9 @@ function SaranaPrasaranaTabContent({
     }
   };
 
-  const handleAddKuota = (payload: Pick<KuotaPengajuan, "jenis" | "kuotaPengajuan">) => {
-    if (isDuplicatePaket(payload.jenis)) {
-      showToast("Paket Fasilitasi sudah ada", "error");
-      return;
-    }
-
+  const handleAddKuota = (payload: Pick<KuotaPengajuan, "paketId" | "jenis" | "kuotaPengajuan">) => {
     withSave(() =>
-      adminFasilitasiApi.createKuota(JENIS_ID, {
-        nama_paket: payload.jenis,
+      adminFasilitasiApi.updateKuota(payload.paketId, {
         kuota: parseInt(payload.kuotaPengajuan) || 0,
       }),
       "Paket sarana prasarana berhasil ditambahkan.",
@@ -1923,19 +1930,13 @@ function SaranaPrasaranaTabContent({
     withSave(() => adminFasilitasiApi.deleteKuota(paket.paket_id), "Jenis fasilitasi hibah berhasil dihapus.");
   };
 
-  const handleEditKuota = (payload: Pick<KuotaPengajuan, "jenis" | "kuotaPengajuan">) => {
+  const handleEditKuota = (payload: Pick<KuotaPengajuan, "paketId" | "jenis" | "kuotaPengajuan">) => {
     if (editingKuotaIndex === null) return;
-    const paket = pakets[editingKuotaIndex];
+    const paket = pakets.find((item) => item.paket_id === payload.paketId) ?? pakets[editingKuotaIndex];
     if (!paket) return;
-
-    if (isDuplicatePaket(payload.jenis, paket.paket_id)) {
-      showToast("Paket Fasilitasi sudah ada", "error");
-      return;
-    }
 
     withSave(() =>
       adminFasilitasiApi.updateKuota(paket.paket_id, {
-        nama_paket: payload.jenis,
         kuota: parseInt(payload.kuotaPengajuan) || 0,
       }),
       "Paket sarana prasarana berhasil diperbarui.",
@@ -2039,6 +2040,7 @@ function SaranaPrasaranaTabContent({
         onClose={() => setShowAddKuotaDialog(false)}
         title="Tambah Paket Sarana Prasarana 2026"
         submitLabel="Tambah Paket"
+        paketOptions={paketOptions}
         onSubmit={handleAddKuota}
       />
       {editingKuotaIndex !== null && kuotaItems[editingKuotaIndex] ? (
@@ -2048,6 +2050,8 @@ function SaranaPrasaranaTabContent({
           title="Edit Paket Sarana Prasarana 2026"
           submitLabel="Simpan Paket"
           initialValue={kuotaItems[editingKuotaIndex]}
+          paketOptions={paketOptions}
+          jenisDisabled
           onSubmit={handleEditKuota}
         />
       ) : null}
@@ -2106,10 +2110,10 @@ export default function PengaturanFasilitasiPage() {
       <div className="mx-auto w-full max-w-237.5 pb-10 pt-6 lg:pt-7">
         {/* Page header */}
         <div className="mb-12">
-          <h1 className="text-[28px] font-bold leading-[42px] text-[rgba(38,43,67,0.9)]">
+          <h1 className="text-[28px] font-bold leading-10.5 text-[rgba(38,43,67,0.9)]">
             Pengaturan Fasilitasi
           </h1>
-          <p className="mt-4 max-w-[631px] text-[13px] leading-5 text-[rgba(38,43,67,0.9)]">
+          <p className="mt-4 max-w-157.75 text-[13px] leading-5 text-[rgba(38,43,67,0.9)]">
             Pantau perkembangan pengajuan fasilitasi pentas dan hibah yang telah diajukan.
           </p>
         </div>
@@ -2124,7 +2128,7 @@ export default function PengaturanFasilitasiPage() {
 
           {/* Right: content area */}
           <div className="flex min-w-0 flex-1 flex-col gap-6 p-5">
-            <h2 className="text-[24px] font-medium leading-[38px] text-[#c23513]">{tabTitle}</h2>
+            <h2 className="text-[24px] font-medium leading-9.5 text-[#c23513]">{tabTitle}</h2>
             {renderTabContent()}
           </div>
         </div>
