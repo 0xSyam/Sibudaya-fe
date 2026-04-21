@@ -126,6 +126,7 @@ export function DashboardTopbar() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuToggleRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<Notifikasi[]>([]);
 
@@ -229,7 +230,12 @@ export function DashboardTopbar() {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setShowMenu(false);
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(e.target as Node) &&
+        mobileMenuToggleRef.current &&
+        !mobileMenuToggleRef.current.contains(e.target as Node)
+      ) {
         setShowMobileMenu(false);
       }
     }
@@ -252,6 +258,7 @@ export function DashboardTopbar() {
         </div>
 
         <button
+          ref={mobileMenuToggleRef}
           type="button"
           onClick={() => {
             setShowMobileMenu((current) => !current);
@@ -268,7 +275,7 @@ export function DashboardTopbar() {
           </svg>
         </button>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="hidden items-center gap-3 lg:ml-auto lg:flex">
           {/* Notifikasi */}
         <div ref={notifRef} className="relative">
           <button
