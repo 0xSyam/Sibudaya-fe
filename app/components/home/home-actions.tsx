@@ -154,13 +154,19 @@ function FacilityTypesModal({ onClose }: { onClose: () => void }) {
           Kembali
         </button>
 
-        <div className="grid w-full shrink-0 grid-cols-1 gap-5">
+        <div className="grid w-full shrink-0 grid-cols-1 gap-5 md:hidden">
           {paginatedFacilities.map((facility) => (
             <FacilityTypeCard key={facility.title} facility={facility} />
           ))}
         </div>
 
-        <div className="mt-4 flex w-full items-center justify-center">
+        <div className="hidden w-full shrink-0 grid-cols-2 gap-5 md:grid">
+          {facilityTypes.map((facility) => (
+            <FacilityTypeCard key={`desktop-${facility.title}`} facility={facility} />
+          ))}
+        </div>
+
+        <div className="mt-4 flex w-full items-center justify-center md:hidden">
           <div className="inline-flex items-center gap-2.5">
             <button
               type="button"
