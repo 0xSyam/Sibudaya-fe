@@ -753,14 +753,7 @@ export default function AdminStatusDetailPage() {
           );
           break;
         case "upload_pencairan":
-          {
-            const parsedTotalDana = Number(pencairanTotalDana);
-            await adminPengajuanApi.uploadBuktiPencairan(
-              data.pengajuan_id,
-              { tanggal_pencairan: pencairanTanggal, total_dana: parsedTotalDana },
-              file,
-            );
-          }
+          await adminPengajuanApi.uploadBuktiPencairan(data.pengajuan_id, file);
           break;
         case "upload_pengiriman":
           await adminPengajuanApi.uploadBuktiPengiriman(
@@ -905,7 +898,7 @@ export default function AdminStatusDetailPage() {
         if (timelineRejectStep.key === "PEMERIKSAAN") {
           await adminPengajuanApi.tolak(
             data.pengajuan_id,
-            { catatan: reason },
+            { catatan_pemeriksaan: reason },
             timelineRejectSuratFile ?? undefined,
           );
         } else if (timelineRejectStep.key === "SURVEY") {
@@ -1394,16 +1387,21 @@ export default function AdminStatusDetailPage() {
                       <span className="text-[15px] font-medium text-[rgba(38,43,67,0.7)]">{data.proposal_file.split("/").pop() ?? "Proposal"}</span>
                     </button>
                   )}
-                  {data.sertifikat_nik_file && (
-                    <button
-                      type="button"
-                      onClick={() => openPdfPreview(buildUploadUrl(data.sertifikat_nik_file!), data.sertifikat_nik_file.split("/").pop() ?? "Sertifikat NIK")}
-                      className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px] hover:bg-[rgba(38,43,67,0.10)]"
-                    >
-                      <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-[2px] text-[8px] font-bold leading-none text-white">PDF</span>
-                      <span className="text-[15px] font-medium text-[rgba(38,43,67,0.7)]">{data.sertifikat_nik_file.split("/").pop() ?? "Sertifikat NIK"}</span>
-                    </button>
-                  )}
+                  {(() => {
+                    const sertifikatNikFile = data.sertifikat_nik_file
+                    if (!sertifikatNikFile) return null
+
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => openPdfPreview(buildUploadUrl(sertifikatNikFile), sertifikatNikFile.split("/").pop() ?? "Sertifikat NIK")}
+                        className="inline-flex items-center gap-[10px] rounded-[8px] bg-[rgba(38,43,67,0.06)] px-[10px] py-[5px] hover:bg-[rgba(38,43,67,0.10)]"
+                      >
+                        <span className="inline-flex h-5 min-w-4 items-center justify-center rounded-[3px] bg-[#d61010] px-[2px] text-[8px] font-bold leading-none text-white">PDF</span>
+                        <span className="text-[15px] font-medium text-[rgba(38,43,67,0.7)]">{sertifikatNikFile.split("/").pop() ?? "Sertifikat NIK"}</span>
+                      </button>
+                    )
+                  })()}
                 </div>
               </section>
             </div>
