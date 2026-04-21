@@ -191,12 +191,7 @@ function buildAdminHibahTimeline(p: Pengajuan): TimelineStep[] {
         : "Pihak Dinas Kebudayaan DIY akan melakukan survey lapangan sesuai lokasi yang diajukan pada tahap sebelumnya.",
     status: surveyStatus,
     scheduledDate: p.survey_lapangan?.tanggal_survey ? formatDate(p.survey_lapangan.tanggal_survey) : undefined,
-    action:
-      surveyStatus === "in_progress" && !p.survey_lapangan
-        ? { type: "set_survey" }
-        : surveyStatus === "in_progress" && p.survey_lapangan && p.survey_lapangan.status !== "SELESAI"
-          ? { type: "selesaikan_survey" }
-          : undefined,
+    action: surveyStatus === "in_progress" ? { type: "set_survey" } : undefined,
   });
 
   const rejectedAtSurvey = p.status === "DITOLAK" && surveyStatus === "rejected";
@@ -528,8 +523,6 @@ export default function AdminStatusDetailPage() {
     name: string;
     action: StepAction["type"];
   } | null>(null);
-  const [pencairanTanggal, setPencairanTanggal] = useState("");
-  const [pencairanTotalDana, setPencairanTotalDana] = useState("");
   const [pencairanFormError, setPencairanFormError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -588,26 +581,20 @@ export default function AdminStatusDetailPage() {
 
   useEffect(() => {
     if (!data) {
-      setPencairanTanggal("");
-      setPencairanTotalDana("");
+      setSurveyDate("");
       setPencairanFormError(null);
       return;
     }
 
-    setPencairanFormError(null);
-    setPencairanTanggal((prev) => {
+    setSurveyDate((prev) => {
       if (prev) return prev;
-      const existingTanggal = data.pencairan_dana?.tanggal_pencairan;
+      const existingTanggal = data.survey_lapangan?.tanggal_survey;
       if (typeof existingTanggal === "string" && existingTanggal.trim()) {
-        return existingTanggal.split("T")[0];
+        return existingTanggal.split("T")[0] ?? "";
       }
-      return new Date().toISOString().split("T")[0];
+      return "";
     });
-    setPencairanTotalDana((prev) => {
-      if (prev) return prev;
-      const existingTotal = data.pencairan_dana?.total_dana ?? data.total_pengajuan_dana;
-      return existingTotal === undefined || existingTotal === null ? "" : String(existingTotal);
-    });
+    setPencairanFormError(null);
   }, [data]);
 
   async function handleAction(actionType: StepAction["type"]) {
@@ -728,21 +715,6 @@ export default function AdminStatusDetailPage() {
     }
 
     if (currentAction === "upload_pencairan") {
-      const parsedTotalDana = Number(pencairanTotalDana);
-      if (!pencairanTotalDana.trim() || !Number.isFinite(parsedTotalDana) || parsedTotalDana <= 0) {
-        setPencairanFormError("Total dana wajib diisi");
-        showToast("Total dana wajib diisi", "error");
-        setPendingFileAction(null);
-        return;
-      }
-
-      if (!pencairanTanggal.trim()) {
-        setPencairanFormError("Tanggal pencairan wajib diisi");
-        showToast("Tanggal pencairan wajib diisi", "error");
-        setPendingFileAction(null);
-        return;
-      }
-
       setPencairanFormError(null);
     }
 
@@ -867,6 +839,38 @@ export default function AdminStatusDetailPage() {
       return;
     }
 
+    if (step.key === "SURVEY" && nextStatus === "completed") {
+      const pendingSurveyDate = surveyDate.trim();
+      const existingSurveyDate = data.survey_lapangan?.tanggal_survey?.split("T")[0] ?? "";
+
+      if (!pendingSurveyDate && !existingSurveyDate) {
+        showToast("Tanggal survey wajib diisi sebelum menyelesaikan survey", "error");
+        return;
+      }
+
+      void (async () => {
+        try {
+          setActionLoading(true);
+
+          if (pendingSurveyDate && pendingSurveyDate !== existingSurveyDate) {
+            await adminPengajuanApi.setSurvey(data.pengajuan_id, {
+              tanggal_survey: pendingSurveyDate,
+            });
+          }
+
+          await adminPengajuanApi.selesaikanSurvey(data.pengajuan_id);
+          setSurveyDate("");
+          await fetchData();
+        } catch (err: unknown) {
+          const msg = getApiErrorMessage(err, "Gagal menyimpan tanggal survey");
+          showToast(msg, "error");
+        } finally {
+          setActionLoading(false);
+        }
+      })();
+      return;
+    }
+
     if (nextStatus === "rejected") {
       setTimelineRejectStep(step);
       setTimelineRejectReason("");
@@ -913,10 +917,20 @@ export default function AdminStatusDetailPage() {
             timelineRejectSuratFile ?? undefined,
           );
         } else if (timelineRejectStep.key === "SURVEY") {
-          await adminPengajuanApi.tolakSurvey(data.pengajuan_id, reason);
+          await adminPengajuanApi.tolakSurvey(data.pengajuan_id, reason, timelineRejectSuratFile ?? undefined);
+        } else if (timelineRejectStep.key === "PELAPORAN") {
+          await adminPengajuanApi.tolakLaporan(
+            data.pengajuan_id,
+            { catatan_admin: reason },
+            timelineRejectSuratFile ?? undefined,
+          );
         } else {
           const apiStep = mapStepKeyToApi(timelineRejectStep.key);
           if (!apiStep) return;
+
+          if (timelineRejectSuratFile) {
+            showToast("Lampiran surat penolakan belum didukung untuk tahap ini. Status tetap ditolak tanpa lampiran.", "error");
+          }
 
           await adminPengajuanApi.updateTimelineStatus(data.pengajuan_id, {
             step: apiStep,
@@ -1026,7 +1040,7 @@ export default function AdminStatusDetailPage() {
               value={surveyDate}
               onChange={(e) => setSurveyDate(e.target.value)}
               className="w-full max-w-[300px] rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[15px] outline-none"
-            />
+            />    
           </div>
         );
 
@@ -1146,34 +1160,6 @@ export default function AdminStatusDetailPage() {
       case "upload_pencairan":
         return (
           <div className="mt-4 space-y-2">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-[13px] text-[rgba(38,43,67,0.7)]">
-                Tanggal pencairan
-                <input
-                  type="date"
-                  value={pencairanTanggal}
-                  onChange={(e) => {
-                    setPencairanTanggal(e.target.value);
-                    setPencairanFormError(null);
-                  }}
-                  className="rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[14px] text-[rgba(38,43,67,0.9)] outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-[13px] text-[rgba(38,43,67,0.7)]">
-                Total dana
-                <input
-                  type="number"
-                  min={1}
-                  value={pencairanTotalDana}
-                  onChange={(e) => {
-                    setPencairanTotalDana(e.target.value);
-                    setPencairanFormError(null);
-                  }}
-                  placeholder="Masukkan total dana"
-                  className="rounded-lg border border-[rgba(38,43,67,0.22)] px-3 py-2 text-[14px] text-[rgba(38,43,67,0.9)] outline-none"
-                />
-              </label>
-            </div>
             {pencairanFormError ? <p className="text-[13px] text-red-500">{pencairanFormError}</p> : null}
             <p className="text-[15px] leading-[22px] text-[rgba(38,43,67,0.7)]">Bukti Pencairan:</p>
             {renderSelectedFileInfo("upload_pencairan")}
@@ -1252,7 +1238,7 @@ export default function AdminStatusDetailPage() {
             />
             {timelineRejectReasonError ? <p className="mt-1 text-[13px] text-red-500">{timelineRejectReasonError}</p> : null}
 
-            {timelineRejectStep.key === "PEMERIKSAAN" ? (
+            {timelineRejectStep ? (
               <div className="mt-3 space-y-2">
                 <label className="block cursor-pointer">
                   <input

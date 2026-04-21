@@ -865,13 +865,21 @@ function KuotaPengajuanDialog({
           <div className="flex flex-col gap-4 px-5 pb-5">
             <label className="flex flex-col gap-2">
               <span className="text-[15px] font-medium leading-[22px] text-[rgba(38,43,67,0.9)]">Jenis Paket</span>
-              <SelectField
-                placeholder="Pilih paket pengajuan"
-                options={paketOptions.map((paket) => paket.jenis)}
-                value={jenis}
-                disabled={jenisDisabled}
-                onChange={(e) => setJenis(e.target.value)}
-              />
+              {jenisDisabled ? (
+                <input
+                  type="text"
+                  value={jenis}
+                  disabled
+                  className="h-11 w-full rounded-[10px] border border-[rgba(38,43,67,0.22)] bg-[rgba(38,43,67,0.06)] px-4 text-[17px] leading-6 text-[rgba(38,43,67,0.7)] outline-none"
+                />
+              ) : (
+                <SelectField
+                  placeholder="Pilih paket pengajuan"
+                  options={paketOptions.map((paket) => paket.jenis)}
+                  value={jenis}
+                  onChange={(e) => setJenis(e.target.value)}
+                />
+              )}
             </label>
 
             <label className="flex flex-col gap-2">
