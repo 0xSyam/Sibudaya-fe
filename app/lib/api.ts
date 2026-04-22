@@ -132,6 +132,24 @@ type ApiFetchOptions = RequestInit & {
   skipAuthRefresh?: boolean;
 };
 
+type ApiErrorPayload = {
+  statusCode?: number;
+  message?: string | string[];
+};
+
+function createApiError(fallbackMessage: string, payload?: ApiErrorPayload): Error & ApiErrorPayload {
+  const normalizedMessage =
+    Array.isArray(payload?.message) ? payload.message.join(", ") : payload?.message;
+  const error = new Error(normalizedMessage || fallbackMessage) as Error & ApiErrorPayload;
+  if (typeof payload?.statusCode === "number") {
+    error.statusCode = payload.statusCode;
+  }
+  if (payload?.message !== undefined) {
+    error.message = Array.isArray(payload.message) ? payload.message.join(", ") : payload.message;
+  }
+  return error;
+}
+
 async function apiFetch<T>(
   endpoint: string,
   options: ApiFetchOptions = {},
@@ -173,13 +191,16 @@ async function apiFetch<T>(
           statusCode: retryRes.status,
           message: retryRes.statusText,
         }));
-        throw err;
+        throw createApiError("Permintaan gagal.", err as ApiErrorPayload);
       }
       return retryRes.json() as Promise<T>;
     } else {
       // Refresh gagal → clear tokens
       clearTokens();
-      throw { statusCode: 401, message: "Sesi telah berakhir. Silakan login kembali." };
+      throw createApiError("Sesi telah berakhir. Silakan login kembali.", {
+        statusCode: 401,
+        message: "Sesi telah berakhir. Silakan login kembali.",
+      });
     }
   }
 
@@ -188,7 +209,7 @@ async function apiFetch<T>(
       statusCode: res.status,
       message: res.statusText,
     }));
-    throw err;
+    throw createApiError("Permintaan gagal.", err as ApiErrorPayload);
   }
 
   return res.json() as Promise<T>;
@@ -258,12 +279,15 @@ async function apiMultipartFetch<T>(
           statusCode: retryRes.status,
           message: retryRes.statusText,
         }));
-        throw err;
+        throw createApiError("Permintaan gagal.", err as ApiErrorPayload);
       }
       return retryRes.json() as Promise<T>;
     } else {
       clearTokens();
-      throw { statusCode: 401, message: "Sesi telah berakhir. Silakan login kembali." };
+      throw createApiError("Sesi telah berakhir. Silakan login kembali.", {
+        statusCode: 401,
+        message: "Sesi telah berakhir. Silakan login kembali.",
+      });
     }
   }
 
@@ -272,7 +296,7 @@ async function apiMultipartFetch<T>(
       statusCode: res.status,
       message: res.statusText,
     }));
-    throw err;
+    throw createApiError("Permintaan gagal.", err as ApiErrorPayload);
   }
 
   return res.json() as Promise<T>;

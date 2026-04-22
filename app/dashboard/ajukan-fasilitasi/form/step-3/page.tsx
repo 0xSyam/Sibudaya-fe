@@ -305,9 +305,7 @@ export default function AjukanFasilitasiFormStep3Page() {
         "";
 
       if (!selectedPaketId) {
-        throw {
-          message: "Jenis paket fasilitasi belum valid. Kembali ke langkah identitas lembaga dan pilih ulang paket.",
-        };
+        throw new Error("Jenis paket fasilitasi belum valid. Kembali ke langkah identitas lembaga dan pilih ulang paket.");
       }
 
       const lembagaPayload = {
@@ -340,16 +338,10 @@ export default function AjukanFasilitasiFormStep3Page() {
 
       if (pendingSertifikatNikFile) {
         if (!trim(get(formData, "nik", ""))) {
-          throw {
-            message:
-              "Nomor NIK belum lengkap. Kembali ke langkah identitas lembaga.",
-          };
+          throw new Error("Nomor NIK belum lengkap. Kembali ke langkah identitas lembaga.");
         }
         if (!get(formData, "nikTanggalTerbit") || !get(formData, "nikTanggalBerlakuSampai")) {
-          throw {
-            message:
-              "Tanggal sertifikat NIK belum lengkap. Kembali ke langkah identitas lembaga.",
-          };
+          throw new Error("Tanggal sertifikat NIK belum lengkap. Kembali ke langkah identitas lembaga.");
         }
 
         await lembagaApi.uploadSertifikatNik(
@@ -361,10 +353,7 @@ export default function AjukanFasilitasiFormStep3Page() {
           pendingSertifikatNikFile,
         );
       } else if (!formData.hasExistingSertifikat) {
-        throw {
-          message:
-            "File sertifikat NIK belum tersedia. Pilih ulang file sertifikat pada langkah identitas lembaga.",
-        };
+        throw new Error("File sertifikat NIK belum tersedia. Pilih ulang file sertifikat pada langkah identitas lembaga.");
       }
 
       localStorage.setItem(
