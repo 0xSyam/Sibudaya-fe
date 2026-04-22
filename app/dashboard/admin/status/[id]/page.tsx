@@ -1648,7 +1648,7 @@ export default function AdminStatusDetailPage() {
                               {step.attachmentPath ? (
                                 <button
                                   type="button"
-                                  onClick={() => openPdfPreview(buildUploadUrl(envstep.attachmentPath!), step.attachmentFile!)}
+                                  onClick={() => openPdfPreview(buildUploadUrl(step.attachmentPath!), step.attachmentFile!)}
                                   className="inline-flex"
                                 >
                                   <PdfFileChip filename={step.attachmentFile} />
