@@ -39,7 +39,7 @@ export interface ForgotPasswordDto {
 
 export interface ResetPasswordDto {
   token: string;
-  new_password: string;
+  newPassword: string;
 }
 
 export interface UpdateMyProfileDto {

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { trim } from "lodash";
@@ -29,10 +30,19 @@ type Step = "request" | "reset";
 
 export default function ResetPasswordPage() {
   const { showToast } = useToast();
-  const [step, setStep] = useState<Step>("request");
+  const searchParams = useSearchParams();
+  const tokenFromQuery = useMemo(() => trim(searchParams.get("token") ?? ""), [searchParams]);
+  const [step, setStep] = useState<Step>(tokenFromQuery ? "reset" : "request");
 
   // Step 1 — request reset token
-  const [resetToken, setResetToken] = useState("");
+  const [resetToken, setResetToken] = useState(tokenFromQuery);
+
+  useEffect(() => {
+    if (tokenFromQuery) {
+      setResetToken(tokenFromQuery);
+      setStep("reset");
+    }
+  }, [tokenFromQuery]);
 
   const {
     register: requestRegister,
@@ -132,7 +142,7 @@ export default function ResetPasswordPage() {
 
       const data = await authApi.resetPassword({
         token: resetToken,
-        new_password: values.newPassword,
+        newPassword: values.newPassword,
       });
       setSuccess(data.message + " Silakan login dengan password baru.");
       showToast(data.message + " Silakan login dengan password baru.", "success");

@@ -38,9 +38,44 @@ import type {
 
 // ─── Base URL ────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
+const DEFAULT_API_BASES = ["http://localhost:3001/api/v1", "http://localhost:3000/api/v1"] as const;
+const API_BASE_CANDIDATES = [
+  ...(process.env.NEXT_PUBLIC_API_URL ? [process.env.NEXT_PUBLIC_API_URL.trim()] : []),
+  ...DEFAULT_API_BASES,
+].filter((value, index, array) => Boolean(value) && array.indexOf(value) === index);
+const API_BASE = API_BASE_CANDIDATES[0];
 const AUTH_USE_API = process.env.NEXT_PUBLIC_AUTH_USE_API ?? "true";
 const LOCAL_AUTH_USER_KEY = "local_auth_user";
+
+async function fetchWithApiFallback(
+  endpoint: string,
+  options: RequestInit,
+): Promise<Response> {
+  let lastError: unknown = null;
+
+  for (let index = 0; index < API_BASE_CANDIDATES.length; index += 1) {
+    const base = API_BASE_CANDIDATES[index];
+
+    try {
+      const response = await fetch(`${base}${endpoint}`, options);
+      const shouldTryNext =
+        index < API_BASE_CANDIDATES.length - 1 &&
+        [404, 502, 503, 504].includes(response.status);
+
+      if (!shouldTryNext) {
+        return response;
+      }
+    } catch (error) {
+      lastError = error;
+
+      if (index === API_BASE_CANDIDATES.length - 1) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError ?? new Error("Tidak bisa menghubungi backend API.");
+}
 
 export function isApiAuthEnabled(): boolean {
   return AUTH_USE_API.toLowerCase() !== "false";
@@ -112,7 +147,7 @@ async function apiFetch<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetchWithApiFallback(endpoint, {
     ...fetchOptions,
     headers,
     credentials: "include",
@@ -128,7 +163,7 @@ async function apiFetch<T>(
       } else {
         delete headers["Authorization"];
       }
-      const retryRes = await fetch(`${API_BASE}${endpoint}`, {
+      const retryRes = await fetchWithApiFallback(endpoint, {
         ...options,
         headers,
         credentials: "include",
@@ -163,7 +198,7 @@ async function tryRefreshToken(): Promise<boolean> {
   const refreshToken = getRefreshToken();
 
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetchWithApiFallback("/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -196,7 +231,7 @@ async function apiMultipartFetch<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetchWithApiFallback(endpoint, {
     method,
     headers,
     body: formData,
@@ -212,7 +247,7 @@ async function apiMultipartFetch<T>(
       } else {
         delete headers["Authorization"];
       }
-      const retryRes = await fetch(`${API_BASE}${endpoint}`, {
+      const retryRes = await fetchWithApiFallback(endpoint, {
         method,
         headers,
         body: formData,
@@ -266,7 +301,7 @@ export const authApi = {
 
   /** Ambil URL redirect Google OAuth */
   getGoogleOAuthUrl(): string {
-    return `${API_BASE}/auth/google`;
+    return "/api/v1/auth/google";
   },
 
   /** Ambil data user yang sedang login */
