@@ -433,13 +433,9 @@ export default function PengaturanAkunPage() {
             <section className="rounded-xl border border-[rgba(38,43,67,0.12)] bg-white p-4 shadow-[0_4px_18px_rgba(38,43,67,0.08)] sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <Image
-                    src={selectedAccount.profileImage || "/figma/avatar-profile.jpg"}
-                    alt={`Foto profil ${selectedAccount.firstName} ${selectedAccount.lastName}`}
-                    width={96}
-                    height={96}
-                    className="size-24 rounded-xl object-cover"
-                  />
+                  <span className="flex size-24 shrink-0 items-center justify-center rounded-xl bg-[#f7d8d0] text-[48px] font-bold text-[#c23513]">
+                    {getInitials(selectedAccount.firstName, selectedAccount.lastName)}
+                  </span>
 
                   <div>
                     <h2 className="text-[24px] font-semibold leading-8 text-[#383f55] sm:text-[30px] sm:leading-10">

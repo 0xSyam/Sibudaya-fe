@@ -1142,18 +1142,6 @@ export default function AdminStatusDetailPage() {
           </div>
         ) : (
           <div className="mt-4 flex flex-wrap gap-2">
-            <ActionButton label="Setujui Laporan" onClick={() => handleAction("setujui_laporan")} disabled={actionLoading} />
-            <ActionButton
-              label="Tolak Laporan"
-              variant="danger"
-              onClick={() => {
-                setTolakMode("laporan");
-                setRejectReasonError(null);
-                setTolakCatatan("");
-                setTolakLaporanSuratFile(null);
-              }}
-              disabled={actionLoading}
-            />
           </div>
         );
 
@@ -1660,7 +1648,7 @@ export default function AdminStatusDetailPage() {
                               {step.attachmentPath ? (
                                 <button
                                   type="button"
-                                  onClick={() => openPdfPreview(buildUploadUrl(step.attachmentPath), step.attachmentFile)}
+                                  onClick={() => openPdfPreview(buildUploadUrl(step.attachmentPath!), step.attachmentFile!)}
                                   className="inline-flex"
                                 >
                                   <PdfFileChip filename={step.attachmentFile} />
